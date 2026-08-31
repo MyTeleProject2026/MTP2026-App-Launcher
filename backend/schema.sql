@@ -28,10 +28,16 @@ CREATE TABLE IF NOT EXISTS user_applications (
   is_favorite TINYINT(1) NOT NULL DEFAULT 0,
   is_pinned TINYINT(1) NOT NULL DEFAULT 0,
   sort_order INT NOT NULL DEFAULT 0,
+  last_opened_at TIMESTAMP NULL DEFAULT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (user_id, application_id),
   INDEX idx_user_apps_order (user_id, is_pinned, is_favorite, sort_order),
+  INDEX idx_user_apps_recent (user_id, last_opened_at),
   CONSTRAINT fk_user_apps_user FOREIGN KEY (user_id) REFERENCES mtp_users(id) ON DELETE CASCADE,
   CONSTRAINT fk_user_apps_app FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Safe upgrade for TiDB/MySQL databases created from an older schema.
+ALTER TABLE user_applications ADD COLUMN IF NOT EXISTS last_opened_at TIMESTAMP NULL DEFAULT NULL;
+ALTER TABLE user_applications ADD INDEX IF NOT EXISTS idx_user_apps_recent (user_id, last_opened_at);
