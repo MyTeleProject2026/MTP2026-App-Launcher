@@ -39,3 +39,7 @@ services:
         sync: false
       - key: VITE_VEXA_ACCOUNT_REDIRECT_URI
         sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
