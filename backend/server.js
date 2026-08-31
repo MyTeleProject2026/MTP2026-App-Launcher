@@ -10,7 +10,7 @@ import mysql from 'mysql2/promise';
 const app = express();
 const port = Number(process.env.PORT || 4000);
 const issuer = (process.env.VEXA_ACCOUNT_ISSUER_URL || process.env.VEXA_ACCOUNT_ISSUER || 'https://api-vexaaccount.onrender.com').replace(/\/$/, '');
-const redirectUri = (process.env.VEXA_ACCOUNT_REDIRECT_URI || process.env.APP_BASE_URL ? `${String(process.env.APP_BASE_URL).replace(/\/$/, '')}/auth/callback` : '').trim();
+const redirectUri = (process.env.VEXA_ACCOUNT_REDIRECT_URI || (process.env.APP_BASE_URL ? `${String(process.env.APP_BASE_URL).replace(/\/$/, '')}/auth/callback` : '')).trim();
 const databaseUrl = process.env.DATABASE_URL || '';
 
 function createDbPool() {
