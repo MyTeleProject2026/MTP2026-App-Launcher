@@ -4,5 +4,5 @@
 ALTER TABLE user_applications
   ADD COLUMN IF NOT EXISTS last_opened_at TIMESTAMP NULL;
 
-CREATE INDEX IF NOT EXISTS idx_user_applications_recent
-  ON user_applications (user_id, last_opened_at);
+ALTER TABLE user_applications
+  ADD INDEX idx_user_applications_recent (user_id, last_opened_at);
