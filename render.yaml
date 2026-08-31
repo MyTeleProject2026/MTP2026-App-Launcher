@@ -33,3 +33,9 @@ services:
     envVars:
       - key: VITE_API_BASE_URL
         sync: false
+      - key: VITE_VEXA_ACCOUNT_ISSUER_URL
+        sync: false
+      - key: VITE_VEXA_ACCOUNT_CLIENT_ID
+        sync: false
+      - key: VITE_VEXA_ACCOUNT_REDIRECT_URI
+        sync: false
