@@ -5,15 +5,32 @@ import crypto from 'node:crypto';
 import dns from 'node:dns/promises';
 import net from 'node:net';
 import { URL } from 'node:url';
-import pg from 'pg';
+import mysql from 'mysql2/promise';
 
-const { Pool } = pg;
 const app = express();
 const port = Number(process.env.PORT || 4000);
 const issuer = (process.env.VEXA_ACCOUNT_ISSUER_URL || process.env.VEXA_ACCOUNT_ISSUER || 'https://api-vexaaccount.onrender.com').replace(/\/$/, '');
 const databaseUrl = process.env.DATABASE_URL || '';
-const pool = databaseUrl ? new Pool({ connectionString: databaseUrl, ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined, max: 10 }) : null;
 
+function createDbPool() {
+  if (!databaseUrl) return null;
+  const parsed = new URL(databaseUrl);
+  const sslEnabled = process.env.TIDB_SSL !== 'false';
+  return mysql.createPool({
+    host: parsed.hostname,
+    port: Number(parsed.port || 4000),
+    user: decodeURIComponent(parsed.username),
+    password: decodeURIComponent(parsed.password),
+    database: decodeURIComponent(parsed.pathname.replace(/^\//, '')),
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    ssl: sslEnabled ? { rejectUnauthorized: process.env.TIDB_SSL_REJECT_UNAUTHORIZED === 'true' } : undefined,
+    timezone: 'Z'
+  });
+}
+
+const pool = createDbPool();
 const allowedOrigins = (process.env.FRONTEND_ORIGIN || '').split(',').map(x => x.trim()).filter(Boolean);
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : true, credentials: true }));
@@ -88,16 +105,16 @@ function subjectUuid(subject) {
 async function ensureUser(subject, profileId) {
   if (!pool) return null;
   const id = subjectUuid(subject);
-  await pool.query(`INSERT INTO mtp_users(id, vexa_account_subject, profile_id) VALUES($1,$2,$3) ON CONFLICT(vexa_account_subject) DO UPDATE SET profile_id=EXCLUDED.profile_id, updated_at=NOW()`, [id, subject, profileId || subject]);
+  await pool.execute(`INSERT INTO mtp_users(id, vexa_account_subject, profile_id) VALUES(?,?,?) ON DUPLICATE KEY UPDATE profile_id=VALUES(profile_id), updated_at=CURRENT_TIMESTAMP`, [id, subject, profileId || subject]);
   return id;
 }
 
 app.get('/api/health', async (_req, res) => {
   let database = false;
-  if (pool) { try { await pool.query('SELECT 1'); database = true; } catch {} }
-  res.json({ ok: true, service: 'MTP2026 App Launcher', database });
+  if (pool) { try { await pool.execute('SELECT 1'); database = true; } catch {} }
+  res.json({ ok: true, service: 'MTP2026 App Launcher', database, databaseType: 'TiDB MySQL' });
 });
-app.get('/api/config', (_req, res) => res.json({ service: 'MTP2026 App Launcher', sso: { issuer, configured: Boolean(process.env.VEXA_ACCOUNT_CLIENT_ID && process.env.VEXA_ACCOUNT_CLIENT_SECRET) }, databaseConfigured: Boolean(pool) }));
+app.get('/api/config', (_req, res) => res.json({ service: 'MTP2026 App Launcher', sso: { issuer, configured: Boolean(process.env.VEXA_ACCOUNT_CLIENT_ID && process.env.VEXA_ACCOUNT_CLIENT_SECRET) }, databaseConfigured: Boolean(pool), databaseType: 'TiDB MySQL' }));
 
 app.post('/api/auth/callback', async (req, res) => {
   try {
@@ -114,10 +131,10 @@ app.post('/api/auth/callback', async (req, res) => {
 });
 
 app.get('/api/apps', auth, async (req, res) => {
-  if (!pool) return res.json([]);
+  if (!pool) return res.status(503).json({ error: 'DATABASE_NOT_CONFIGURED' });
   try {
     const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
-    const { rows } = await pool.query(`SELECT a.id::text AS id,a.canonical_url AS url,a.title,a.description,a.icon_url AS "iconUrl",a.manifest_url AS "manifestUrl",a.theme_color AS "themeColor",a.pwa_supported AS "pwaSupported",ua.category,ua.is_favorite AS favorite,ua.is_pinned AS pinned,ua.sort_order AS "sortOrder" FROM user_applications ua JOIN applications a ON a.id=ua.application_id WHERE ua.user_id=$1 ORDER BY ua.is_pinned DESC,ua.is_favorite DESC,ua.sort_order,a.title`, [uid]);
+    const [rows] = await pool.execute(`SELECT a.id,a.canonical_url AS url,a.title,a.description,a.icon_url AS iconUrl,a.manifest_url AS manifestUrl,a.theme_color AS themeColor,a.pwa_supported AS pwaSupported,ua.category,ua.is_favorite AS favorite,ua.is_pinned AS pinned,ua.sort_order AS sortOrder FROM user_applications ua JOIN applications a ON a.id=ua.application_id WHERE ua.user_id=? ORDER BY ua.is_pinned DESC,ua.is_favorite DESC,ua.sort_order,a.title`, [uid]);
     res.json(rows);
   } catch { res.status(500).json({ error: 'LIBRARY_LOAD_FAILED' }); }
 });
@@ -129,10 +146,12 @@ app.post('/api/apps', auth, async (req, res) => {
     if (!pool) return res.status(503).json({ error: 'DATABASE_NOT_CONFIGURED', preview: { url, ...metadata } });
     const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
     const applicationId = crypto.randomUUID();
-    const insert = await pool.query(`INSERT INTO applications(id,canonical_url,title,description,icon_url,manifest_url,theme_color,pwa_supported,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(canonical_url) DO UPDATE SET title=EXCLUDED.title,icon_url=EXCLUDED.icon_url,manifest_url=EXCLUDED.manifest_url,theme_color=EXCLUDED.theme_color,pwa_supported=EXCLUDED.pwa_supported,metadata=EXCLUDED.metadata,updated_at=NOW() RETURNING id::text AS id`, [applicationId, url, metadata.title, null, metadata.iconUrl, metadata.manifestUrl, metadata.themeColor, metadata.pwaSupported, metadata]);
-    const id = insert.rows[0].id;
-    await pool.query(`INSERT INTO user_applications(user_id,application_id) VALUES($1,$2) ON CONFLICT DO NOTHING`, [uid, id]);
-    res.status(201).json({ id, url, ...metadata, favorite: false, pinned: false });
+    const [insert] = await pool.execute(`INSERT INTO applications(id,canonical_url,title,description,icon_url,manifest_url,theme_color,pwa_supported,metadata) VALUES(?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE title=VALUES(title),icon_url=VALUES(icon_url),manifest_url=VALUES(manifest_url),theme_color=VALUES(theme_color),pwa_supported=VALUES(pwa_supported),metadata=VALUES(metadata),updated_at=CURRENT_TIMESTAMP`, [applicationId, url, metadata.title, null, metadata.iconUrl, metadata.manifestUrl, metadata.themeColor, metadata.pwaSupported ? 1 : 0, JSON.stringify(metadata)]);
+    const id = insert.insertId ? String(insert.insertId) : applicationId;
+    const [existing] = await pool.execute('SELECT id FROM applications WHERE canonical_url=? LIMIT 1', [url]);
+    const realId = existing[0]?.id || id;
+    await pool.execute(`INSERT IGNORE INTO user_applications(user_id,application_id) VALUES(?,?)`, [uid, realId]);
+    res.status(201).json({ id: realId, url, ...metadata, favorite: false, pinned: false });
   } catch (e) {
     const code = errorCode(e);
     res.status(400).json({ error: ['PRIVATE_HOST_BLOCKED','ONLY_HTTPS_URLS_ALLOWED'].includes(code) ? code : 'INVALID_OR_UNAVAILABLE_URL' });
@@ -146,17 +165,17 @@ app.patch('/api/apps/:id', auth, async (req, res) => {
     const allowed = { favorite: 'is_favorite', pinned: 'is_pinned', category: 'category', sortOrder: 'sort_order' };
     const entries = Object.entries(allowed).filter(([key]) => Object.hasOwn(req.body || {}, key));
     if (!entries.length) return res.status(400).json({ error: 'NO_CHANGES' });
-    const values = entries.map(([key]) => key === 'favorite' || key === 'pinned' ? Boolean(req.body[key]) : req.body[key]);
-    const sets = entries.map(([_, column], i) => `${column}=$${i + 1}`);
+    const values = entries.map(([key]) => key === 'favorite' || key === 'pinned' ? (req.body[key] ? 1 : 0) : req.body[key]);
+    const sets = entries.map(([_, column], i) => `${column}=?`);
     values.push(uid, req.params.id);
-    await pool.query(`UPDATE user_applications SET ${sets.join(',')},updated_at=NOW() WHERE user_id=$${values.length - 1} AND application_id=$${values.length}`, values);
+    await pool.execute(`UPDATE user_applications SET ${sets.join(',')},updated_at=CURRENT_TIMESTAMP WHERE user_id=? AND application_id=?`, values);
     res.json({ ok: true });
   } catch { res.status(400).json({ error: 'UPDATE_FAILED' }); }
 });
 
 app.delete('/api/apps/:id', auth, async (req, res) => {
   if (!pool) return res.status(503).json({ error: 'DATABASE_NOT_CONFIGURED' });
-  try { const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub); await pool.query('DELETE FROM user_applications WHERE user_id=$1 AND application_id=$2', [uid, req.params.id]); res.status(204).end(); }
+  try { const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub); await pool.execute('DELETE FROM user_applications WHERE user_id=? AND application_id=?', [uid, req.params.id]); res.status(204).end(); }
   catch { res.status(400).json({ error: 'DELETE_FAILED' }); }
 });
 
