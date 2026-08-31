@@ -3,22 +3,161 @@ import cors from 'cors';
 import helmet from 'helmet';
 import crypto from 'node:crypto';
 import dns from 'node:dns/promises';
-import {URL} from 'node:url';
-import mysql from 'mysql2/promise';
-const app=express(),port=Number(process.env.PORT||4000),issuer=(process.env.VEXA_ACCOUNT_ISSUER_URL||process.env.VEXA_ACCOUNT_ISSUER||'https://api-vexaaccount.onrender.com').replace(/\/$/,'');
-app.use(helmet({contentSecurityPolicy:false}));app.use(cors({origin:process.env.FRONTEND_ORIGIN||true,credentials:true}));app.use(express.json({limit:'256kb'}));
-const pool=process.env.DATABASE_URL?mysql.createPool(process.env.DATABASE_URL):null;
-async function verifyToken(req){const h=req.header('authorization')||'';if(!h.startsWith('Bearer '))throw Error('AUTH_REQUIRED');const r=await fetch(`${issuer}/api/sso/userinfo`,{headers:{Authorization:h},signal:AbortSignal.timeout(7000)});if(!r.ok)throw Error('AUTH_INVALID');const u=await r.json();if(!u.sub)throw Error('AUTH_INVALID');return u}
-async function auth(req,res,next){try{req.vexaUser=await verifyToken(req);next()}catch(e){res.status(401).json({error:e.message==='AUTH_REQUIRED'?'AUTH_REQUIRED':'AUTH_INVALID'})}}
-function normalizeUrl(v){const p=new URL(String(v).trim());if(p.protocol!=='https:')throw Error('ONLY_HTTPS_URLS_ALLOWED');p.username='';p.password='';p.hash='';return p.toString()}
-function privateIp(a){a=a.toLowerCase();return a==='::1'||a==='localhost'||a.startsWith('127.')||a.startsWith('10.')||a.startsWith('192.168.')||a.startsWith('169.254.')||/^172\.(1[6-9]|2\d|3[0-1])\./.test(a)||a.startsWith('0.')||a.startsWith('100.64.')||a.startsWith('fc')||a.startsWith('fd')||a.startsWith('fe80:')}
-async function safeHost(h){if(h==='localhost'||h.endsWith('.local'))throw Error('PRIVATE_HOST_BLOCKED');const r=await dns.lookup(h,{all:true});if(!r.length||r.some(x=>privateIp(x.address)))throw Error('PRIVATE_HOST_BLOCKED')}
-async function metadata(target){const c=new AbortController(),t=setTimeout(()=>c.abort(),7000);try{const p=new URL(target);await safeHost(p.hostname);const r=await fetch(p,{redirect:'manual',signal:c.signal,headers:{'user-agent':'MTP2026-App-Launcher/1.0'}});if(r.status>=300&&r.status<400)return{title:p.hostname,iconUrl:new URL('/favicon.ico',p).toString(),pwaSupported:false};if(!r.ok)throw Error('UPSTREAM_HTTP_ERROR');if(!(r.headers.get('content-type')||'').includes('text/html'))return{title:p.hostname,iconUrl:new URL('/favicon.ico',p).toString(),pwaSupported:false};const h=(await r.text()).slice(0,1000000);const title=h.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.replace(/\s+/g,' ').trim()||p.hostname;const icon=h.match(/<link[^>]+rel=["'][^"']*(?:icon|apple-touch-icon)[^"']*["'][^>]+href=["']([^"']+)["']/i)?.[1];const manifest=h.match(/<link[^>]+rel=["']manifest["'][^>]+href=["']([^"']+)["']/i)?.[1];return{title:title.slice(0,160),iconUrl:icon?new URL(icon,p).toString():new URL('/favicon.ico',p).toString(),manifestUrl:manifest?new URL(manifest,p).toString():null,pwaSupported:Boolean(manifest),themeColor:h.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["']([^"']+)["']/i)?.[1]||null}}finally{clearTimeout(t)}}
-async function user(subject,profile){if(!pool)return null;const id=crypto.createHash('sha256').update(String(subject)).digest('hex').slice(0,32);await pool.execute(`INSERT INTO mtp_users(id,vexa_account_subject,profile_id) VALUES(UUID_TO_BIN(?),?,?) ON DUPLICATE KEY UPDATE profile_id=VALUES(profile_id),updated_at=NOW()`,[id,subject,profile]);return id}
-app.post('/api/auth/callback',async(req,res)=>{try{const {code,redirect_uri,code_verifier}=req.body||{};if(!code||!redirect_uri||!code_verifier)return res.status(400).json({error:'INVALID_CALLBACK'});const body=new URLSearchParams({grant_type:'authorization_code',code,redirect_uri,client_id:process.env.VEXA_ACCOUNT_CLIENT_ID||'',client_secret:process.env.VEXA_ACCOUNT_CLIENT_SECRET||'',code_verifier});const r=await fetch(`${issuer}/api/sso/token`,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body,signal:AbortSignal.timeout(10000)});const token=await r.json();if(!r.ok||!token.access_token)return res.status(401).json({error:'SSO_TOKEN_EXCHANGE_FAILED'});const u=await fetch(`${issuer}/api/sso/userinfo`,{headers:{Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(7000)});if(!u.ok)return res.status(401).json({error:'SSO_USERINFO_FAILED'});res.json({access_token:token.access_token,refresh_token:token.refresh_token,expires_in:token.expires_in,profile:await u.json()})}catch(e){res.status(502).json({error:'SSO_UNAVAILABLE'})}});
-app.get('/api/health',(_q,s)=>s.json({ok:true,service:'MTP2026 App Launcher'}));app.get('/api/config',(_q,s)=>s.json({service:'MTP2026 App Launcher',sso:{issuer,configured:Boolean(process.env.VEXA_ACCOUNT_CLIENT_ID&&process.env.VEXA_ACCOUNT_CLIENT_SECRET)}}));
-app.get('/api/apps',auth,async(req,res)=>{if(!pool)return res.json([]);const uid=await user(req.vexaUser.sub,req.vexaUser.sub);const[r]=await pool.execute(`SELECT BIN_TO_UUID(a.id) id,a.canonical_url url,a.title,a.description,a.icon_url iconUrl,a.manifest_url manifestUrl,a.theme_color themeColor,a.pwa_supported pwaSupported,ua.category,ua.is_favorite favorite,ua.is_pinned pinned,ua.sort_order sortOrder FROM user_applications ua JOIN applications a ON a.id=ua.application_id WHERE ua.user_id=UUID_TO_BIN(?) ORDER BY ua.is_pinned DESC,ua.is_favorite DESC,ua.sort_order,a.title`,[uid]);res.json(r)});
-app.post('/api/apps',auth,async(req,res)=>{try{const url=normalizeUrl(req.body?.url),m=await metadata(url);if(!pool)return res.status(503).json({error:'DATABASE_NOT_CONFIGURED',preview:{url,...m}});const uid=await user(req.vexaUser.sub,req.vexaUser.sub),newId=crypto.randomUUID();await pool.execute(`INSERT INTO applications(id,canonical_url,title,description,icon_url,manifest_url,theme_color,pwa_supported,metadata) VALUES(UUID_TO_BIN(?),?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE title=VALUES(title),icon_url=VALUES(icon_url),manifest_url=VALUES(manifest_url),theme_color=VALUES(theme_color),pwa_supported=VALUES(pwa_supported),metadata=VALUES(metadata),updated_at=NOW()`,[newId,url,m.title,null,m.iconUrl,m.manifestUrl,m.themeColor,m.pwaSupported,JSON.stringify(m)]);const[r]=await pool.execute('SELECT BIN_TO_UUID(id) id FROM applications WHERE canonical_url=?',[url]);await pool.execute('INSERT IGNORE INTO user_applications(user_id,application_id) VALUES(UUID_TO_BIN(?),UUID_TO_BIN(?))',[uid,r[0].id]);res.status(201).json({id:r[0].id,url,...m,favorite:false,pinned:false})}catch(e){res.status(400).json({error:['PRIVATE_HOST_BLOCKED','ONLY_HTTPS_URLS_ALLOWED'].includes(e.message)?e.message:'INVALID_OR_UNAVAILABLE_URL'})}});
-app.patch('/api/apps/:id',auth,async(req,res)=>{if(!pool)return res.status(503).json({error:'DATABASE_NOT_CONFIGURED'});const uid=await user(req.vexaUser.sub,req.vexaUser.sub),fields=[],values=[];for(const[k,c]of Object.entries({favorite:'is_favorite',pinned:'is_pinned',category:'category',sortOrder:'sort_order'}))if(Object.hasOwn(req.body||{},k)){fields.push(`${c}=?`);values.push(k==='favorite'||k==='pinned'?Boolean(req.body[k]):req.body[k])}if(!fields.length)return res.status(400).json({error:'NO_CHANGES'});values.push(uid,req.params.id);await pool.execute(`UPDATE user_applications SET ${fields.join(',')},updated_at=NOW() WHERE user_id=UUID_TO_BIN(?) AND application_id=UUID_TO_BIN(?)`,values);res.json({ok:true})});
-app.delete('/api/apps/:id',auth,async(req,res)=>{if(!pool)return res.status(503).json({error:'DATABASE_NOT_CONFIGURED'});const uid=await user(req.vexaUser.sub,req.vexaUser.sub);await pool.execute('DELETE FROM user_applications WHERE user_id=UUID_TO_BIN(?) AND application_id=UUID_TO_BIN(?)',[uid,req.params.id]);res.status(204).end()});
-app.listen(port,()=>console.log(`MTP2026 App Launcher API listening on ${port}`));
+import net from 'node:net';
+import { URL } from 'node:url';
+import pg from 'pg';
+
+const { Pool } = pg;
+const app = express();
+const port = Number(process.env.PORT || 4000);
+const issuer = (process.env.VEXA_ACCOUNT_ISSUER_URL || process.env.VEXA_ACCOUNT_ISSUER || 'https://api-vexaaccount.onrender.com').replace(/\/$/, '');
+const databaseUrl = process.env.DATABASE_URL || '';
+const pool = databaseUrl ? new Pool({ connectionString: databaseUrl, ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined, max: 10 }) : null;
+
+const allowedOrigins = (process.env.FRONTEND_ORIGIN || '').split(',').map(x => x.trim()).filter(Boolean);
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : true, credentials: true }));
+app.use(express.json({ limit: '256kb' }));
+
+function errorCode(e) { return e instanceof Error ? e.message : 'UNKNOWN_ERROR'; }
+
+async function verifyToken(req) {
+  const authorization = req.header('authorization') || '';
+  if (!authorization.startsWith('Bearer ')) throw new Error('AUTH_REQUIRED');
+  const response = await fetch(`${issuer}/api/sso/userinfo`, { headers: { Authorization: authorization }, signal: AbortSignal.timeout(7000) });
+  if (!response.ok) throw new Error('AUTH_INVALID');
+  const profile = await response.json();
+  if (!profile?.sub) throw new Error('AUTH_INVALID');
+  return profile;
+}
+
+async function auth(req, res, next) {
+  try { req.vexaUser = await verifyToken(req); next(); }
+  catch (e) { res.status(401).json({ error: errorCode(e) === 'AUTH_REQUIRED' ? 'AUTH_REQUIRED' : 'AUTH_INVALID' }); }
+}
+
+function normalizeUrl(value) {
+  const url = new URL(String(value || '').trim());
+  if (url.protocol !== 'https:') throw new Error('ONLY_HTTPS_URLS_ALLOWED');
+  if (!url.hostname || url.username || url.password) throw new Error('INVALID_URL');
+  url.hash = '';
+  return url.toString();
+}
+
+function isPrivateAddress(address) {
+  const normalized = address.toLowerCase();
+  if (normalized === 'localhost' || normalized === '::1' || normalized.endsWith('.local')) return true;
+  if (net.isIPv4(normalized)) return normalized.startsWith('10.') || normalized.startsWith('127.') || normalized.startsWith('169.254.') || normalized.startsWith('192.168.') || /^172\.(1[6-9]|2\d|3[0-1])\./.test(normalized) || normalized.startsWith('0.') || normalized.startsWith('100.64.');
+  if (net.isIPv6(normalized)) return normalized.startsWith('fc') || normalized.startsWith('fd') || normalized.startsWith('fe80:') || normalized.startsWith('::ffff:10.') || normalized.startsWith('::ffff:127.') || normalized.startsWith('::ffff:192.168.');
+  return false;
+}
+
+async function safeHost(hostname) {
+  const host = hostname.toLowerCase().replace(/\.$/, '');
+  if (isPrivateAddress(host)) throw new Error('PRIVATE_HOST_BLOCKED');
+  const records = await dns.lookup(host, { all: true });
+  if (!records.length || records.some(r => isPrivateAddress(r.address))) throw new Error('PRIVATE_HOST_BLOCKED');
+}
+
+function firstMatch(html, regex) { return html.match(regex)?.[1]?.replace(/\s+/g, ' ').trim() || null; }
+
+async function fetchMetadata(target) {
+  const parsed = new URL(target);
+  await safeHost(parsed.hostname);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 7000);
+  try {
+    const response = await fetch(parsed, { redirect: 'manual', signal: controller.signal, headers: { 'user-agent': 'MTP2026-App-Launcher/1.0' } });
+    if (response.status >= 300 && response.status < 400) return { title: parsed.hostname, iconUrl: new URL('/favicon.ico', parsed).toString(), manifestUrl: null, pwaSupported: false, themeColor: null };
+    if (!response.ok) throw new Error('UPSTREAM_HTTP_ERROR');
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('text/html')) return { title: parsed.hostname, iconUrl: new URL('/favicon.ico', parsed).toString(), manifestUrl: null, pwaSupported: false, themeColor: null };
+    const html = (await response.text()).slice(0, 1000000);
+    const title = (firstMatch(html, /<title[^>]*>([\s\S]*?)<\/title>/i) || parsed.hostname).slice(0, 160);
+    const icon = firstMatch(html, /<link[^>]+rel=["'][^"']*(?:icon|apple-touch-icon)[^"']*["'][^>]+href=["']([^"']+)["']/i);
+    const manifest = firstMatch(html, /<link[^>]+rel=["'][^"']*manifest[^"']*["'][^>]+href=["']([^"']+)["']/i);
+    return { title, iconUrl: icon ? new URL(icon, parsed).toString() : new URL('/favicon.ico', parsed).toString(), manifestUrl: manifest ? new URL(manifest, parsed).toString() : null, pwaSupported: Boolean(manifest), themeColor: firstMatch(html, /<meta[^>]+name=["']theme-color["'][^>]+content=["']([^"']+)["']/i) };
+  } finally { clearTimeout(timer); }
+}
+
+function subjectUuid(subject) {
+  const hex = crypto.createHash('sha256').update(String(subject)).digest('hex').slice(0, 32);
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20,32)}`;
+}
+
+async function ensureUser(subject, profileId) {
+  if (!pool) return null;
+  const id = subjectUuid(subject);
+  await pool.query(`INSERT INTO mtp_users(id, vexa_account_subject, profile_id) VALUES($1,$2,$3) ON CONFLICT(vexa_account_subject) DO UPDATE SET profile_id=EXCLUDED.profile_id, updated_at=NOW()`, [id, subject, profileId || subject]);
+  return id;
+}
+
+app.get('/api/health', async (_req, res) => {
+  let database = false;
+  if (pool) { try { await pool.query('SELECT 1'); database = true; } catch {} }
+  res.json({ ok: true, service: 'MTP2026 App Launcher', database });
+});
+app.get('/api/config', (_req, res) => res.json({ service: 'MTP2026 App Launcher', sso: { issuer, configured: Boolean(process.env.VEXA_ACCOUNT_CLIENT_ID && process.env.VEXA_ACCOUNT_CLIENT_SECRET) }, databaseConfigured: Boolean(pool) }));
+
+app.post('/api/auth/callback', async (req, res) => {
+  try {
+    const { code, redirect_uri, code_verifier } = req.body || {};
+    if (!code || !redirect_uri || !code_verifier) return res.status(400).json({ error: 'INVALID_CALLBACK' });
+    const body = new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri, client_id: process.env.VEXA_ACCOUNT_CLIENT_ID || '', client_secret: process.env.VEXA_ACCOUNT_CLIENT_SECRET || '', code_verifier });
+    const tokenResponse = await fetch(`${issuer}/api/sso/token`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body, signal: AbortSignal.timeout(10000) });
+    const token = await tokenResponse.json();
+    if (!tokenResponse.ok || !token.access_token) return res.status(401).json({ error: 'SSO_TOKEN_EXCHANGE_FAILED' });
+    const profileResponse = await fetch(`${issuer}/api/sso/userinfo`, { headers: { Authorization: `Bearer ${token.access_token}` }, signal: AbortSignal.timeout(7000) });
+    if (!profileResponse.ok) return res.status(401).json({ error: 'SSO_USERINFO_FAILED' });
+    res.json({ access_token: token.access_token, refresh_token: token.refresh_token, expires_in: token.expires_in, profile: await profileResponse.json() });
+  } catch { res.status(502).json({ error: 'SSO_UNAVAILABLE' }); }
+});
+
+app.get('/api/apps', auth, async (req, res) => {
+  if (!pool) return res.json([]);
+  try {
+    const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
+    const { rows } = await pool.query(`SELECT a.id::text AS id,a.canonical_url AS url,a.title,a.description,a.icon_url AS "iconUrl",a.manifest_url AS "manifestUrl",a.theme_color AS "themeColor",a.pwa_supported AS "pwaSupported",ua.category,ua.is_favorite AS favorite,ua.is_pinned AS pinned,ua.sort_order AS "sortOrder" FROM user_applications ua JOIN applications a ON a.id=ua.application_id WHERE ua.user_id=$1 ORDER BY ua.is_pinned DESC,ua.is_favorite DESC,ua.sort_order,a.title`, [uid]);
+    res.json(rows);
+  } catch { res.status(500).json({ error: 'LIBRARY_LOAD_FAILED' }); }
+});
+
+app.post('/api/apps', auth, async (req, res) => {
+  try {
+    const url = normalizeUrl(req.body?.url);
+    const metadata = await fetchMetadata(url);
+    if (!pool) return res.status(503).json({ error: 'DATABASE_NOT_CONFIGURED', preview: { url, ...metadata } });
+    const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
+    const applicationId = crypto.randomUUID();
+    const insert = await pool.query(`INSERT INTO applications(id,canonical_url,title,description,icon_url,manifest_url,theme_color,pwa_supported,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(canonical_url) DO UPDATE SET title=EXCLUDED.title,icon_url=EXCLUDED.icon_url,manifest_url=EXCLUDED.manifest_url,theme_color=EXCLUDED.theme_color,pwa_supported=EXCLUDED.pwa_supported,metadata=EXCLUDED.metadata,updated_at=NOW() RETURNING id::text AS id`, [applicationId, url, metadata.title, null, metadata.iconUrl, metadata.manifestUrl, metadata.themeColor, metadata.pwaSupported, metadata]);
+    const id = insert.rows[0].id;
+    await pool.query(`INSERT INTO user_applications(user_id,application_id) VALUES($1,$2) ON CONFLICT DO NOTHING`, [uid, id]);
+    res.status(201).json({ id, url, ...metadata, favorite: false, pinned: false });
+  } catch (e) {
+    const code = errorCode(e);
+    res.status(400).json({ error: ['PRIVATE_HOST_BLOCKED','ONLY_HTTPS_URLS_ALLOWED'].includes(code) ? code : 'INVALID_OR_UNAVAILABLE_URL' });
+  }
+});
+
+app.patch('/api/apps/:id', auth, async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'DATABASE_NOT_CONFIGURED' });
+  try {
+    const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
+    const allowed = { favorite: 'is_favorite', pinned: 'is_pinned', category: 'category', sortOrder: 'sort_order' };
+    const entries = Object.entries(allowed).filter(([key]) => Object.hasOwn(req.body || {}, key));
+    if (!entries.length) return res.status(400).json({ error: 'NO_CHANGES' });
+    const values = entries.map(([key]) => key === 'favorite' || key === 'pinned' ? Boolean(req.body[key]) : req.body[key]);
+    const sets = entries.map(([_, column], i) => `${column}=$${i + 1}`);
+    values.push(uid, req.params.id);
+    await pool.query(`UPDATE user_applications SET ${sets.join(',')},updated_at=NOW() WHERE user_id=$${values.length - 1} AND application_id=$${values.length}`, values);
+    res.json({ ok: true });
+  } catch { res.status(400).json({ error: 'UPDATE_FAILED' }); }
+});
+
+app.delete('/api/apps/:id', auth, async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'DATABASE_NOT_CONFIGURED' });
+  try { const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub); await pool.query('DELETE FROM user_applications WHERE user_id=$1 AND application_id=$2', [uid, req.params.id]); res.status(204).end(); }
+  catch { res.status(400).json({ error: 'DELETE_FAILED' }); }
+});
+
+app.listen(port, () => console.log(`MTP2026 App Launcher API listening on ${port}`));
