@@ -15,7 +15,6 @@ const databaseUrl = process.env.DATABASE_URL || '';
 function createDbPool() {
   if (!databaseUrl) return null;
   const parsed = new URL(databaseUrl);
-  const sslEnabled = process.env.TIDB_SSL !== 'false';
   return mysql.createPool({
     host: parsed.hostname,
     port: Number(parsed.port || 4000),
@@ -25,7 +24,7 @@ function createDbPool() {
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
-    ssl: sslEnabled ? { rejectUnauthorized: process.env.TIDB_SSL_REJECT_UNAUTHORIZED === 'true' } : undefined,
+    ssl: process.env.TIDB_SSL === 'false' ? undefined : { rejectUnauthorized: process.env.TIDB_SSL_REJECT_UNAUTHORIZED === 'true' },
     timezone: 'Z'
   });
 }
@@ -134,7 +133,7 @@ app.get('/api/apps', auth, async (req, res) => {
   if (!pool) return res.status(503).json({ error: 'DATABASE_NOT_CONFIGURED' });
   try {
     const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
-    const [rows] = await pool.execute(`SELECT a.id,a.canonical_url AS url,a.title,a.description,a.icon_url AS iconUrl,a.manifest_url AS manifestUrl,a.theme_color AS themeColor,a.pwa_supported AS pwaSupported,ua.category,ua.is_favorite AS favorite,ua.is_pinned AS pinned,ua.sort_order AS sortOrder FROM user_applications ua JOIN applications a ON a.id=ua.application_id WHERE ua.user_id=? ORDER BY ua.is_pinned DESC,ua.is_favorite DESC,ua.sort_order,a.title`, [uid]);
+    const [rows] = await pool.execute(`SELECT a.id,a.canonical_url AS url,a.title,a.description,a.icon_url AS iconUrl,a.manifest_url AS manifestUrl,a.theme_color AS themeColor,a.pwa_supported AS pwaSupported,ua.category,ua.is_favorite AS favorite,ua.is_pinned AS pinned,ua.sort_order AS sortOrder,ua.last_opened_at AS lastOpenedAt FROM user_applications ua JOIN applications a ON a.id=ua.application_id WHERE ua.user_id=? ORDER BY ua.is_pinned DESC,ua.is_favorite DESC,ua.sort_order,a.title`, [uid]);
     res.json(rows);
   } catch { res.status(500).json({ error: 'LIBRARY_LOAD_FAILED' }); }
 });
@@ -146,16 +145,34 @@ app.post('/api/apps', auth, async (req, res) => {
     if (!pool) return res.status(503).json({ error: 'DATABASE_NOT_CONFIGURED', preview: { url, ...metadata } });
     const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
     const applicationId = crypto.randomUUID();
-    const [insert] = await pool.execute(`INSERT INTO applications(id,canonical_url,title,description,icon_url,manifest_url,theme_color,pwa_supported,metadata) VALUES(?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE title=VALUES(title),icon_url=VALUES(icon_url),manifest_url=VALUES(manifest_url),theme_color=VALUES(theme_color),pwa_supported=VALUES(pwa_supported),metadata=VALUES(metadata),updated_at=CURRENT_TIMESTAMP`, [applicationId, url, metadata.title, null, metadata.iconUrl, metadata.manifestUrl, metadata.themeColor, metadata.pwaSupported ? 1 : 0, JSON.stringify(metadata)]);
-    const id = insert.insertId ? String(insert.insertId) : applicationId;
+    await pool.execute(`INSERT INTO applications(id,canonical_url,title,description,icon_url,manifest_url,theme_color,pwa_supported,metadata) VALUES(?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE title=VALUES(title),icon_url=VALUES(icon_url),manifest_url=VALUES(manifest_url),theme_color=VALUES(theme_color),pwa_supported=VALUES(pwa_supported),metadata=VALUES(metadata),updated_at=CURRENT_TIMESTAMP`, [applicationId, url, metadata.title, null, metadata.iconUrl, metadata.manifestUrl, metadata.themeColor, metadata.pwaSupported ? 1 : 0, JSON.stringify(metadata)]);
     const [existing] = await pool.execute('SELECT id FROM applications WHERE canonical_url=? LIMIT 1', [url]);
-    const realId = existing[0]?.id || id;
+    const realId = existing[0]?.id || applicationId;
     await pool.execute(`INSERT IGNORE INTO user_applications(user_id,application_id) VALUES(?,?)`, [uid, realId]);
     res.status(201).json({ id: realId, url, ...metadata, favorite: false, pinned: false });
   } catch (e) {
     const code = errorCode(e);
     res.status(400).json({ error: ['PRIVATE_HOST_BLOCKED','ONLY_HTTPS_URLS_ALLOWED'].includes(code) ? code : 'INVALID_OR_UNAVAILABLE_URL' });
   }
+});
+
+app.post('/api/apps/:id/open', auth, async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'DATABASE_NOT_CONFIGURED' });
+  try {
+    const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
+    const [result] = await pool.execute(`UPDATE user_applications SET last_opened_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE user_id=? AND application_id=?`, [uid, req.params.id]);
+    if (!result.affectedRows) return res.status(404).json({ error: 'APPLICATION_NOT_FOUND' });
+    res.json({ ok: true, lastOpenedAt: new Date().toISOString() });
+  } catch { res.status(400).json({ error: 'RECENT_ACTIVITY_UPDATE_FAILED' }); }
+});
+
+app.get('/api/apps/recent', auth, async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'DATABASE_NOT_CONFIGURED' });
+  try {
+    const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
+    const [rows] = await pool.execute(`SELECT a.id,a.canonical_url AS url,a.title,a.description,a.icon_url AS iconUrl,a.manifest_url AS manifestUrl,a.theme_color AS themeColor,a.pwa_supported AS pwaSupported,ua.category,ua.is_favorite AS favorite,ua.is_pinned AS pinned,ua.sort_order AS sortOrder,ua.last_opened_at AS lastOpenedAt FROM user_applications ua JOIN applications a ON a.id=ua.application_id WHERE ua.user_id=? AND ua.last_opened_at IS NOT NULL ORDER BY ua.last_opened_at DESC LIMIT 50`, [uid]);
+    res.json(rows);
+  } catch { res.status(500).json({ error: 'RECENT_ACTIVITY_LOAD_FAILED' }); }
 });
 
 app.patch('/api/apps/:id', auth, async (req, res) => {
@@ -166,7 +183,7 @@ app.patch('/api/apps/:id', auth, async (req, res) => {
     const entries = Object.entries(allowed).filter(([key]) => Object.hasOwn(req.body || {}, key));
     if (!entries.length) return res.status(400).json({ error: 'NO_CHANGES' });
     const values = entries.map(([key]) => key === 'favorite' || key === 'pinned' ? (req.body[key] ? 1 : 0) : req.body[key]);
-    const sets = entries.map(([_, column], i) => `${column}=?`);
+    const sets = entries.map(([_, column]) => `${column}=?`);
     values.push(uid, req.params.id);
     await pool.execute(`UPDATE user_applications SET ${sets.join(',')},updated_at=CURRENT_TIMESTAMP WHERE user_id=? AND application_id=?`, values);
     res.json({ ok: true });
