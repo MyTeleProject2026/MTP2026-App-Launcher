@@ -117,8 +117,8 @@ app.get('/api/config', (_req, res) => res.json({ service: 'MTP2026 App Launcher'
 
 app.post('/api/auth/callback', async (req, res) => {
   try {
-    const { code, redirect_uri, code_verifier } = req.body || {};
-    if (!code || !redirect_uri || !code_verifier) return res.status(400).json({ error: 'INVALID_CALLBACK' });
+    const { code, redirect_uri, code_verifier, state } = req.body || {};
+    if (!code || !redirect_uri || !code_verifier || !state) return res.status(400).json({ error: 'INVALID_CALLBACK' });
     const body = new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri, client_id: process.env.VEXA_ACCOUNT_CLIENT_ID || '', client_secret: process.env.VEXA_ACCOUNT_CLIENT_SECRET || '', code_verifier });
     const tokenResponse = await fetch(`${issuer}/api/sso/token`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body, signal: AbortSignal.timeout(10000) });
     const token = await tokenResponse.json();
@@ -129,13 +129,15 @@ app.post('/api/auth/callback', async (req, res) => {
   } catch { res.status(502).json({ error: 'SSO_UNAVAILABLE' }); }
 });
 
+async function getLibrary(req) {
+  const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
+  const [rows] = await pool.execute(`SELECT a.id,a.canonical_url AS url,a.title,a.description,a.icon_url AS iconUrl,a.manifest_url AS manifestUrl,a.theme_color AS themeColor,a.pwa_supported AS pwaSupported,ua.category,ua.is_favorite AS favorite,ua.is_pinned AS pinned,ua.sort_order AS sortOrder,ua.last_opened_at AS lastOpenedAt FROM user_applications ua JOIN applications a ON a.id=ua.application_id WHERE ua.user_id=? ORDER BY ua.is_pinned DESC,ua.is_favorite DESC,ua.sort_order,a.title`, [uid]);
+  return rows;
+}
+
 app.get('/api/apps', auth, async (req, res) => {
   if (!pool) return res.status(503).json({ error: 'DATABASE_NOT_CONFIGURED' });
-  try {
-    const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
-    const [rows] = await pool.execute(`SELECT a.id,a.canonical_url AS url,a.title,a.description,a.icon_url AS iconUrl,a.manifest_url AS manifestUrl,a.theme_color AS themeColor,a.pwa_supported AS pwaSupported,ua.category,ua.is_favorite AS favorite,ua.is_pinned AS pinned,ua.sort_order AS sortOrder,ua.last_opened_at AS lastOpenedAt FROM user_applications ua JOIN applications a ON a.id=ua.application_id WHERE ua.user_id=? ORDER BY ua.is_pinned DESC,ua.is_favorite DESC,ua.sort_order,a.title`, [uid]);
-    res.json(rows);
-  } catch { res.status(500).json({ error: 'LIBRARY_LOAD_FAILED' }); }
+  try { res.json(await getLibrary(req)); } catch { res.status(500).json({ error: 'LIBRARY_LOAD_FAILED' }); }
 });
 
 app.post('/api/apps', auth, async (req, res) => {
@@ -148,7 +150,7 @@ app.post('/api/apps', auth, async (req, res) => {
     await pool.execute(`INSERT INTO applications(id,canonical_url,title,description,icon_url,manifest_url,theme_color,pwa_supported,metadata) VALUES(?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE title=VALUES(title),icon_url=VALUES(icon_url),manifest_url=VALUES(manifest_url),theme_color=VALUES(theme_color),pwa_supported=VALUES(pwa_supported),metadata=VALUES(metadata),updated_at=CURRENT_TIMESTAMP`, [applicationId, url, metadata.title, null, metadata.iconUrl, metadata.manifestUrl, metadata.themeColor, metadata.pwaSupported ? 1 : 0, JSON.stringify(metadata)]);
     const [existing] = await pool.execute('SELECT id FROM applications WHERE canonical_url=? LIMIT 1', [url]);
     const realId = existing[0]?.id || applicationId;
-    await pool.execute(`INSERT IGNORE INTO user_applications(user_id,application_id) VALUES(?,?)`, [uid, realId]);
+    await pool.execute('INSERT IGNORE INTO user_applications(user_id,application_id) VALUES(?,?)', [uid, realId]);
     res.status(201).json({ id: realId, url, ...metadata, favorite: false, pinned: false });
   } catch (e) {
     const code = errorCode(e);
@@ -160,7 +162,7 @@ app.post('/api/apps/:id/open', auth, async (req, res) => {
   if (!pool) return res.status(503).json({ error: 'DATABASE_NOT_CONFIGURED' });
   try {
     const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
-    const [result] = await pool.execute(`UPDATE user_applications SET last_opened_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE user_id=? AND application_id=?`, [uid, req.params.id]);
+    const [result] = await pool.execute('UPDATE user_applications SET last_opened_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE user_id=? AND application_id=?', [uid, req.params.id]);
     if (!result.affectedRows) return res.status(404).json({ error: 'APPLICATION_NOT_FOUND' });
     res.json({ ok: true, lastOpenedAt: new Date().toISOString() });
   } catch { res.status(400).json({ error: 'RECENT_ACTIVITY_UPDATE_FAILED' }); }
