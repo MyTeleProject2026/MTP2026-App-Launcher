@@ -1,0 +1,3 @@
+.recent-card{border-color:rgba(34,211,238,.18)}
+.last-opened{display:flex;align-items:center;gap:5px;margin-top:10px;color:#697187;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.last-opened svg{width:11px;height:11px;flex:0 0 auto;color:#22d3ee}
