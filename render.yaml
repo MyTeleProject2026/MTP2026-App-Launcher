@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: mtp2026-app-launcher-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TIDB_SSL
+        value: "true"
+      - key: TIDB_SSL_REJECT_UNAUTHORIZED
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: VEXA_ACCOUNT_ISSUER_URL
+        sync: false
+      - key: VEXA_ACCOUNT_CLIENT_ID
+        sync: false
+      - key: VEXA_ACCOUNT_CLIENT_SECRET
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+
+  - type: web
+    name: mtp2026-app-launcher-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
