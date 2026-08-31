@@ -9,35 +9,19 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    strategy:
-      matrix:
-        node-version: [20]
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: Install root dependencies
-        run: npm install
-
+          node-version: 20
       - name: Install backend dependencies
-        working-directory: backend
-        run: npm install
-
-      - name: Verify backend syntax
-        working-directory: backend
-        run: node --check server.js
-
+        run: npm install --no-audit --no-fund
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm install
-
+        run: npm install --no-audit --no-fund
+      - name: Check backend syntax
+        run: node --check backend/server.js
       - name: Build frontend
-        working-directory: frontend
-        run: npm run build
+        run: npm run frontend:build
