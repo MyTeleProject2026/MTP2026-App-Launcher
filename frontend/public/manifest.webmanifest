@@ -1,0 +1,10 @@
+{
+  "name": "MTP2026 App Launcher",
+  "short_name": "MTP2026",
+  "description": "MYTELEPROJECT2026 web application launcher",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080c17",
+  "theme_color": "#0b1020",
+  "icons": []
+}
