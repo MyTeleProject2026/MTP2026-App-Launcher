@@ -1,14 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Search, Plus, Star, RefreshCw, Bell, ChevronDown, Menu, X, ExternalLink, CheckCircle2, Globe2, LogIn, LogOut, Settings, UserRound, Clock3, Grid2X2, Sparkles, Download, Trash2 } from 'lucide-react';
+import { Search, Plus, Star, RefreshCw, Bell, ChevronDown, Menu, X, ExternalLink, CheckCircle2, Globe2, LogIn, LogOut, Settings, Clock3, Grid2X2, Sparkles, Download, Trash2 } from 'lucide-react';
 import './styles.css';
 import { API, startVexaLogin, finishVexaLogin, accessToken, signOut } from './auth';
 
-const RECENT_KEY = 'mtp2026_recent_apps';
 function storedProfile() { try { return JSON.parse(localStorage.getItem('mtp_profile') || 'null'); } catch { return null; } }
 function initials(profile) { const name = profile?.name || profile?.email || 'Vexa Creator'; return name.split(/\s+/).map(x => x[0]).join('').slice(0, 2).toUpperCase(); }
-function getRecent() { try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch { return []; } }
-function rememberRecent(id) { const next = [id, ...getRecent().filter(x => x !== id)].slice(0, 20); localStorage.setItem(RECENT_KEY, JSON.stringify(next)); }
 
 function App() {
   const [apps, setApps] = useState([]);
@@ -24,18 +21,26 @@ function App() {
   const [logged, setLogged] = useState(Boolean(accessToken()));
   const [view, setView] = useState('launcher');
   const [filter, setFilter] = useState('all');
+  const [recentApps, setRecentApps] = useState([]);
   const [installPrompt, setInstallPrompt] = useState(null);
 
   const headers = () => { const t = accessToken(); return t ? { Authorization: `Bearer ${t}` } : {}; };
+
   const load = async (silent = false) => {
-    if (!accessToken()) { setApps([]); return; }
+    if (!accessToken()) { setApps([]); setRecentApps([]); return; }
     if (!silent) setSyncing(true);
     try {
-      const r = await fetch(`${API}/apps`, { headers: headers() });
-      if (r.status === 401) { logout(); throw new Error('Your VexaAccount session has expired.'); }
-      if (!r.ok) throw new Error('Unable to load your application library.');
-      setApps(await r.json()); setError('');
-    } catch (e) { setError(e.message); } finally { setSyncing(false); }
+      const [libraryResponse, recentResponse] = await Promise.all([
+        fetch(`${API}/apps`, { headers: headers() }),
+        fetch(`${API}/apps/recent`, { headers: headers() })
+      ]);
+      if (libraryResponse.status === 401 || recentResponse.status === 401) { logout(); throw new Error('Your VexaAccount session has expired.'); }
+      if (!libraryResponse.ok) throw new Error('Unable to load your application library.');
+      setApps(await libraryResponse.json());
+      if (recentResponse.ok) setRecentApps(await recentResponse.json());
+      setError('');
+    } catch (e) { setError(e.message); }
+    finally { setSyncing(false); }
   };
 
   useEffect(() => {
@@ -45,42 +50,73 @@ function App() {
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
+  useEffect(() => { if (logged && view === 'recent') load(true); }, [logged, view]);
+
   async function login() { setError(''); try { await startVexaLogin(); } catch (e) { setError(e.message); } }
-  function logout() { signOut(); setLogged(false); setProfile(null); setApps([]); setMenu(false); }
+  function logout() { signOut(); setLogged(false); setProfile(null); setApps([]); setRecentApps([]); setMenu(false); }
+
   async function add() {
-    let parsed; try { parsed = new URL(url.trim()); } catch { setError('Please enter a valid HTTPS URL.'); return; }
+    let parsed;
+    try { parsed = new URL(url.trim()); } catch { setError('Please enter a valid HTTPS URL.'); return; }
     if (parsed.protocol !== 'https:') { setError('Only HTTPS application URLs are accepted.'); return; }
     setError(''); setLoading(true);
     try {
       const r = await fetch(`${API}/apps`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify({ url: parsed.toString() }) });
-      const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Could not create application.');
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Could not create application.');
       setUrl(''); setShowAdd(false); await load(true);
     } catch (e) { setError(e.message); } finally { setLoading(false); }
   }
+
   async function patch(id, key, value) {
-    try { const r = await fetch(`${API}/apps/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify({ [key]: value }) }); if (r.status === 401) return logout(); if (!r.ok) throw new Error('Could not update application.'); await load(true); } catch (e) { setError(e.message); }
+    try {
+      const r = await fetch(`${API}/apps/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify({ [key]: value }) });
+      if (r.status === 401) return logout();
+      if (!r.ok) throw new Error('Could not update application.');
+      await load(true);
+    } catch (e) { setError(e.message); }
   }
+
   async function remove(id) {
-    try { const r = await fetch(`${API}/apps/${id}`, { method: 'DELETE', headers: headers() }); if (r.status === 401) return logout(); if (!r.ok) throw new Error('Could not remove application.'); await load(true); } catch (e) { setError(e.message); }
+    try {
+      const r = await fetch(`${API}/apps/${id}`, { method: 'DELETE', headers: headers() });
+      if (r.status === 401) return logout();
+      if (!r.ok) throw new Error('Could not remove application.');
+      await load(true);
+    } catch (e) { setError(e.message); }
   }
+
+  async function openApp(app) {
+    try {
+      const r = await fetch(`${API}/apps/${app.id}/open`, { method: 'POST', headers: headers() });
+      if (r.status === 401) return logout();
+      if (!r.ok) throw new Error('Could not record recent activity.');
+      setRecentApps(prev => [app, ...prev.filter(x => x.id !== app.id)]);
+      setApps(prev => prev.map(x => x.id === app.id ? { ...x, lastOpenedAt: new Date().toISOString() } : x));
+      window.open(app.url, '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      setError(e.message);
+      window.open(app.url, '_blank', 'noopener,noreferrer');
+    }
+  }
+
   async function install() { if (!installPrompt) return; await installPrompt.prompt(); setInstallPrompt(null); }
 
   const filtered = useMemo(() => {
-    let list = apps;
+    let list = view === 'recent' ? recentApps : apps;
     if (view === 'favorites') list = list.filter(a => a.favorite);
-    if (view === 'recent') { const order = getRecent(); list = [...list].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id)); list = list.filter(a => order.includes(a.id)); }
     if (filter === 'favorite') list = list.filter(a => a.favorite);
     if (filter === 'pwa') list = list.filter(a => a.pwaSupported);
     if (filter === 'web') list = list.filter(a => !a.pwaSupported);
     const q = query.trim().toLowerCase();
     return list.filter(a => `${a.title} ${a.url} ${a.description || ''} ${a.category || ''}`.toLowerCase().includes(q));
-  }, [apps, query, view, filter]);
+  }, [apps, recentApps, query, view, filter]);
 
   const name = profile?.name || profile?.email || 'Vexa Creator';
   const validPreview = (() => { try { const p = new URL(url); return p.protocol === 'https:' ? p : null; } catch { return null; } })();
+  const recentIds = new Set(recentApps.map(a => a.id));
 
-  function openApp(app) { rememberRecent(app.id); window.open(app.url, '_blank', 'noopener,noreferrer'); }
-  function nav(next) { setView(next); setSidebar(false); if (next !== 'launcher') setFilter('all'); }
+  function nav(next) { setView(next); setSidebar(false); setQuery(''); setFilter('all'); if (next === 'recent' && logged) load(true); }
 
   return <div className="app-shell">
     <div className={`mobile-overlay ${sidebar ? 'show' : ''}`} onClick={() => setSidebar(false)} />
@@ -109,16 +145,20 @@ function App() {
 
       <section className="hero"><div><div className="eyebrow">VexaAccount · Cloud Workspace</div><h1>Your <span>digital universe.</span></h1><p>One elegant home for every application you use. Your MTP2026 library follows your VexaAccount across phone, tablet, laptop and desktop.</p></div><div className="hero-orbit"><div className="ring"/><div className="ring r2"/><div className="orb"/></div></section>
 
-      <div className="apps-header"><div><div className="section-title">{view === 'favorites' ? 'Favorite Applications' : view === 'recent' ? 'Recently Opened' : 'My Applications'} <small>{apps.length} {apps.length === 1 ? 'app' : 'apps'}</small></div><p>Your personal cloud-synchronized application library</p></div><button className="primary-add" onClick={() => { setError(''); setShowAdd(true); }} disabled={!logged}><span>＋</span> Add Application</button></div>
+      <div className="apps-header"><div><div className="section-title">{view === 'favorites' ? 'Favorite Applications' : view === 'recent' ? 'Recently Opened' : 'My Applications'} <small>{view === 'recent' ? recentApps.length : apps.length} {(view === 'recent' ? recentApps.length : apps.length) === 1 ? 'app' : 'apps'}</small></div><p>Your personal cloud-synchronized application library</p></div><button className="primary-add" onClick={() => { setError(''); setShowAdd(true); }} disabled={!logged}><span>＋</span> Add Application</button></div>
       {!logged && <div className="login-banner"><div><Sparkles/><div><b>Connect your VexaAccount</b><span>Sign in to synchronize your application library across devices.</span></div></div><button onClick={login}><LogIn/> Sign in</button></div>}
       {error && <div className="error"><X/> <span>{error}</span><button onClick={() => setError('')}>×</button></div>}
 
       <div className="control-row"><div className="filters">{[['all','All'],['favorite','Favorites'],['pwa','PWA Ready'],['web','Web Apps']].map(([id,label]) => <button key={id} className={`filter ${filter === id ? 'active' : ''}`} onClick={() => setFilter(id)}>{label}</button>)}</div></div>
-      <section className="grid">{filtered.map((a, i) => <article className="card" key={a.id} style={{ animationDelay: `${i * 35}ms` }} onClick={() => openApp(a)}>
-        <div className="card-top"><div className="app-icon">{a.iconUrl ? <img src={a.iconUrl} alt="" onError={e => { e.currentTarget.style.display = 'none'; }} /> : <Globe2/>}</div><button className={`fav ${a.favorite ? 'on' : ''}`} onClick={e => { e.stopPropagation(); patch(a.id, 'favorite', !a.favorite); }}>{a.favorite ? '★' : '☆'}</button></div>
-        <h3>{a.title}</h3><div className="domain">{new URL(a.url).hostname}</div><p className="desc">{a.description || 'Web application in your MTP2026 library.'}</p>
-        <div className="card-bottom">{a.pwaSupported ? <span className="pwa"><CheckCircle2/> PWA Ready</span> : <span className="web">Web App</span>}<div className="card-actions"><button onClick={e => { e.stopPropagation(); patch(a.id, 'favorite', !a.favorite); }} className={a.favorite ? 'active' : ''}><Star/></button><button onClick={e => { e.stopPropagation(); remove(a.id); }}><Trash2/></button><button className="launch" onClick={e => { e.stopPropagation(); openApp(a); }}>Open <ExternalLink/></button></div></div>
-      </article>)}{!filtered.length && <div className="empty-state"><div className="empty-icon">◌</div><h3>{logged ? (view === 'recent' ? 'Nothing opened recently' : 'No applications found') : 'Sign in to open your library'}</h3><p>{logged ? 'Try another filter or add a new application.' : 'Your MTP2026 applications will appear here after VexaAccount SSO.'}</p>{logged && <button className="primary-add" onClick={() => setShowAdd(true)}>＋ Add Application</button>}</div>}</section>
+      <section className="grid">
+        {filtered.map((a, i) => <article className={`card ${recentIds.has(a.id) ? 'recent-card' : ''}`} key={a.id} style={{ animationDelay: `${i * 35}ms` }} onClick={() => openApp(a)}>
+          <div className="card-top"><div className="app-icon">{a.iconUrl ? <img src={a.iconUrl} alt="" onError={e => { e.currentTarget.style.display = 'none'; }}/>: <Globe2/>}</div><button className={`fav ${a.favorite ? 'on' : ''}`} onClick={e => { e.stopPropagation(); patch(a.id, 'favorite', !a.favorite); }}>{a.favorite ? '★' : '☆'}</button></div>
+          <h3>{a.title}</h3><div className="domain">{(() => { try { return new URL(a.url).hostname; } catch { return a.url; } })()}</div><p className="desc">{a.description || 'Web application in your MTP2026 library.'}</p>
+          <div className="card-bottom">{a.pwaSupported ? <span className="pwa"><CheckCircle2/> PWA Ready</span> : <span className="web">Web App</span>}<div className="card-actions"><button onClick={e => { e.stopPropagation(); patch(a.id, 'favorite', !a.favorite); }} className={a.favorite ? 'active' : ''}><Star/></button><button onClick={e => { e.stopPropagation(); remove(a.id); }}><Trash2/></button><button className="launch" onClick={e => { e.stopPropagation(); openApp(a); }}>Open <ExternalLink/></button></div></div>
+          {a.lastOpenedAt && <div className="last-opened"><Clock3/> {new Date(a.lastOpenedAt).toLocaleString()}</div>}
+        </article>)}
+        {!filtered.length && <div className="empty-state"><div className="empty-icon">◌</div><h3>{logged ? (view === 'recent' ? 'Nothing opened recently' : 'No applications found') : 'Sign in to open your library'}</h3><p>{logged ? 'Try another filter or add a new application.' : 'Your MTP2026 applications will appear here after VexaAccount SSO.'}</p>{logged && view !== 'recent' && <button className="primary-add" onClick={() => setShowAdd(true)}>＋ Add Application</button>}</div>}
+      </section>
 
       <section className="stats"><div className="stat"><small>Applications</small><b>{apps.length}</b></div><div className="stat"><small>PWA Ready</small><b>{apps.filter(a => a.pwaSupported).length}<em>●</em></b></div><div className="stat"><small>Favorites</small><b>{apps.filter(a => a.favorite).length}</b></div><div className="stat"><small>Sync Status</small><b className="status-value">Cloud <em>● Online</em></b></div></section>
       <footer>MTP2026 App Launcher · Connected through VexaAccount · Cloud library</footer>
