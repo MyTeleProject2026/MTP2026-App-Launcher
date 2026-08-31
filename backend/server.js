@@ -10,6 +10,7 @@ import mysql from 'mysql2/promise';
 const app = express();
 const port = Number(process.env.PORT || 4000);
 const issuer = (process.env.VEXA_ACCOUNT_ISSUER_URL || process.env.VEXA_ACCOUNT_ISSUER || 'https://api-vexaaccount.onrender.com').replace(/\/$/, '');
+const redirectUri = (process.env.VEXA_ACCOUNT_REDIRECT_URI || process.env.APP_BASE_URL ? `${String(process.env.APP_BASE_URL).replace(/\/$/, '')}/auth/callback` : '').trim();
 const databaseUrl = process.env.DATABASE_URL || '';
 
 function createDbPool() {
@@ -113,12 +114,13 @@ app.get('/api/health', async (_req, res) => {
   if (pool) { try { await pool.execute('SELECT 1'); database = true; } catch {} }
   res.json({ ok: true, service: 'MTP2026 App Launcher', database, databaseType: 'TiDB MySQL' });
 });
-app.get('/api/config', (_req, res) => res.json({ service: 'MTP2026 App Launcher', sso: { issuer, configured: Boolean(process.env.VEXA_ACCOUNT_CLIENT_ID && process.env.VEXA_ACCOUNT_CLIENT_SECRET) }, databaseConfigured: Boolean(pool), databaseType: 'TiDB MySQL' }));
+app.get('/api/config', (_req, res) => res.json({ service: 'MTP2026 App Launcher', sso: { issuer, client_id: process.env.VEXA_ACCOUNT_CLIENT_ID || '', redirect_uri: redirectUri, configured: Boolean(process.env.VEXA_ACCOUNT_CLIENT_ID && process.env.VEXA_ACCOUNT_CLIENT_SECRET && redirectUri) }, databaseConfigured: Boolean(pool), databaseType: 'TiDB MySQL' }));
 
 app.post('/api/auth/callback', async (req, res) => {
   try {
     const { code, redirect_uri, code_verifier, state } = req.body || {};
     if (!code || !redirect_uri || !code_verifier || !state) return res.status(400).json({ error: 'INVALID_CALLBACK' });
+    if (redirectUri && redirect_uri !== redirectUri) return res.status(400).json({ error: 'INVALID_REDIRECT_URI' });
     const body = new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri, client_id: process.env.VEXA_ACCOUNT_CLIENT_ID || '', client_secret: process.env.VEXA_ACCOUNT_CLIENT_SECRET || '', code_verifier });
     const tokenResponse = await fetch(`${issuer}/api/sso/token`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body, signal: AbortSignal.timeout(10000) });
     const token = await tokenResponse.json();
