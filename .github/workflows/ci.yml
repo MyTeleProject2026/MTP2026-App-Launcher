@@ -23,5 +23,7 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Check backend syntax
         run: node --check backend/server.js
+      - name: Check frontend SSO syntax
+        run: node --check frontend/src/auth.js && node --check frontend/src/auth/vexaAuth.js
       - name: Build frontend
         run: npm run frontend:build
