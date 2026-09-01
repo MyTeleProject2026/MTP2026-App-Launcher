@@ -21,6 +21,8 @@ services:
         sync: false
       - key: VEXA_ACCOUNT_CLIENT_SECRET
         sync: false
+      - key: VEXA_ACCOUNT_REDIRECT_URI
+        sync: false
       - key: FRONTEND_ORIGIN
         sync: false
 
