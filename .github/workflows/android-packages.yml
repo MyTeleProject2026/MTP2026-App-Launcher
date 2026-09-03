@@ -9,7 +9,7 @@ jobs:
   android:
     runs-on: ubuntu-latest
     env:
-      KEYSTORE_PATH: ${{ runner.temp }}/mtp2026-launcher-keystore/release.jks
+      KEYSTORE_PATH: ${{ github.workspace }}/.release-keystore/release.jks
       KEYSTORE_PASSWORD: ${{ secrets.MTP2026_APP_LAUNCHER_KEYSTORE_PASSWORD }}
       KEY_ALIAS: ${{ secrets.MTP2026_APP_LAUNCHER_KEY_ALIAS }}
       KEY_PASSWORD: ${{ secrets.MTP2026_APP_LAUNCHER_KEY_PASSWORD }}
