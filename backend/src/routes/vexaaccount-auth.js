@@ -80,6 +80,21 @@ export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
     } catch (error) { res.status(503).json({error:error.message||'VEXA_SSO_UNAVAILABLE'}); }
   });
 
+  app.post('/api/auth/callback',async(req,res)=>{
+    try {
+      cleanupTransactions();
+      const {code,state}=req.body||{};
+      const tx=state?loginTransactions.get(String(state)):null;
+      if (state) loginTransactions.delete(String(state));
+      if (!code||!state||!tx||tx.state!==state||Date.now()-tx.createdAt>10*60*1000) return res.status(400).json({error:'INVALID_SSO_STATE'});
+      const tokens=await exchangeAuthorizationCode(String(code),tx.verifier);
+      const profile=await fetchVexaUser(tokens.access_token);
+      const session=await createSession(profile,tokens);
+      res.setHeader('Set-Cookie',serializeCookie(SESSION_COOKIE,session.id,{maxAge:30*24*60*60,httpOnly:true,sameSite:'Lax',secure:process.env.NODE_ENV!=='development'}));
+      res.json({authenticated:true,profile:session.profile});
+    } catch (e) { res.status(401).json({error:e.message||'SSO_LOGIN_FAILED'}); }
+  });
+
   app.get('/auth/vexaaccount/callback',async(req,res)=>{
     const frontend=(process.env.FRONTEND_ORIGIN||'').split(',')[0].trim().replace(/\/$/,'');
     const fail=(code)=>res.redirect(302,`${frontend}/?sso_error=${encodeURIComponent(code)}`);
