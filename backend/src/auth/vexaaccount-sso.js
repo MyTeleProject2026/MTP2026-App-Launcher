@@ -23,8 +23,9 @@ export function createLoginTransaction() { const state=randomUrlToken(32),verifi
 
 export function buildAuthorizeUrl(transaction) {
   const cfg=getVexaConfig();
-  const url=new URL('/#/sso/authorize',cfg.userUrl);
-  url.search=new URLSearchParams({client_id:cfg.clientId,redirect_uri:cfg.redirectUri,response_type:'code',scope:cfg.scopes.join(' '),state:transaction.state,code_challenge:transaction.challenge,code_challenge_method:'S256'}).toString();
+  const query=new URLSearchParams({client_id:cfg.clientId,redirect_uri:cfg.redirectUri,response_type:'code',scope:cfg.scopes.join(' '),state:transaction.state,code_challenge:transaction.challenge,code_challenge_method:'S256'}).toString();
+  const url=new URL('/',cfg.userUrl);
+  url.hash=`#/sso/authorize?${query}`;
   return url.toString();
 }
 
