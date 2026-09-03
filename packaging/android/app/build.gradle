@@ -1,2 +1,18 @@
 plugins { id 'com.android.application' }
-android { namespace 'com.mytele.mtp2026.launcher'; compileSdk 36; defaultConfig { applicationId 'com.mytele.mtp2026.launcher'; minSdk 24; targetSdk 36; versionCode 1; versionName '1.0.0'; resValue 'string','app_name','MTP2026 App Launcher'; buildConfigField 'String','WEB_APP_URL','"' + (project.findProperty('webAppUrl') ?: 'https://mtp2026-app-launcher.onrender.com') + '"' }; buildTypes { release { minifyEnabled false } }; buildFeatures { buildConfig true } }
+
+def requiredEnv = { String name ->
+    def value = System.getenv(name)
+    if (!value) throw new GradleException("Missing required release signing environment variable: ${name}")
+    value
+}
+
+android {
+    namespace 'com.mytele.mtp2026.launcher'
+    compileSdk 36
+    defaultConfig { applicationId 'com.mytele.mtp2026.launcher'; minSdk 24; targetSdk 36; versionCode 1; versionName '1.0.0'; resValue 'string','app_name','MTP2026 App Launcher'; buildConfigField 'String','WEB_APP_URL','"' + (project.findProperty('webAppUrl') ?: 'https://mtp2026-app-launcher.onrender.com') + '"' }
+    signingConfigs {
+        release { storeFile file(requiredEnv('KEYSTORE_PATH')); storePassword requiredEnv('KEYSTORE_PASSWORD'); keyAlias requiredEnv('KEY_ALIAS'); keyPassword requiredEnv('KEY_PASSWORD'); enableV1Signing true; enableV2Signing true; enableV3Signing true; enableV4Signing true }
+    }
+    buildTypes { release { minifyEnabled false; signingConfig signingConfigs.release } }
+    buildFeatures { buildConfig true }
+}
