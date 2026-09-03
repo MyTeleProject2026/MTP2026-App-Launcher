@@ -14,60 +14,53 @@ MTP2026 App Launcher is the central MYTELEPROJECT2026 web/PWA launcher. VexaAcco
 
 ## VexaAccount SSO
 
-The launcher uses VexaAccount as its single identity provider. The browser creates a cryptographically random OAuth `state` and PKCE verifier, stores them only for the current browser session, and sends the authorization-code request to VexaAccount. The launcher backend performs the confidential-code exchange with the VexaAccount client secret and validates the returned access token through VexaAccount `userinfo` before creating the launcher profile mapping.
+MTP2026 App Launcher follows the VexaAccount external-application SSO contract without modifying the VexaAccount repository, provider environment, or SSO implementation.
 
-The flow is:
+VexaAccount remains the identity provider. MTP2026 owns its launcher data, local authorization, and MTP application session.
 
-1. User selects **Sign in with VexaAccount** in the launcher.
-2. Browser creates `state`, PKCE verifier, and S256 challenge.
-3. Browser opens VexaAccount `/api/sso/authorize` with the launcher client ID and exact callback URL.
-4. VexaAccount authenticates the user and grants the requested scopes.
-5. VexaAccount redirects to `/auth/callback` with a one-time authorization code and the original state.
-6. Browser validates the state and sends the code + verifier to the launcher backend.
-7. Launcher backend validates the exact redirect URI and exchanges the code with VexaAccount using the confidential client secret.
-8. Launcher backend retrieves the user through VexaAccount `userinfo` and returns the launcher access/refresh session.
-9. Launcher stores only the returned session material needed by the PWA and automatically refreshes an expired access token once through the VexaAccount refresh-token grant.
-10. All launcher application-library API calls are scoped to the VexaAccount `sub`, so two users never share application-library rows.
+### Backend-owned SSO workflow
 
-### VexaAccount client registration
+1. The launcher frontend starts login through `GET /api/auth/login`.
+2. The MTP backend generates OAuth `state`, a PKCE verifier, and an S256 challenge.
+3. The backend stores the short-lived login transaction server-side.
+4. The browser is redirected to VexaAccount `/api/sso/authorize`.
+5. VexaAccount authenticates the user and redirects to the already-registered launcher callback.
+6. The frontend forwards only the authorization `code` and `state` to MTP `POST /api/auth/callback`.
+7. The MTP backend validates state, retrieves the server-side PKCE verifier, and exchanges the code using the backend-only client secret.
+8. MTP retrieves `/api/sso/userinfo` and maps the stable VexaAccount `sub` to its own user record.
+9. MTP creates an HttpOnly launcher session cookie. VexaAccount access/refresh tokens are encrypted and stored in the MTP backend database, not browser storage.
+10. Launcher APIs use the MTP session and automatically refresh the VexaAccount token server-side when required.
+11. Logout removes the MTP server-side session.
 
-Create an active VexaAccount SSO client for this launcher in the VexaAccount Super Admin SSO registry. Use:
+The browser never receives the VexaAccount client secret or refresh token.
 
-```text
-Application key: mtp2026-app-launcher
-Display name: MTP2026 App Launcher
-Redirect URI: https://mtp2026-app-launcher.onrender.com/auth/callback
-Scopes: openid profile email account session applications notifications
-Environment: production
-```
+### Required backend environment
 
-The generated **client secret must be stored only in the launcher backend's Render environment**. It must never be placed in frontend source, `.env.example`, Git history, or browser storage.
-
-### Required launcher environment
-
-Backend:
+The VexaAccount integration uses the two provider-facing variables documented for external applications:
 
 ```text
-DATABASE_URL=<TiDB MySQL connection URL>
-TIDB_SSL=true
-TIDB_SSL_REJECT_UNAUTHORIZED=true
-VEXA_ACCOUNT_ISSUER_URL=https://api-vexaaccount.onrender.com
-VEXA_ACCOUNT_CLIENT_ID=<VexaAccount launcher client id>
-VEXA_ACCOUNT_CLIENT_SECRET=<VexaAccount launcher client secret>
-VEXA_ACCOUNT_REDIRECT_URI=https://mtp2026-app-launcher.onrender.com/auth/callback
-FRONTEND_ORIGIN=https://mtp2026-app-launcher.onrender.com
+VEXA_ACCOUNT_CLIENT_SECRET=<secret issued to MTP2026>
+VEXA_ACCOUNT_SSO_CONFIG={"url":"https://api-vexaaccount.onrender.com","clientId":"mtp2026-app-launcher","redirectUri":"https://mtp2026-app-launcher.onrender.com/auth/callback","scopes":["openid","profile","email","account","session","applications","notifications"],"timeoutMs":10000}
 ```
 
-Frontend:
+`VEXA_ACCOUNT_SSO_CONFIG` must not contain a client secret.
+
+MTP also requires its own independent encryption key for persisted backend session tokens:
 
 ```text
-VITE_API_BASE_URL=https://mtp2026-app-launcher-backend.onrender.com/api
-VITE_VEXA_ACCOUNT_ISSUER_URL=https://api-vexaaccount.onrender.com
-VITE_VEXA_ACCOUNT_CLIENT_ID=<same public launcher client id>
-VITE_VEXA_ACCOUNT_REDIRECT_URI=https://mtp2026-app-launcher.onrender.com/auth/callback
+MTP_SESSION_ENCRYPTION_KEY=<long random secret>
 ```
 
-The backend redirect URI and frontend redirect URI must be exactly the same as the URI registered in VexaAccount.
+### Callback compatibility
+
+The default branch preserves the existing registered VexaAccount callback URI:
+
+```text
+https://mtp2026-app-launcher.onrender.com/auth/callback
+```
+
+This avoids requiring any modification to the VexaAccount repository or provider environment. The callback page forwards the authorization code to the MTP backend, where state validation and PKCE code exchange remain server-side.
+
 
 ## Database — TiDB MySQL
 
