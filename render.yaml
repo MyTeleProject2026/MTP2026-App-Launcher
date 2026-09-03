@@ -15,13 +15,11 @@ services:
         value: "true"
       - key: TIDB_SSL_REJECT_UNAUTHORIZED
         value: "true"
-      - key: VEXA_ACCOUNT_ISSUER_URL
-        sync: false
-      - key: VEXA_ACCOUNT_CLIENT_ID
-        sync: false
       - key: VEXA_ACCOUNT_CLIENT_SECRET
         sync: false
-      - key: VEXA_ACCOUNT_REDIRECT_URI
+      - key: VEXA_ACCOUNT_SSO_CONFIG
+        sync: false
+      - key: MTP_SESSION_ENCRYPTION_KEY
         sync: false
       - key: FRONTEND_ORIGIN
         sync: false
@@ -34,12 +32,6 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_API_BASE_URL
-        sync: false
-      - key: VITE_VEXA_ACCOUNT_ISSUER_URL
-        sync: false
-      - key: VITE_VEXA_ACCOUNT_CLIENT_ID
-        sync: false
-      - key: VITE_VEXA_ACCOUNT_REDIRECT_URI
         sync: false
     routes:
       - type: rewrite
