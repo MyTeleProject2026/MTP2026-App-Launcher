@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Search, Plus, Star, RefreshCw, Bell, ChevronDown, Menu, X, ExternalLink, CheckCircle2, Globe2, LogIn, LogOut, Settings, Clock3, Grid2X2, Sparkles, Download, Trash2 } from 'lucide-react';
 import './styles.css';
-import { API, startVexaLogin, finishVexaLogin, accessToken, signOut } from './auth';
+import { API, startVexaLogin, finishVexaLogin, signOut } from './auth';
 
-function storedProfile() { try { return JSON.parse(localStorage.getItem('mtp_profile') || 'null'); } catch { return null; } }
+function storedProfile() { return null; }
 function initials(profile) { const name = profile?.name || profile?.email || 'Vexa Creator'; return name.split(/\s+/).map(x => x[0]).join('').slice(0, 2).toUpperCase(); }
 
 function App() {
@@ -18,21 +18,20 @@ function App() {
   const [profile, setProfile] = useState(storedProfile());
   const [menu, setMenu] = useState(false);
   const [sidebar, setSidebar] = useState(false);
-  const [logged, setLogged] = useState(Boolean(accessToken()));
+  const [logged, setLogged] = useState(false);
   const [view, setView] = useState('launcher');
   const [filter, setFilter] = useState('all');
   const [recentApps, setRecentApps] = useState([]);
   const [installPrompt, setInstallPrompt] = useState(null);
 
-  const headers = () => { const t = accessToken(); return t ? { Authorization: `Bearer ${t}` } : {}; };
+  const headers = () => ({});
 
   const load = async (silent = false) => {
-    if (!accessToken()) { setApps([]); setRecentApps([]); return; }
     if (!silent) setSyncing(true);
     try {
       const [libraryResponse, recentResponse] = await Promise.all([
-        fetch(`${API}/apps`, { headers: headers() }),
-        fetch(`${API}/apps/recent`, { headers: headers() })
+        fetch(`${API}/apps`, { headers: headers(), credentials: 'include' }),
+        fetch(`${API}/apps/recent`, { headers: headers(), credentials: 'include' })
       ]);
       if (libraryResponse.status === 401 || recentResponse.status === 401) { logout(); throw new Error('Your VexaAccount session has expired.'); }
       if (!libraryResponse.ok) throw new Error('Unable to load your application library.');
@@ -44,7 +43,7 @@ function App() {
   };
 
   useEffect(() => {
-    finishVexaLogin().then(d => { if (d?.profile) { setProfile(d.profile); setLogged(true); } return load(true); }).catch(e => setError(e.message));
+    finishVexaLogin().then(d => { if (d?.profile) { setProfile(d.profile); setLogged(true); return load(true); } setApps([]); setRecentApps([]); return null; }).catch(e => setError(e.message));
     const handler = e => { e.preventDefault?.(); setInstallPrompt(e); };
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
@@ -53,7 +52,7 @@ function App() {
   useEffect(() => { if (logged && view === 'recent') load(true); }, [logged, view]);
 
   async function login() { setError(''); try { await startVexaLogin(); } catch (e) { setError(e.message); } }
-  function logout() { signOut(); setLogged(false); setProfile(null); setApps([]); setRecentApps([]); setMenu(false); }
+  async function logout() { await signOut(); setLogged(false); setProfile(null); setApps([]); setRecentApps([]); setMenu(false); }
 
   async function add() {
     let parsed;
@@ -61,7 +60,7 @@ function App() {
     if (parsed.protocol !== 'https:') { setError('Only HTTPS application URLs are accepted.'); return; }
     setError(''); setLoading(true);
     try {
-      const r = await fetch(`${API}/apps`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify({ url: parsed.toString() }) });
+      const r = await fetch(`${API}/apps`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify({ url: parsed.toString() }) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Could not create application.');
       setUrl(''); setShowAdd(false); await load(true);
@@ -70,7 +69,7 @@ function App() {
 
   async function patch(id, key, value) {
     try {
-      const r = await fetch(`${API}/apps/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify({ [key]: value }) });
+      const r = await fetch(`${API}/apps/${id}`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify({ [key]: value }) });
       if (r.status === 401) return logout();
       if (!r.ok) throw new Error('Could not update application.');
       await load(true);
@@ -79,7 +78,7 @@ function App() {
 
   async function remove(id) {
     try {
-      const r = await fetch(`${API}/apps/${id}`, { method: 'DELETE', headers: headers() });
+      const r = await fetch(`${API}/apps/${id}`, { method: 'DELETE', credentials: 'include', headers: headers() });
       if (r.status === 401) return logout();
       if (!r.ok) throw new Error('Could not remove application.');
       await load(true);
@@ -88,7 +87,7 @@ function App() {
 
   async function openApp(app) {
     try {
-      const r = await fetch(`${API}/apps/${app.id}/open`, { method: 'POST', headers: headers() });
+      const r = await fetch(`${API}/apps/${app.id}/open`, { method: 'POST', credentials: 'include', headers: headers() });
       if (r.status === 401) return logout();
       if (!r.ok) throw new Error('Could not record recent activity.');
       setRecentApps(prev => [app, ...prev.filter(x => x.id !== app.id)]);
