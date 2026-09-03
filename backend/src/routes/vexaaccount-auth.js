@@ -73,9 +73,7 @@ export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
     try {
       cleanupTransactions();
       const tx=createLoginTransaction();
-      const id=crypto.randomBytes(32).toString('base64url');
-      loginTransactions.set(id,{...tx,createdAt:Date.now()});
-      res.setHeader('Set-Cookie',serializeCookie(LOGIN_COOKIE,id,{maxAge:600,httpOnly:true,sameSite:'Lax',secure:process.env.NODE_ENV!=='development'}));
+      loginTransactions.set(tx.state,{...tx,createdAt:Date.now()});
       res.redirect(302,buildAuthorizeUrl(tx));
     } catch (error) { res.status(503).json({error:error.message||'VEXA_SSO_UNAVAILABLE'}); }
   });
@@ -101,9 +99,8 @@ export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
     try {
       const {code,state,error,error_description}=req.query;
       if (error) return fail(error_description||error);
-      const loginId=readCookies(req)[LOGIN_COOKIE];
-      const tx=loginId?loginTransactions.get(loginId):null;
-      loginTransactions.delete(loginId);
+      const tx=state?loginTransactions.get(String(state)):null;
+      if (state) loginTransactions.delete(String(state));
       if (!code||!state||!tx||tx.state!==state||Date.now()-tx.createdAt>10*60*1000) return fail('INVALID_SSO_STATE');
       const tokens=await exchangeAuthorizationCode(String(code),tx.verifier);
       const profile=await fetchVexaUser(tokens.access_token);
