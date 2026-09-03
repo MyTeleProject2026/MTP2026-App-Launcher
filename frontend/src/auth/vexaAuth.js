@@ -6,10 +6,19 @@ export function startVexaLogin(){
 
 export async function finishVexaLogin(){
   const params=new URLSearchParams(window.location.search);
-  const error=params.get('sso_error');
+  const error=params.get('sso_error') || params.get('error');
   if(error){
     history.replaceState({},'',window.location.pathname);
-    throw new Error(error);
+    throw new Error(params.get('error_description')||error);
+  }
+  const code=params.get('code');
+  const state=params.get('state');
+  if(code&&state){
+    const callback=await fetch(`${API}/auth/callback`,{method:'POST',credentials:'include',headers:{'content-type':'application/json'},body:JSON.stringify({code,state})});
+    const payload=await callback.json().catch(()=>({}));
+    history.replaceState({},'',window.location.pathname);
+    if(!callback.ok) throw new Error(payload.error||'SSO_LOGIN_FAILED');
+    return payload;
   }
   const response=await fetch(`${API}/auth/session`,{credentials:'include',headers:{Accept:'application/json'}});
   if(response.status===401) return null;
