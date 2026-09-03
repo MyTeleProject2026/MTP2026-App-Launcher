@@ -6,11 +6,13 @@ import dns from 'node:dns/promises';
 import net from 'node:net';
 import { URL } from 'node:url';
 import mysql from 'mysql2/promise';
+import { getVexaConfig } from './src/auth/vexaaccount-sso.js';
+import { registerVexaAuthRoutes } from './src/routes/vexaaccount-auth.js';
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
-const issuer = (process.env.VEXA_ACCOUNT_ISSUER_URL || process.env.VEXA_ACCOUNT_ISSUER || 'https://api-vexaaccount.onrender.com').replace(/\/$/, '');
-const redirectUri = (process.env.VEXA_ACCOUNT_REDIRECT_URI || (process.env.APP_BASE_URL ? `${String(process.env.APP_BASE_URL).replace(/\/$/, '')}/auth/callback` : '')).trim();
+const vexaConfig = (() => { try { return getVexaConfig(); } catch { return null; } })();
+const issuer = vexaConfig?.url || 'https://api-vexaaccount.onrender.com';
 const databaseUrl = process.env.DATABASE_URL || '';
 
 function createDbPool() {
@@ -37,21 +39,6 @@ app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : true, credential
 app.use(express.json({ limit: '256kb' }));
 
 function errorCode(e) { return e instanceof Error ? e.message : 'UNKNOWN_ERROR'; }
-
-async function verifyToken(req) {
-  const authorization = req.header('authorization') || '';
-  if (!authorization.startsWith('Bearer ')) throw new Error('AUTH_REQUIRED');
-  const response = await fetch(`${issuer}/api/sso/userinfo`, { headers: { Authorization: authorization }, signal: AbortSignal.timeout(7000) });
-  if (!response.ok) throw new Error('AUTH_INVALID');
-  const profile = await response.json();
-  if (!profile?.sub) throw new Error('AUTH_INVALID');
-  return profile;
-}
-
-async function auth(req, res, next) {
-  try { req.vexaUser = await verifyToken(req); next(); }
-  catch (e) { res.status(401).json({ error: errorCode(e) === 'AUTH_REQUIRED' ? 'AUTH_REQUIRED' : 'AUTH_INVALID' }); }
-}
 
 function normalizeUrl(value) {
   const url = new URL(String(value || '').trim());
@@ -109,27 +96,14 @@ async function ensureUser(subject, profileId) {
   return id;
 }
 
+const auth = registerVexaAuthRoutes(app,{ pool, ensureUser });
+
 app.get('/api/health', async (_req, res) => {
   let database = false;
   if (pool) { try { await pool.execute('SELECT 1'); database = true; } catch {} }
   res.json({ ok: true, service: 'MTP2026 App Launcher', database, databaseType: 'TiDB MySQL' });
 });
-app.get('/api/config', (_req, res) => res.json({ service: 'MTP2026 App Launcher', sso: { issuer, client_id: process.env.VEXA_ACCOUNT_CLIENT_ID || '', redirect_uri: redirectUri, configured: Boolean(process.env.VEXA_ACCOUNT_CLIENT_ID && process.env.VEXA_ACCOUNT_CLIENT_SECRET && redirectUri) }, databaseConfigured: Boolean(pool), databaseType: 'TiDB MySQL' }));
-
-app.post('/api/auth/callback', async (req, res) => {
-  try {
-    const { code, redirect_uri, code_verifier, state } = req.body || {};
-    if (!code || !redirect_uri || !code_verifier || !state) return res.status(400).json({ error: 'INVALID_CALLBACK' });
-    if (redirectUri && redirect_uri !== redirectUri) return res.status(400).json({ error: 'INVALID_REDIRECT_URI' });
-    const body = new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri, client_id: process.env.VEXA_ACCOUNT_CLIENT_ID || '', client_secret: process.env.VEXA_ACCOUNT_CLIENT_SECRET || '', code_verifier });
-    const tokenResponse = await fetch(`${issuer}/api/sso/token`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body, signal: AbortSignal.timeout(10000) });
-    const token = await tokenResponse.json();
-    if (!tokenResponse.ok || !token.access_token) return res.status(401).json({ error: 'SSO_TOKEN_EXCHANGE_FAILED' });
-    const profileResponse = await fetch(`${issuer}/api/sso/userinfo`, { headers: { Authorization: `Bearer ${token.access_token}` }, signal: AbortSignal.timeout(7000) });
-    if (!profileResponse.ok) return res.status(401).json({ error: 'SSO_USERINFO_FAILED' });
-    res.json({ access_token: token.access_token, refresh_token: token.refresh_token, expires_in: token.expires_in, profile: await profileResponse.json() });
-  } catch { res.status(502).json({ error: 'SSO_UNAVAILABLE' }); }
-});
+app.get('/api/config', (_req, res) => res.json({ service: 'MTP2026 App Launcher', sso: { issuer, configured: Boolean(vexaConfig), sessionMode: 'backend-managed' }, databaseConfigured: Boolean(pool), databaseType: 'TiDB MySQL' }));
 
 async function getLibrary(req) {
   const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
