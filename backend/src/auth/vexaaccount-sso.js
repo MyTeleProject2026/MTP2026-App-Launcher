@@ -1,19 +1,22 @@
 import crypto from 'node:crypto';
 
+const VEXA_ACCOUNT_API_URL = 'https://api-vexaaccount.onrender.com';
+const VEXA_ACCOUNT_USER_URL = 'https://vexaaccount-management.onrender.com';
 const raw = process.env.VEXA_ACCOUNT_SSO_CONFIG || '';
+
 export function getVexaConfig() {
   let parsed = {};
   if (raw) {
     try { parsed = JSON.parse(raw); } catch { throw new Error('VEXA_ACCOUNT_SSO_CONFIG_INVALID'); }
   }
-  const url = String(parsed.url || process.env.VEXA_ACCOUNT_ISSUER_URL || process.env.VEXA_ACCOUNT_ISSUER || '').replace(/\/$/,'');
-  const userUrl = String(parsed.userUrl || process.env.VEXA_ACCOUNT_USER_URL || '').replace(/\/$/,'');
+  const url = VEXA_ACCOUNT_API_URL;
+  const userUrl = VEXA_ACCOUNT_USER_URL;
   const clientId = String(parsed.clientId || process.env.VEXA_ACCOUNT_CLIENT_ID || '').trim();
   const redirectUri = String(parsed.redirectUri || process.env.VEXA_ACCOUNT_REDIRECT_URI || '').trim();
   const scopes = Array.isArray(parsed.scopes) && parsed.scopes.length ? parsed.scopes : ['openid','profile','email'];
   const timeoutMs = Number(parsed.timeoutMs || 10000);
   const clientSecret = String(process.env.VEXA_ACCOUNT_CLIENT_SECRET || '');
-  if (!url || !userUrl || !clientId || !redirectUri || !clientSecret) throw new Error('VEXA_SSO_NOT_CONFIGURED');
+  if (!clientId || !redirectUri || !clientSecret) throw new Error('VEXA_SSO_NOT_CONFIGURED');
   return { url, userUrl, clientId, redirectUri, scopes, timeoutMs, clientSecret };
 }
 
