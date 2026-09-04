@@ -13,7 +13,7 @@ export function getVexaConfig() {
   const userUrl = VEXA_ACCOUNT_USER_URL;
   const clientId = String(parsed.clientId || process.env.VEXA_ACCOUNT_CLIENT_ID || '').trim();
   const redirectUri = String(parsed.redirectUri || process.env.VEXA_ACCOUNT_REDIRECT_URI || '').trim();
-  const scopes = Array.isArray(parsed.scopes) && parsed.scopes.length ? parsed.scopes : ['openid','profile','email'];
+  const scopes = Array.isArray(parsed.scopes) && parsed.scopes.length ? parsed.scopes : ['openid','profile','email','account','session','applications','notifications'];
   const timeoutMs = Number(parsed.timeoutMs || 10000);
   const clientSecret = String(process.env.VEXA_ACCOUNT_CLIENT_SECRET || '');
   if (!clientId || !redirectUri || !clientSecret) throw new Error('VEXA_SSO_NOT_CONFIGURED');
@@ -32,12 +32,22 @@ export function buildAuthorizeUrl(transaction) {
   return url.toString();
 }
 
+async function readUpstreamPayload(response) {
+  const payload=await response.json().catch(()=>({}));
+  const message=String(payload.message||payload.error_description||payload.error||'').trim();
+  return {payload,message};
+}
+
 export async function exchangeAuthorizationCode(code,verifier) {
   const cfg=getVexaConfig();
   const body=new URLSearchParams({grant_type:'authorization_code',code,redirect_uri:cfg.redirectUri,client_id:cfg.clientId,client_secret:cfg.clientSecret,code_verifier:verifier});
-  const response=await fetch(new URL('/api/sso/token',cfg.url),{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body,signal:AbortSignal.timeout(cfg.timeoutMs)});
-  const payload=await response.json().catch(()=>({}));
-  if(!response.ok||!payload.access_token)throw new Error(payload.error||'SSO_TOKEN_EXCHANGE_FAILED');
+  const response=await fetch(new URL('/api/sso/token',cfg.url),{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded','accept':'application/json'},body,signal:AbortSignal.timeout(cfg.timeoutMs)});
+  const {payload,message}=await readUpstreamPayload(response);
+  if(!response.ok||!payload.access_token){
+    if(response.status===401) throw new Error(`SSO_TOKEN_EXCHANGE_FAILED:${message||'client authentication failed'}`);
+    if(response.status===400) throw new Error(`SSO_TOKEN_EXCHANGE_FAILED:${message||'authorization code validation failed'}`);
+    throw new Error(`SSO_TOKEN_EXCHANGE_FAILED:${message||`provider HTTP ${response.status}`}`);
+  }
   return payload;
 }
 
@@ -45,8 +55,8 @@ export async function refreshVexaToken(refreshToken) {
   const cfg=getVexaConfig();
   const body=new URLSearchParams({grant_type:'refresh_token',refresh_token:refreshToken,client_id:cfg.clientId,client_secret:cfg.clientSecret});
   const response=await fetch(new URL('/api/sso/token',cfg.url),{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body,signal:AbortSignal.timeout(cfg.timeoutMs)});
-  const payload=await response.json().catch(()=>({}));
-  if(!response.ok||!payload.access_token)throw new Error(payload.error||'SSO_REFRESH_FAILED');
+  const {payload,message}=await readUpstreamPayload(response);
+  if(!response.ok||!payload.access_token)throw new Error(`SSO_REFRESH_FAILED:${message||'refresh token rejected'}`);
   return payload;
 }
 
