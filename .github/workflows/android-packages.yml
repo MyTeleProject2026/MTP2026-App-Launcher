@@ -40,11 +40,37 @@ jobs:
         working-directory: packaging/android
         run: |
           set -euo pipefail
-          for pattern in 'app/build/outputs/apk/release/*.apk' 'app/build/outputs/bundle/release/*.aab'; do
-            matches=( $pattern ); [ -e "${matches[0]}" ] || { echo "Missing release binary: $pattern" >&2; exit 1; }
+
+          APK="app/build/outputs/apk/release/app-release.apk"
+          AAB="app/build/outputs/bundle/release/app-release.aab"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          AAPT2="$ANDROID_HOME/build-tools/35.0.0/aapt2"
+
+          for f in "$APK" "$AAB"; do
+            [ -f "$f" ] || { echo "Missing release binary: $f" >&2; exit 1; }
+            [ -s "$f" ] || { echo "Release binary is empty: $f" >&2; exit 1; }
+            stat -c '%n %s bytes' "$f"
           done
-          find app/build/outputs -type f \( -name '*.apk' -o -name '*.aab' \) -print -exec stat -c '%n %s bytes' {} \;
-          while IFS= read -r f; do size=$(stat -c '%s' "$f"); [ "$size" -gt 100000 ] || { echo "Release binary unexpectedly small: $f ($size bytes)" >&2; exit 1; }; done < <(find app/build/outputs -type f \( -name '*.apk' -o -name '*.aab' \))
+
+          echo "Checking APK archive integrity..."
+          unzip -t "$APK" >/dev/null
+
+          echo "Checking APK Android metadata..."
+          "$AAPT2" dump badging "$APK" >/dev/null
+
+          echo "Checking APK release signature..."
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+
+          echo "Checking AAB archive integrity..."
+          unzip -t "$AAB" >/dev/null
+
+          echo "Checking required AAB base module..."
+          unzip -l "$AAB" | grep -q 'base/manifest/AndroidManifest.xml'
+
+          echo "Checking AAB release signature..."
+          jarsigner -verify "$AAB" >/dev/null
+
+          echo "Release binary verification passed."
       - uses: actions/upload-artifact@v7
         with:
           name: mtp2026-launcher-android-release
