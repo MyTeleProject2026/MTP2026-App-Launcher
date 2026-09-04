@@ -93,7 +93,9 @@ export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
     } catch (e) { res.status(401).json({error:e.message||'SSO_LOGIN_FAILED'}); }
   });
 
-  app.get('/auth/vexaaccount/callback',async(req,res)=>{
+  // Browser callback. This exact path is registered with VexaAccount and is also
+  // the canonical redirect URI in the MTP frontend/backend configuration.
+  async function handleBrowserCallback(req,res) {
     const frontend=(process.env.FRONTEND_ORIGIN||'').split(',')[0].trim().replace(/\/$/,'');
     const fail=(code)=>res.redirect(302,`${frontend}/?sso_error=${encodeURIComponent(code)}`);
     try {
@@ -111,7 +113,12 @@ export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
       ]);
       res.redirect(302,`${frontend}/`);
     } catch (e) { return fail(e.message||'SSO_LOGIN_FAILED'); }
-  });
+  }
+
+  // Canonical production callback.
+  app.get('/auth/callback',handleBrowserCallback);
+  // Backward-compatible callback kept for deployments that registered the older path.
+  app.get('/auth/vexaaccount/callback',handleBrowserCallback);
 
   app.get('/api/auth/session',async(req,res)=>{
     try {
