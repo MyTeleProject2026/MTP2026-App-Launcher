@@ -42,11 +42,7 @@ export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
     const expiresIn=Math.max(60,Number(tokens.expires_in||3600));
     const expiresAt=new Date(Date.now()+30*24*60*60*1000);
     const accessExpiresAt=new Date(Date.now()+expiresIn*1000);
-    await pool.execute(
-      `INSERT INTO mtp_sso_sessions(id,user_id,vexa_subject,profile_json,access_token_enc,refresh_token_enc,access_expires_at,expires_at)
-       VALUES(?,?,?,?,?,?,?,?)`,
-      [id,userId,profile.sub,JSON.stringify(profile),encryptSecret(tokens.access_token),tokens.refresh_token?encryptSecret(tokens.refresh_token):null,accessExpiresAt,expiresAt]
-    );
+    await pool.execute(`INSERT INTO mtp_sso_sessions(id,user_id,vexa_subject,profile_json,access_token_enc,refresh_token_enc,access_expires_at,expires_at) VALUES(?,?,?,?,?,?,?,?)`,[id,userId,profile.sub,JSON.stringify(profile),encryptSecret(tokens.access_token),tokens.refresh_token?encryptSecret(tokens.refresh_token):null,accessExpiresAt,expiresAt]);
     return {id,profile};
   }
 
@@ -63,19 +59,14 @@ export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
       const refreshed=await refreshVexaToken(refreshToken);
       accessToken=refreshed.access_token;
       refreshToken=refreshed.refresh_token||refreshToken;
-      await pool.execute(`UPDATE mtp_sso_sessions SET access_token_enc=?,refresh_token_enc=?,access_expires_at=? WHERE id=?`,
-        [encryptSecret(accessToken),encryptSecret(refreshToken),new Date(Date.now()+Math.max(60,Number(refreshed.expires_in||3600))*1000),id]);
+      await pool.execute(`UPDATE mtp_sso_sessions SET access_token_enc=?,refresh_token_enc=?,access_expires_at=? WHERE id=?`,[encryptSecret(accessToken),encryptSecret(refreshToken),new Date(Date.now()+Math.max(60,Number(refreshed.expires_in||3600))*1000),id]);
     }
     return {id,profile:typeof session.profile_json==='string'?JSON.parse(session.profile_json):session.profile_json,accessToken};
   }
 
   app.get('/api/auth/login',(req,res)=>{
-    try {
-      cleanupTransactions();
-      const tx=createLoginTransaction();
-      loginTransactions.set(tx.state,{...tx,createdAt:Date.now()});
-      res.redirect(302,buildAuthorizeUrl(tx));
-    } catch (error) { res.status(503).json({error:error.message||'VEXA_SSO_UNAVAILABLE'}); }
+    try { cleanupTransactions(); const tx=createLoginTransaction(); loginTransactions.set(tx.state,{...tx,createdAt:Date.now()}); res.redirect(302,buildAuthorizeUrl(tx)); }
+    catch (error) { res.status(503).json({error:error.message||'VEXA_SSO_UNAVAILABLE'}); }
   });
 
   app.post('/api/auth/callback',async(req,res)=>{
@@ -83,65 +74,37 @@ export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
       cleanupTransactions();
       const {code,state}=req.body||{};
       const tx=state?loginTransactions.get(String(state)):null;
-      if (state) loginTransactions.delete(String(state));
-      if (!code||!state||!tx||tx.state!==state||Date.now()-tx.createdAt>10*60*1000) return res.status(400).json({error:'INVALID_SSO_STATE'});
+      if(!code||!state||!tx||tx.state!==state||Date.now()-tx.createdAt>10*60*1000) return res.status(400).json({error:'INVALID_SSO_STATE'});
       const tokens=await exchangeAuthorizationCode(String(code),tx.verifier);
       const profile=await fetchVexaUser(tokens.access_token);
       const session=await createSession(profile,tokens);
+      loginTransactions.delete(String(state));
       res.setHeader('Set-Cookie',serializeCookie(SESSION_COOKIE,session.id,{maxAge:30*24*60*60,httpOnly:true,sameSite:'Lax',secure:process.env.NODE_ENV!=='development'}));
       res.json({authenticated:true,profile:session.profile});
     } catch (e) { res.status(401).json({error:e.message||'SSO_LOGIN_FAILED'}); }
   });
 
-  // Browser callback. This exact path is registered with VexaAccount and is also
-  // the canonical redirect URI in the MTP frontend/backend configuration.
   async function handleBrowserCallback(req,res) {
     const frontend=(process.env.FRONTEND_ORIGIN||'').split(',')[0].trim().replace(/\/$/,'');
     const fail=(code)=>res.redirect(302,`${frontend}/?sso_error=${encodeURIComponent(code)}`);
     try {
       const {code,state,error,error_description}=req.query;
-      if (error) return fail(error_description||error);
+      if(error) return fail(error_description||error);
       const tx=state?loginTransactions.get(String(state)):null;
-      if (state) loginTransactions.delete(String(state));
-      if (!code||!state||!tx||tx.state!==state||Date.now()-tx.createdAt>10*60*1000) return fail('INVALID_SSO_STATE');
+      if(!code||!state||!tx||tx.state!==state||Date.now()-tx.createdAt>10*60*1000) return fail('INVALID_SSO_STATE');
       const tokens=await exchangeAuthorizationCode(String(code),tx.verifier);
       const profile=await fetchVexaUser(tokens.access_token);
       const session=await createSession(profile,tokens);
-      res.setHeader('Set-Cookie',[
-        serializeCookie(SESSION_COOKIE,session.id,{maxAge:30*24*60*60,httpOnly:true,sameSite:'Lax',secure:process.env.NODE_ENV!=='development'}),
-        serializeCookie(LOGIN_COOKIE,'',{maxAge:0,httpOnly:true,sameSite:'Lax',secure:process.env.NODE_ENV!=='development'})
-      ]);
+      loginTransactions.delete(String(state));
+      res.setHeader('Set-Cookie',[serializeCookie(SESSION_COOKIE,session.id,{maxAge:30*24*60*60,httpOnly:true,sameSite:'Lax',secure:process.env.NODE_ENV!=='development'}),serializeCookie(LOGIN_COOKIE,'',{maxAge:0,httpOnly:true,sameSite:'Lax',secure:process.env.NODE_ENV!=='development'})]);
       res.redirect(302,`${frontend}/`);
     } catch (e) { return fail(e.message||'SSO_LOGIN_FAILED'); }
   }
 
-  // Canonical production callback.
   app.get('/auth/callback',handleBrowserCallback);
-  // Backward-compatible callback kept for deployments that registered the older path.
   app.get('/auth/vexaaccount/callback',handleBrowserCallback);
 
-  app.get('/api/auth/session',async(req,res)=>{
-    try {
-      const session=await loadSession(req);
-      if (!session) return res.status(401).json({error:'AUTH_REQUIRED'});
-      res.json({authenticated:true,profile:session.profile});
-    } catch { res.status(401).json({error:'AUTH_INVALID'}); }
-  });
-
-  app.post('/api/auth/logout',async(req,res)=>{
-    const id=readCookies(req)[SESSION_COOKIE];
-    if (id&&pool) await pool.execute('DELETE FROM mtp_sso_sessions WHERE id=?',[id]).catch(()=>{});
-    res.setHeader('Set-Cookie',serializeCookie(SESSION_COOKIE,'',{maxAge:0,httpOnly:true,sameSite:'Lax',secure:process.env.NODE_ENV!=='development'}));
-    res.status(204).end();
-  });
-
-  return async function auth(req,res,next) {
-    try {
-      const session=await loadSession(req);
-      if (!session?.profile?.sub) return res.status(401).json({error:'AUTH_REQUIRED'});
-      req.vexaUser=session.profile;
-      req.mtpSession=session;
-      next();
-    } catch (e) { res.status(401).json({error:'AUTH_INVALID'}); }
-  };
+  app.get('/api/auth/session',async(req,res)=>{try{const session=await loadSession(req);if(!session)return res.status(401).json({error:'AUTH_REQUIRED'});res.json({authenticated:true,profile:session.profile});}catch{res.status(401).json({error:'AUTH_INVALID'});}});
+  app.post('/api/auth/logout',async(req,res)=>{const id=readCookies(req)[SESSION_COOKIE];if(id&&pool)await pool.execute('DELETE FROM mtp_sso_sessions WHERE id=?',[id]).catch(()=>{});res.setHeader('Set-Cookie',serializeCookie(SESSION_COOKIE,'',{maxAge:0,httpOnly:true,sameSite:'Lax',secure:process.env.NODE_ENV!=='development'}));res.status(204).end();});
+  return async function auth(req,res,next){try{const session=await loadSession(req);if(!session?.profile?.sub)return res.status(401).json({error:'AUTH_REQUIRED'});req.vexaUser=session.profile;req.mtpSession=session;next();}catch{res.status(401).json({error:'AUTH_INVALID'});}};
 }
