@@ -232,3 +232,51 @@ npm run dev
 ```
 
 The frontend calls the MTP backend; VexaAccount credentials remain server-side.
+
+
+## Live `SSO_TOKEN_EXCHANGE_FAILED: Client authentication failed` recovery
+
+This error has a specific meaning in the current VexaAccount token endpoint: the authorization code and callback have already progressed far enough to reach the token exchange, but the MTP backend's `client_secret` does not validate against the active VexaAccount client's stored secret hash.
+
+For the production client:
+
+```text
+client_id = vexa_mtp2026-app-launcher_b1f581a66224d89c
+redirect_uri = https://mtp2026-app-launcher.onrender.com/auth/callback
+```
+
+the recovery workflow is:
+
+```text
+VexaAccount Owner OS
+  → System A: SSO Full Controlling System
+  → Applications
+  → MTP2026 App Launcher
+  → Rotate client secret (only if the current secret is unavailable or suspected stale)
+  → Copy the newly issued secret immediately
+  → MTP2026 App Launcher Backend Render service
+  → Environment
+  → replace VEXA_ACCOUNT_CLIENT_SECRET with that exact new value
+  → Save / redeploy the backend
+  → Start a completely new MTP login flow
+```
+
+A client-secret rotation invalidates the previous secret. Therefore, if the Owner rotates the MTP2026 secret, the MTP backend environment must be updated in the same change window. The secret must not be placed in the frontend, Git repository, `VEXA_ACCOUNT_SSO_CONFIG`, a URL, browser storage or a public diagnostic endpoint.
+
+If no rotation is required, the equivalent recovery is to re-enter the already-issued secret that belongs to the current active client ID exactly as issued, then redeploy the backend.
+
+A new login is required after correction because authorization codes are short-lived and single-use. Do not retry an authorization code that was issued during a failed exchange.
+
+## Deployment verification checklist
+
+After the backend has redeployed with the correct secret:
+
+1. Start at MTP2026 and click **Sign in**.
+2. Complete the VexaAccount authentication/authorization flow.
+3. Confirm the browser returns to the exact callback URI.
+4. Confirm MTP `POST /api/auth/callback` or browser `GET /auth/callback` completes without a 401.
+5. Confirm MTP creates an HttpOnly session cookie.
+6. Confirm `GET /api/auth/session` returns `authenticated: true`.
+7. Confirm the launcher library loads from `GET /api/apps`.
+
+The secure token endpoint currently declares `client_secret_post` authentication, and the MTP backend sends `client_id` and `client_secret` in the form body together with the authorization-code and PKCE parameters. No browser-side secret workaround is required or allowed.
