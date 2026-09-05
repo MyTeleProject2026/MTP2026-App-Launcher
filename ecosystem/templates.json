@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "provider": "VexaAccount",
+  "applications": [
+    {"id":"vexamail","name":"VexaMail","type":"web","frameworks":["react","nextjs","express","android"]},
+    {"id":"vexawallet","name":"VexaWallet","type":"web","frameworks":["react","nextjs","express","android"]},
+    {"id":"vexacloud","name":"VexaCloud","type":"web","frameworks":["react","nextjs","express","android"]},
+    {"id":"vexa-password-manager","name":"Vexa Password Manager","type":"web","frameworks":["react","nextjs","express","android"]},
+    {"id":"vexaauthenticator","name":"VexaAuthenticator","type":"web","frameworks":["react","nextjs","express","android"]},
+    {"id":"vexawholes-professional","name":"VexaWholes Professional","type":"web","frameworks":["react","nextjs","express","android"]}
+  ],
+  "contract": {
+    "authorization": "Authorization Code + PKCE",
+    "secretStorage": "server-side environment secret",
+    "redirectUri": "must exactly match the URI registered in VexaAccount",
+    "requiredScopes": ["openid","profile","email","account","session"],
+    "optionalScopes": ["applications","notifications"]
+  }
+}
