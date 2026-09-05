@@ -1,11 +1,33 @@
-# MTP2026 App Launcher Android packaging
+# MTP2026 Android packages
 
-Canonical native Android package for the MTP2026 App Launcher web application.
+This module produces two independent Android products from the same maintained source:
 
-Package: `com.mytele.mtp2026.launcher`.
+| Variant | Application ID | Runtime | Purpose |
+|---|---|---|---|
+| `userRelease` | `com.mytele.mtp2026.launcher` | MTP2026 App Launcher | End-user application launcher + VexaAccount SSO |
+| `ownerRelease` | `com.mytele.vexaaccount.ownercontrol` | VexaAccount Owner Control Center | Owner/Super Admin control-plane shell |
 
-The launcher opens the HTTPS deployment configured by `WEB_APP_URL`; override it with `-PwebAppUrl=...` when the deployment hostname changes. The documented production callback is `https://mtp2026-app-launcher.onrender.com/auth/callback`.
+## Build
 
-Build with `./gradlew assembleRelease bundleRelease`. GitHub Actions builds a real APK and AAB on every `main` push and manual run. The project targets Android API 36 and uses JDK 17 in CI.
+```bash
+./gradlew assembleUserRelease bundleUserRelease
+./gradlew assembleOwnerRelease bundleOwnerRelease
+```
 
-No signing keys are committed. Configure the production signing key in the release pipeline before store publication.
+Optional URL overrides:
+
+```bash
+./gradlew assembleUserRelease -PwebAppUrl=https://mtp2026-app-launcher.onrender.com
+./gradlew assembleOwnerRelease -PownerWebAppUrl=https://vexaaccount-management.onrender.com/super-admin.html
+```
+
+Release signing is intentionally supplied by environment variables and never committed:
+`KEYSTORE_PATH`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`.
+
+## Runtime security
+
+The APK contains no VexaAccount Client Secret. SSO uses the backend-managed session and the registered VexaAccount redirect URI. The Owner APK points to the canonical VexaAccount Owner Control Center runtime; its owner authorization remains enforced by VexaAccount's authenticated Super Admin backend.
+
+## Launcher icons
+
+Adaptive and legacy launcher resources are checked into the Android source. They are vector resources so the Android resource compiler does not depend on a malformed PNG/SVG payload.
