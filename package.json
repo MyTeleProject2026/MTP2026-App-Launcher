@@ -1,19 +1,20 @@
 {
   "name": "mtp2026-app-launcher",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
-  "description": "MYTELEPROJECT2026 cross-device web/PWA application launcher",
+  "description": "MYTELEPROJECT2026 cross-device web/PWA application launcher and VexaAccount integration toolkit",
   "type": "module",
   "scripts": {
     "start": "node backend/server.js",
     "dev": "node --watch backend/server.js",
     "db:init": "node backend/scripts/init-db.js",
     "frontend:dev": "npm --prefix frontend run dev",
-    "frontend:build": "npm --prefix frontend run build"
+    "frontend:build": "npm --prefix frontend run build",
+    "integration:generate": "node tools/generate-integration.mjs",
+    "integration:verify": "node tools/verify-generated-integration.mjs",
+    "test": "node --test"
   },
-  "engines": {
-    "node": ">=20"
-  },
+  "engines": { "node": ">=20" },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^5.1.0",
