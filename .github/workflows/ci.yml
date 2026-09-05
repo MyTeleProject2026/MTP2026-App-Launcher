@@ -21,9 +21,21 @@ jobs:
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm install --no-audit --no-fund
-      - name: Check backend syntax
-        run: node --check backend/server.js
-      - name: Check frontend SSO syntax
-        run: node --check frontend/src/auth.js && node --check frontend/src/auth/vexaAuth.js
+      - name: Check JavaScript syntax
+        run: |
+          node --check backend/server.js
+          node --check backend/src/auth/vexaaccount-sso.js
+          node --check backend/src/routes/vexaaccount-auth.js
+          node --check tools/generate-integration.mjs
+          node --check tools/patch-generated-integration.mjs
+          node --check tools/verify-generated-integration.mjs
+          node --check frontend/src/auth.js
+          node --check frontend/src/auth/vexaAuth.js
+      - name: Run regression tests
+        run: npm test
+      - name: Generate integration fixture
+        run: npm run integration:generate -- --app ci-fixture --output /tmp/mtp-generated --framework all
+      - name: Verify generated integration fixture
+        run: npm run integration:verify -- --dir /tmp/mtp-generated
       - name: Build frontend
         run: npm run frontend:build
