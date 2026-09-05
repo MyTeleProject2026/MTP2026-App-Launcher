@@ -38,6 +38,30 @@ CREATE TABLE IF NOT EXISTS user_applications (
   CONSTRAINT fk_user_apps_app FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Safe upgrade for TiDB/MySQL databases created from an older schema.
+CREATE TABLE IF NOT EXISTS mtp_sso_sessions (
+  id VARCHAR(128) PRIMARY KEY,
+  user_id CHAR(36) NOT NULL,
+  vexa_subject VARCHAR(255) NOT NULL,
+  profile_json JSON NOT NULL,
+  access_token_enc TEXT NOT NULL,
+  refresh_token_enc TEXT NULL,
+  access_expires_at DATETIME NULL,
+  expires_at DATETIME NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_mtp_sso_sessions_subject (vexa_subject),
+  INDEX idx_mtp_sso_sessions_expires (expires_at),
+  CONSTRAINT fk_mtp_sso_sessions_user FOREIGN KEY (user_id) REFERENCES mtp_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS mtp_sso_login_transactions (
+  state VARCHAR(128) PRIMARY KEY,
+  verifier VARCHAR(128) NOT NULL,
+  challenge VARCHAR(128) NOT NULL,
+  created_at DATETIME NOT NULL,
+  expires_at DATETIME NOT NULL,
+  INDEX idx_mtp_login_transactions_expires (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 ALTER TABLE user_applications ADD COLUMN IF NOT EXISTS last_opened_at TIMESTAMP NULL DEFAULT NULL;
 ALTER TABLE user_applications ADD INDEX IF NOT EXISTS idx_user_apps_recent (user_id, last_opened_at);
