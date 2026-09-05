@@ -6,12 +6,39 @@ def requiredEnv = { String name ->
     value
 }
 
+def webAppUrl = project.findProperty('webAppUrl') ?: 'https://mtp2026-app-launcher.onrender.com'
+def ownerWebAppUrl = project.findProperty('ownerWebAppUrl') ?: 'https://vexaaccount-management.onrender.com/super-admin.html'
+
 android {
     namespace 'com.mytele.mtp2026.launcher'
     compileSdk 36
-    defaultConfig { applicationId 'com.mytele.mtp2026.launcher'; minSdk 24; targetSdk 36; versionCode 1; versionName '1.0.0'; resValue 'string','app_name','MTP2026 App Launcher'; buildConfigField 'String','WEB_APP_URL','"' + (project.findProperty('webAppUrl') ?: 'https://mtp2026-app-launcher.onrender.com') + '"' }
+    defaultConfig { applicationId 'com.mytele.mtp2026.launcher'; minSdk 24; targetSdk 36; versionCode 1; versionName '1.0.0' }
+
+    flavorDimensions += 'edition'
+    productFlavors {
+        user {
+            dimension 'edition'
+            applicationId 'com.mytele.mtp2026.launcher'
+            resValue 'string', 'app_name', 'MTP2026 App Launcher'
+            buildConfigField 'String', 'WEB_APP_URL', '"' + webAppUrl + '"'
+            buildConfigField 'String', 'EDITION', '"user"'
+            buildConfigField 'String', 'ALLOWED_HOSTS', '"mtp2026-app-launcher.onrender.com,api-vexaaccount.onrender.com,vexaaccount-management.onrender.com"'
+        }
+        owner {
+            dimension 'edition'
+            applicationId 'com.mytele.vexaaccount.ownercontrol'
+            resValue 'string', 'app_name', 'VexaAccount Owner Control Center'
+            buildConfigField 'String', 'WEB_APP_URL', '"' + ownerWebAppUrl + '"'
+            buildConfigField 'String', 'EDITION', '"owner"'
+            buildConfigField 'String', 'ALLOWED_HOSTS', '"vexaaccount-management.onrender.com,api-vexaaccount.onrender.com"'
+        }
+    }
+
     signingConfigs {
-        release { storeFile file(requiredEnv('KEYSTORE_PATH')); storePassword requiredEnv('KEYSTORE_PASSWORD'); keyAlias requiredEnv('KEY_ALIAS'); keyPassword requiredEnv('KEY_PASSWORD'); enableV1Signing true; enableV2Signing true; enableV3Signing true; enableV4Signing true }
+        release {
+            storeFile file(requiredEnv('KEYSTORE_PATH')); storePassword requiredEnv('KEYSTORE_PASSWORD'); keyAlias requiredEnv('KEY_ALIAS'); keyPassword requiredEnv('KEY_PASSWORD')
+            enableV1Signing true; enableV2Signing true; enableV3Signing true; enableV4Signing true
+        }
     }
     buildTypes { release { minifyEnabled false; signingConfig signingConfigs.release } }
     buildFeatures { buildConfig true }
