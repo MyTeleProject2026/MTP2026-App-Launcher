@@ -27,54 +27,43 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.MTP2026_APP_LAUNCHER_KEYSTORE_BASE64 }}
         run: |
           set -euo pipefail
+          test -n "$KEYSTORE_BASE64"
           mkdir -p "$(dirname "$KEYSTORE_PATH")"
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
           chmod 600 "$KEYSTORE_PATH"
           keytool -list -keystore "$KEYSTORE_PATH" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
-      - name: Build APK and AAB
+      - name: Build user and owner APK/AAB
         working-directory: packaging/android
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleRelease bundleRelease
-      - name: Verify release binaries
+          ./gradlew clean assembleUserRelease bundleUserRelease assembleOwnerRelease bundleOwnerRelease
+      - name: Verify user and owner release binaries
         working-directory: packaging/android
         run: |
           set -euo pipefail
-
-          APK="app/build/outputs/apk/release/app-release.apk"
-          AAB="app/build/outputs/bundle/release/app-release.aab"
           APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
           AAPT2="$ANDROID_HOME/build-tools/35.0.0/aapt2"
-
-          for f in "$APK" "$AAB"; do
-            [ -f "$f" ] || { echo "Missing release binary: $f" >&2; exit 1; }
-            [ -s "$f" ] || { echo "Release binary is empty: $f" >&2; exit 1; }
-            stat -c '%n %s bytes' "$f"
+          for variant in userRelease ownerRelease; do
+            APK="app/build/outputs/apk/$variant/app-${variant}.apk"
+            [ -s "$APK" ] || { echo "Missing APK: $APK" >&2; exit 1; }
+            unzip -t "$APK" >/dev/null
+            "$AAPT2" dump badging "$APK" | grep -E "package: name=|application-label:|application-icon:" >/dev/null
+            "$APKSIGNER" verify --verbose --print-certs "$APK"
           done
-
-          echo "Checking APK archive integrity..."
-          unzip -t "$APK" >/dev/null
-
-          echo "Checking APK Android metadata..."
-          "$AAPT2" dump badging "$APK" >/dev/null
-
-          echo "Checking APK release signature..."
-          "$APKSIGNER" verify --verbose --print-certs "$APK"
-
-          echo "Checking AAB archive integrity..."
-          unzip -t "$AAB" >/dev/null
-
-          echo "Checking required AAB base module..."
-          unzip -l "$AAB" | grep -q 'base/manifest/AndroidManifest.xml'
-
-          echo "Checking AAB release signature..."
-          jarsigner -verify "$AAB" >/dev/null
-
-          echo "Release binary verification passed."
+          for variant in userRelease ownerRelease; do
+            AAB="app/build/outputs/bundle/$variant/app-${variant}.aab"
+            [ -s "$AAB" ] || { echo "Missing AAB: $AAB" >&2; exit 1; }
+            unzip -t "$AAB" >/dev/null
+            unzip -l "$AAB" | grep -q 'base/manifest/AndroidManifest.xml'
+            jarsigner -verify "$AAB" >/dev/null
+          done
+          echo "User and Owner Android packages verified."
       - uses: actions/upload-artifact@v7
         with:
-          name: mtp2026-launcher-android-release
+          name: mtp2026-user-owner-android-release
           if-no-files-found: error
           path: |
-            packaging/android/app/build/outputs/apk/release/*.apk
-            packaging/android/app/build/outputs/bundle/release/*.aab
+            packaging/android/app/build/outputs/apk/userRelease/*.apk
+            packaging/android/app/build/outputs/apk/ownerRelease/*.apk
+            packaging/android/app/build/outputs/bundle/userRelease/*.aab
+            packaging/android/app/build/outputs/bundle/ownerRelease/*.aab
