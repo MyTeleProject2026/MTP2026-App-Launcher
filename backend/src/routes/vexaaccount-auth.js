@@ -3,6 +3,7 @@ import {
   buildAuthorizeUrl, createLoginTransaction, decryptSecret, encryptSecret,
   exchangeAuthorizationCode, fetchVexaUser, readCookies, refreshVexaToken, serializeCookie
 } from '../auth/vexaaccount-sso.js';
+import { revokeVexaSession } from '../auth/vexaaccount-revoke.js';
 
 const SESSION_COOKIE='mtp_session';
 
@@ -84,7 +85,7 @@ export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
       refreshToken=refreshed.refresh_token||refreshToken;
       await pool.execute(`UPDATE mtp_sso_sessions SET access_token_enc=?,refresh_token_enc=?,access_expires_at=? WHERE id=?`,[encryptSecret(accessToken),encryptSecret(refreshToken),new Date(Date.now()+Math.max(60,Number(refreshed.expires_in||3600))*1000),id]);
     }
-    return {id,profile:typeof session.profile_json==='string'?JSON.parse(session.profile_json):session.profile_json,accessToken};
+    return {id,profile:typeof session.profile_json==='string'?JSON.parse(session.profile_json):session.profile_json,accessToken,refreshToken};
   }
 
   app.get('/api/auth/login',async(_req,res)=>{
@@ -127,6 +128,6 @@ export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
   app.get('/auth/vexaaccount/callback',handleBrowserCallback);
 
   app.get('/api/auth/session',async(req,res)=>{try{const session=await loadSession(req);if(!session)return res.status(401).json({error:'AUTH_REQUIRED'});res.json({authenticated:true,profile:session.profile});}catch{res.status(401).json({error:'AUTH_INVALID'});}});
-  app.post('/api/auth/logout',async(req,res)=>{const id=readCookies(req)[SESSION_COOKIE];if(id&&pool)await pool.execute('DELETE FROM mtp_sso_sessions WHERE id=?',[id]).catch(()=>{});res.setHeader('Set-Cookie',serializeCookie(SESSION_COOKIE,'',{maxAge:0,httpOnly:true,sameSite:'Lax',secure:process.env.NODE_ENV!=='development'}));res.status(204).end();});
+  app.post('/api/auth/logout',async(req,res)=>{const id=readCookies(req)[SESSION_COOKIE];if(id&&pool){try{const [rows]=await pool.execute('SELECT refresh_token_enc FROM mtp_sso_sessions WHERE id=? LIMIT 1',[id]);if(rows[0]?.refresh_token_enc){const refreshToken=decryptSecret(rows[0].refresh_token_enc);await revokeVexaSession(refreshToken).catch(()=>false);}}catch{}await pool.execute('DELETE FROM mtp_sso_sessions WHERE id=?',[id]).catch(()=>{});}res.setHeader('Set-Cookie',serializeCookie(SESSION_COOKIE,'',{maxAge:0,httpOnly:true,sameSite:'Lax',secure:process.env.NODE_ENV!=='development'}));res.status(204).end();});
   return async function auth(req,res,next){try{const session=await loadSession(req);if(!session?.profile?.sub)return res.status(401).json({error:'AUTH_REQUIRED'});req.vexaUser=session.profile;req.mtpSession=session;next();}catch{res.status(401).json({error:'AUTH_INVALID'});}};
 }
