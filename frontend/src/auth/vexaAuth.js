@@ -1,4 +1,4 @@
-const API=(import.meta.env.VITE_API_BASE_URL||'http://localhost:4000/api').replace(/\/$/,'');
+const API=(import.meta.env.VITE_API_BASE_URL||'https://mtp2026-app-launcher-backend.onrender.com/api').replace(/\/$/,'');
 
 export function startVexaLogin(){
   window.location.assign(`${API}/auth/login`);

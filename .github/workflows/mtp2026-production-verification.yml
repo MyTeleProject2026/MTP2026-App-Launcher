@@ -1,0 +1,42 @@
+name: MTP2026 production verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '27 * * * *'
+
+jobs:
+  production-smoke:
+    runs-on: ubuntu-latest
+    env:
+      FRONTEND_URL: ${{ vars.MTP_FRONTEND_URL || 'https://mtp2026-app-launcher.onrender.com' }}
+      BACKEND_URL: ${{ vars.MTP_BACKEND_URL || 'https://mtp2026-app-launcher-backend.onrender.com' }}
+    steps:
+      - name: Verify production frontend and backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          frontend="${FRONTEND_URL%/}"
+          backend="${BACKEND_URL%/}"
+
+          echo "Checking frontend: $frontend"
+          curl --fail --silent --show-error --location --max-time 20 "$frontend/" >/tmp/frontend.html
+          grep -q 'MTP2026' /tmp/frontend.html
+          curl --fail --silent --show-error --location --max-time 20 "$frontend/build-info.json" >/tmp/build-info.json
+
+          echo "Checking backend health: $backend"
+          curl --fail --silent --show-error --location --max-time 20 "$backend/api/health" >/tmp/health.json
+          node -e "const h=require('fs').readFileSync('/tmp/health.json','utf8'); const j=JSON.parse(h); if(!j.ok || j.databaseType!=='TiDB MySQL') process.exit(1); console.log(j)"
+
+          echo "Checking backend SSO configuration contract"
+          curl --fail --silent --show-error --location --max-time 20 "$backend/api/config" >/tmp/config.json
+          node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/config.json','utf8')); if(!j.sso?.configured || j.sso?.sessionMode!=='backend-managed') process.exit(1); console.log({sso:j.sso,databaseType:j.databaseType})"
+
+          echo "Checking VexaAccount login redirect"
+          code=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 20 "$backend/api/auth/login")
+          test "$code" = "302"
+
+          echo "Checking deployed frontend commit"
+          node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/build-info.json','utf8')); const expected=process.env.GITHUB_SHA; if(j.commit!=='unknown' && j.commit!==expected) { console.error({expected,actual:j.commit}); process.exit(1); } console.log({expected,actual:j.commit})"
