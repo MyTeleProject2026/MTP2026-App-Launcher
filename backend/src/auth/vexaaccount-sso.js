@@ -15,8 +15,11 @@ export function getVexaConfig() {
   const redirectUri = String(parsed.redirectUri || process.env.VEXA_ACCOUNT_REDIRECT_URI || '').trim();
   const scopes = Array.isArray(parsed.scopes) && parsed.scopes.length ? parsed.scopes : ['openid','profile','email','account','session','applications','notifications'];
   const timeoutMs = Number(parsed.timeoutMs || 10000);
-  const clientSecret = String(process.env.VEXA_ACCOUNT_CLIENT_SECRET || '');
-  const encryptionKey = String(process.env.MTP_SESSION_ENCRYPTION_KEY || '');
+  // Render environment variables are sometimes pasted with a trailing newline/space.
+  // VexaAccount hashes the exact registered secret, so normalize whitespace here before
+  // sending it. Keep the secret server-side and never expose it to the frontend.
+  const clientSecret = String(process.env.VEXA_ACCOUNT_CLIENT_SECRET || process.env.VEXA_ACCOUNT_SSO_CLIENT_SECRET || '').trim();
+  const encryptionKey = String(process.env.MTP_SESSION_ENCRYPTION_KEY || '').trim();
   if (!clientId || !redirectUri || !clientSecret) throw new Error('VEXA_SSO_NOT_CONFIGURED');
   if (!encryptionKey || encryptionKey.length < 32) throw new Error('MTP_SESSION_ENCRYPTION_KEY_REQUIRED');
   const redirect = new URL(redirectUri);
@@ -70,5 +73,5 @@ export async function fetchVexaUser(accessToken) {
 
 export function serializeCookie(name,value,options={}){const parts=[`${name}=${encodeURIComponent(value)}`];if(options.maxAge!=null)parts.push(`Max-Age=${Math.max(0,Math.floor(options.maxAge))}`);parts.push(`Path=${options.path||'/'}`);if(options.httpOnly!==false)parts.push('HttpOnly');if(options.secure!==false)parts.push('Secure');parts.push(`SameSite=${options.sameSite||'Lax'}`);return parts.join('; ');}
 export function readCookies(req){return Object.fromEntries((req.headers.cookie||'').split(';').map(v=>v.trim()).filter(Boolean).map(v=>{const i=v.indexOf('=');return i<0?[v,'']:[v.slice(0,i),decodeURIComponent(v.slice(i+1))]}));}
-export function encryptSecret(value){const secret=String(process.env.MTP_SESSION_ENCRYPTION_KEY||'');if(secret.length<32)throw new Error('MTP_SESSION_ENCRYPTION_KEY_REQUIRED');const key=crypto.createHash('sha256').update(secret).digest();const iv=crypto.randomBytes(12);const cipher=crypto.createCipheriv('aes-256-gcm',key,iv);const ciphertext=Buffer.concat([cipher.update(String(value),'utf8'),cipher.final()]);const tag=cipher.getAuthTag();return Buffer.concat([iv,tag,ciphertext]).toString('base64url');}
-export function decryptSecret(value){const secret=String(process.env.MTP_SESSION_ENCRYPTION_KEY||'');if(secret.length<32)throw new Error('MTP_SESSION_ENCRYPTION_KEY_REQUIRED');const raw=Buffer.from(String(value),'base64url');if(raw.length<29)throw new Error('INVALID_ENCRYPTED_SESSION');const key=crypto.createHash('sha256').update(secret).digest();const iv=raw.subarray(0,12),tag=raw.subarray(12,28),ciphertext=raw.subarray(28);const decipher=crypto.createDecipheriv('aes-256-gcm',key,iv);decipher.setAuthTag(tag);return Buffer.concat([decipher.update(ciphertext),decipher.final()]).toString('utf8');}
+export function encryptSecret(value){const secret=String(process.env.MTP_SESSION_ENCRYPTION_KEY||'').trim();if(secret.length<32)throw new Error('MTP_SESSION_ENCRYPTION_KEY_REQUIRED');const key=crypto.createHash('sha256').update(secret).digest();const iv=crypto.randomBytes(12);const cipher=crypto.createCipheriv('aes-256-gcm',key,iv);const ciphertext=Buffer.concat([cipher.update(String(value),'utf8'),cipher.final()]);const tag=cipher.getAuthTag();return Buffer.concat([iv,tag,ciphertext]).toString('base64url');}
+export function decryptSecret(value){const secret=String(process.env.MTP_SESSION_ENCRYPTION_KEY||'').trim();if(secret.length<32)throw new Error('MTP_SESSION_ENCRYPTION_KEY_REQUIRED');const raw=Buffer.from(String(value),'base64url');if(raw.length<29)throw new Error('INVALID_ENCRYPTED_SESSION');const key=crypto.createHash('sha256').update(secret).digest();const iv=raw.subarray(0,12),tag=raw.subarray(12,28),ciphertext=raw.subarray(28);const decipher=crypto.createDecipheriv('aes-256-gcm',key,iv);decipher.setAuthTag(tag);return Buffer.concat([decipher.update(ciphertext),decipher.final()]).toString('utf8');}
