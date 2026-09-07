@@ -38,6 +38,29 @@ CREATE TABLE IF NOT EXISTS user_applications (
   CONSTRAINT fk_user_apps_app FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS mtp_user_preferences (
+  user_id CHAR(36) NOT NULL PRIMARY KEY,
+  theme VARCHAR(20) NOT NULL DEFAULT 'system',
+  default_view VARCHAR(30) NOT NULL DEFAULT 'launcher',
+  open_behavior VARCHAR(30) NOT NULL DEFAULT 'new_tab',
+  compact_mode TINYINT(1) NOT NULL DEFAULT 0,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_mtp_preferences_user FOREIGN KEY (user_id) REFERENCES mtp_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS mtp_notifications (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  user_id CHAR(36) NOT NULL,
+  type VARCHAR(40) NOT NULL DEFAULT 'system',
+  title VARCHAR(160) NOT NULL,
+  message VARCHAR(500) NOT NULL,
+  read_at DATETIME NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_mtp_notifications_user (user_id, created_at),
+  INDEX idx_mtp_notifications_unread (user_id, read_at, created_at),
+  CONSTRAINT fk_mtp_notifications_user FOREIGN KEY (user_id) REFERENCES mtp_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS mtp_sso_sessions (
   id VARCHAR(128) PRIMARY KEY,
   user_id CHAR(36) NOT NULL,
