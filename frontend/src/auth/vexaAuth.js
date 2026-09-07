@@ -1,7 +1,11 @@
 const API=(import.meta.env.VITE_API_BASE_URL||'https://mtp2026-app-launcher-backend.onrender.com/api').replace(/\/$/,'');
 
-export function startVexaLogin(){
-  window.location.assign(`${API}/auth/login`);
+export function startVexaLogin(options={}){
+  const params=new URLSearchParams();
+  if(options.loginHint) params.set('login_hint',options.loginHint);
+  if(options.prompt) params.set('prompt',options.prompt);
+  const suffix=params.toString();
+  window.location.assign(`${API}/auth/login${suffix?`?${suffix}`:''}`);
 }
 
 export async function finishVexaLogin(){
