@@ -31,8 +31,11 @@ export async function finishVexaLogin(){
   return data;
 }
 
+export function getMtpDeviceId(){let id=localStorage.getItem('mtp2026_device_id');if(!id){id=crypto.randomUUID();localStorage.setItem('mtp2026_device_id',id);}return id;}
+
 export async function api(path,options={}){
-  return fetch(`${API}${path}`,{...options,credentials:'include'});
+  const headers={...(options.headers||{}),'x-mtp-device-id':getMtpDeviceId()};
+  return fetch(`${API}${path}`,{...options,credentials:'include',headers});
 }
 
 export async function signOut(){
