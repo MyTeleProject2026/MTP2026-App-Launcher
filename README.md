@@ -18,6 +18,8 @@ MTP2026 is the MYTELEPROJECT2026 central web/PWA application launcher. **VexaAcc
 - PWA install prompt and responsive navigation.
 - Logout removes the local MTP session and attempts upstream Vexa refresh-token revocation.
 - Production verification workflow for frontend revision, backend health, TiDB and SSO contract.
+- Cross-device launcher synchronization keyed by the stable VexaAccount subject.
+- Connected-application records and device presence records without copying third-party cookies or raw third-party tokens.
 
 ## SSO workflow
 
@@ -61,6 +63,15 @@ The exact callback must be registered as an active VexaAccount SSO client redire
 - `GET /api/apps/recent`
 - `PATCH /api/apps/:id`
 - `DELETE /api/apps/:id`
+
+### Cross-device synchronization
+
+- `GET /api/sync` — atomic launcher restore payload for the authenticated VexaAccount identity.
+- `GET /api/connections` — connected/restored application state.
+- `PUT /api/apps/:id/connection` — application connection metadata; never stores third-party cookies or raw provider tokens.
+- `GET /api/devices` — devices that have recently used this MTP identity.
+
+The launcher sends a locally generated opaque device identifier so the backend can maintain device presence. Applications, favorites, pin state, ordering, categories, preferences and notifications are loaded from TiDB by `mtp_users.id`, which is deterministically mapped from the VexaAccount subject. A new device therefore restores the same launcher data after signing into the same VexaAccount.
 
 ### Preferences and notifications
 
