@@ -184,8 +184,9 @@ app.post('/api/apps', auth, async (req, res) => {
     if (!pool) return res.status(503).json({ error: 'DATABASE_NOT_CONFIGURED', preview: { url, ...metadata } });
     const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
     const applicationId = crypto.randomUUID();
-    await pool.execute(`INSERT INTO applications(id,canonical_url,title,description,icon_url,manifest_url,theme_color,pwa_supported,metadata) VALUES(?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE title=VALUES(title),icon_url=VALUES(icon_url),manifest_url=VALUES(manifest_url),theme_color=VALUES(theme_color),pwa_supported=VALUES(pwa_supported),metadata=VALUES(metadata),updated_at=CURRENT_TIMESTAMP`, [applicationId, url, metadata.title, null, metadata.iconUrl, metadata.manifestUrl, metadata.themeColor, metadata.pwaSupported ? 1 : 0, JSON.stringify(metadata)]);
-    const [existing] = await pool.execute('SELECT id FROM applications WHERE canonical_url=? LIMIT 1', [url]);
+    const canonicalUrlHash = crypto.createHash('sha256').update(url).digest('hex');
+    await pool.execute(`INSERT INTO applications(id,canonical_url,canonical_url_hash,title,description,icon_url,manifest_url,theme_color,pwa_supported,metadata) VALUES(?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE canonical_url=VALUES(canonical_url),title=VALUES(title),icon_url=VALUES(icon_url),manifest_url=VALUES(manifest_url),theme_color=VALUES(theme_color),pwa_supported=VALUES(pwa_supported),metadata=VALUES(metadata),updated_at=CURRENT_TIMESTAMP`, [applicationId, url, canonicalUrlHash, metadata.title, null, metadata.iconUrl, metadata.manifestUrl, metadata.themeColor, metadata.pwaSupported ? 1 : 0, JSON.stringify(metadata)]);
+    const [existing] = await pool.execute('SELECT id FROM applications WHERE canonical_url_hash=? AND canonical_url=? LIMIT 1', [canonicalUrlHash, url]);
     const realId = existing[0]?.id || applicationId;
     await pool.execute('INSERT IGNORE INTO user_applications(user_id,application_id) VALUES(?,?)', [uid, realId]);
     res.status(201).json({ id: realId, url, ...metadata, favorite: false, pinned: false });
