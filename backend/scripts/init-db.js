@@ -103,7 +103,7 @@ try {
   // safe for databases created by older revisions.
   await pool.query('ALTER TABLE applications ADD COLUMN IF NOT EXISTS canonical_url_hash CHAR(64) NULL');
   await pool.query("UPDATE applications SET canonical_url_hash=SHA2(canonical_url,256) WHERE canonical_url_hash IS NULL OR canonical_url_hash=''");
-  const [indexes] = await pool.query("SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='applications' AND INDEX_NAME='uq_applications_canonical_url_hash' LIMIT 1");
+  const [indexes] = await pool.query("SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='applications' AND COLUMN_NAME='canonical_url_hash' AND NON_UNIQUE=0 LIMIT 1");
   if (!indexes.length) await pool.query('CREATE UNIQUE INDEX uq_applications_canonical_url_hash ON applications(canonical_url_hash)');
   console.log(`TiDB schema initialized/verified: ${statements.length} statements.`);
 } catch (error) {
