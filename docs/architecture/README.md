@@ -1,48 +1,57 @@
 # MTP2026 Architecture
 
-## Identity
+## Identity boundary
 
-VexaAccount is the identity provider. MTP2026 should accept a verified OIDC identity and use a stable VexaAccount subject/profile identifier as the owner of the launcher library.
+VexaAccount is the identity provider. MTP2026 accepts the verified VexaAccount subject/profile through its own server-side SSO session and never asks the browser to supply the authenticated user ID.
+
+```text
+VexaAccount SSO
+   -> MTP state + PKCE
+   -> code exchange
+   -> userinfo.sub
+   -> mtp_users
+   -> encrypted mtp_sso_sessions
+   -> HttpOnly mtp_session
+```
 
 ## Application library
 
-A user's library is server-side and must not depend on localStorage. Store application definitions separately from user-specific launcher settings.
+Application definitions are global records; user memberships contain favorite/pin/category/order/recent state. The library is server-side and cross-device.
+
+## Launcher state
+
+MTP also persists:
+
+- `mtp_user_preferences`: theme, default view, open behavior and compact mode.
+- `mtp_notifications`: launcher/system notifications and read state.
+
+These are authenticated by the same MTP session and owned by the mapped MTP user.
+
+## Add application
 
 ```text
-VexaAccount identity
-        |
-        v
-MTP2026 user/profile
-        |
-        +--> application memberships
-                 |
-                 +--> application URL
-                 +--> title/icon/metadata
-                 +--> category/favorite/pin/order
+HTTPS URL
+ -> normalize and reject non-HTTPS URLs
+ -> resolve DNS and reject private/link-local addresses
+ -> fetch metadata without following redirects
+ -> detect title/icon/manifest/theme
+ -> upsert application definition
+ -> create user membership
+ -> render launcher card
 ```
 
 ## Cross-device behavior
 
-1. User signs in through VexaAccount SSO.
-2. MTP2026 resolves the authenticated profile.
-3. MTP2026 loads that profile's application memberships from the API/database.
-4. The same library is rendered on every authenticated device.
-5. Each device independently determines whether a PWA can be installed.
+1. Authenticate through VexaAccount.
+2. Resolve the stable provider subject to `mtp_users`.
+3. Load applications, preferences and notifications from TiDB/MySQL.
+4. Apply preferences to the launcher.
+5. Mutations persist through authenticated API routes.
 
-## Add application flow
+## Session lifecycle
 
-```text
-HTTPS URL
-   -> validate URL
-   -> fetch metadata with SSRF-safe server controls
-   -> parse title/icon/manifest/PWA signals
-   -> create application definition
-   -> create user membership
-   -> return launcher card
-```
-
-Metadata fetching must protect against SSRF, private-network access, unsafe redirects, oversized responses and unsupported protocols.
+Login transactions are server-side and single-use. Vexa access/refresh tokens are encrypted at rest. Access tokens are refreshed server-side near expiry. Logout removes the local session and attempts upstream refresh-token revocation.
 
 ## Account switching
 
-Account switching must replace the active authenticated profile context and reload the corresponding application membership set. Do not mix application libraries between profiles.
+A new VexaAccount login creates a new MTP session and loads only that subject's records. Browser storage is not used as an identity authority.
