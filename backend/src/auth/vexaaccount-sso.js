@@ -31,9 +31,12 @@ export function randomUrlToken(bytes=32) { return crypto.randomBytes(bytes).toSt
 export function pkceChallenge(verifier) { return crypto.createHash('sha256').update(verifier).digest('base64url'); }
 export function createLoginTransaction() { const state=randomUrlToken(32),verifier=randomUrlToken(48); return {state,verifier,challenge:pkceChallenge(verifier)}; }
 
-export function buildAuthorizeUrl(transaction) {
+export function buildAuthorizeUrl(transaction, options = {}) {
   const cfg=getVexaConfig();
-  const query=new URLSearchParams({client_id:cfg.clientId,redirect_uri:cfg.redirectUri,response_type:'code',scope:cfg.scopes.join(' '),state:transaction.state,code_challenge:transaction.challenge,code_challenge_method:'S256'}).toString();
+  const params={client_id:cfg.clientId,redirect_uri:cfg.redirectUri,response_type:'code',scope:cfg.scopes.join(' '),state:transaction.state,code_challenge:transaction.challenge,code_challenge_method:'S256'};
+  if (options.loginHint) params.login_hint=String(options.loginHint).trim();
+  if (options.prompt) params.prompt=String(options.prompt).trim();
+  const query=new URLSearchParams(params).toString();
   const url=new URL('/',cfg.userUrl);
   url.hash=`#/sso/authorize?${query}`;
   return url.toString();
