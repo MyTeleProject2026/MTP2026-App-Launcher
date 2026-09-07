@@ -131,6 +131,11 @@ function App() {
 
   async function login() { setError(''); await startVexaLogin(); }
 
+  async function switchAccount() {
+    await doLogout(false);
+    await startVexaLogin({ prompt: 'select_account' });
+  }
+
   async function doLogout(redirect = true) {
     await signOut();
     setLogged(false); setProfile(null); setApps([]); setRecentApps([]); setNotifications([]); setMenu(false);
@@ -221,7 +226,7 @@ function App() {
       {installPrompt && <button className="install-side" onClick={install}><Download/><span><b>Install MTP2026</b><small>Install launcher PWA</small></span></button>}
       <div className="sync-card"><div className="sync-top"><span><i className="dot"/> Cloud Synced</span><span>{logged ? 'LIVE' : 'OFFLINE'}</span></div><p>VexaAccount library synchronization</p><div className="sync-bar"><span className={syncing ? 'busy' : ''}/></div></div>
       <button className="profile-mini" onClick={() => setMenu(v => !v)}><VexaAvatar profile={profile}/><span><b>{name}</b><small>VexaAccount · {logged ? 'Connected' : 'Not signed in'}</small></span><ChevronDown className="profile-chevron"/></button>
-      {menu && <div className="account-menu"><div className="account-head"><VexaAvatar profile={profile}/><div><b>{name}</b><small>{profile?.email || 'VexaAccount'}</small></div></div><hr/>{logged ? <button onClick={() => doLogout()}><LogOut/> Sign out</button> : <button onClick={login}><LogIn/> Sign in with VexaAccount</button>}<button onClick={() => window.open('https://vexaaccount-management.onrender.com','_blank','noopener,noreferrer')}><Settings/> Manage VexaAccount</button><button onClick={() => { setShowSettings(true); setMenu(false); }}><Settings/> Launcher Settings</button><button onClick={() => { doLogout(false); startVexaLogin({prompt:'select_account'}); }}><ArrowRightLeft/> Switch account</button></div>}
+      {menu && <div className="account-menu"><div className="account-head"><VexaAvatar profile={profile}/><div><b>{name}</b><small>{profile?.email || 'VexaAccount'}</small></div></div><hr/>{logged ? <button onClick={() => doLogout()}><LogOut/> Sign out</button> : <button onClick={login}><LogIn/> Sign in with VexaAccount</button>}<button onClick={() => window.open('https://vexaaccount-management.onrender.com','_blank','noopener,noreferrer')}><Settings/> Manage VexaAccount</button><button onClick={() => { setShowSettings(true); setMenu(false); }}><Settings/> Launcher Settings</button><button onClick={switchAccount}><ArrowRightLeft/> Switch account</button></div>}
     </aside>
 
     <main className="main">
