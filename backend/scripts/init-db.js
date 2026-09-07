@@ -97,6 +97,14 @@ try {
   const schema = await fs.readFile(new URL('../schema.sql', import.meta.url), 'utf8');
   const statements = splitSql(schema).filter(statement => !/^--/.test(statement));
   for (const statement of statements) await pool.query(statement);
+  // TiDB limits indexed utf8mb4 keys to 3072 bytes. Canonical URLs can be
+  // 2048 characters (8192 bytes), so keep the full URL unindexed and use a
+  // fixed SHA-256 digest for uniqueness. The compatibility steps make this
+  // safe for databases created by older revisions.
+  await pool.query('ALTER TABLE applications ADD COLUMN IF NOT EXISTS canonical_url_hash CHAR(64) NULL');
+  await pool.query("UPDATE applications SET canonical_url_hash=SHA2(canonical_url,256) WHERE canonical_url_hash IS NULL OR canonical_url_hash=''");
+  const [indexes] = await pool.query("SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='applications' AND INDEX_NAME='uq_applications_canonical_url_hash' LIMIT 1");
+  if (!indexes.length) await pool.query('CREATE UNIQUE INDEX uq_applications_canonical_url_hash ON applications(canonical_url_hash)');
   console.log(`TiDB schema initialized/verified: ${statements.length} statements.`);
 } catch (error) {
   console.error(`TiDB schema initialization failed: ${error instanceof Error ? error.message : error}`);
