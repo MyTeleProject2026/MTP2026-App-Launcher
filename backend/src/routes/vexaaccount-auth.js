@@ -72,7 +72,7 @@ export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
     return {id,userId:session.user_id,profile:typeof session.profile_json==='string'?JSON.parse(session.profile_json):session.profile_json,accessToken,refreshToken};
   }
 
-  app.get('/api/auth/login',async(_req,res)=>{try{const tx=createLoginTransaction();await saveLoginTransaction(tx);res.redirect(302,buildAuthorizeUrl(tx));}catch(error){res.status(503).json({error:error.message||'VEXA_SSO_UNAVAILABLE'});}});
+  app.get('/api/auth/login',async(req,res)=>{try{const tx=createLoginTransaction();await saveLoginTransaction(tx);const loginHint=String(req.query.login_hint||'').trim();const prompt=String(req.query.prompt||'').trim();res.redirect(302,buildAuthorizeUrl(tx,{loginHint,prompt}));}catch(error){res.status(503).json({error:error.message||'VEXA_SSO_UNAVAILABLE'});}});
 
   app.post('/api/auth/callback',async(req,res)=>{try{const {code,state}=req.body||{};if(!code||!state)return res.status(400).json({error:'INVALID_SSO_STATE'});const tx=await consumeLoginTransaction(String(state));if(!tx)return res.status(400).json({error:'INVALID_SSO_STATE'});const tokens=await exchangeAuthorizationCode(String(code),tx.verifier);const profile=await fetchVexaUser(tokens.access_token);const session=await createSession(profile,tokens);res.setHeader('Set-Cookie',serializeCookie(SESSION_COOKIE,session.id,{maxAge:30*24*60*60,httpOnly:true,sameSite:'Lax',secure:process.env.NODE_ENV!=='development'}));res.json({authenticated:true,profile:session.profile});}catch(e){res.status(401).json({error:e.message||'SSO_LOGIN_FAILED'});}});
 
