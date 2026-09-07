@@ -111,6 +111,67 @@ async function getLibrary(req) {
   return rows;
 }
 
+
+async function ensureSyncTables() {
+  if (!pool) return;
+  await pool.execute(`CREATE TABLE IF NOT EXISTS mtp_application_connections (id CHAR(36) NOT NULL PRIMARY KEY,user_id CHAR(36) NOT NULL,application_id CHAR(36) NOT NULL,provider VARCHAR(120) NOT NULL DEFAULT 'external',connection_type VARCHAR(40) NOT NULL DEFAULT 'launcher',provider_subject VARCHAR(255) NULL,status VARCHAR(30) NOT NULL DEFAULT 'restored',last_authenticated_at DATETIME NULL,last_used_at DATETIME NULL,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,UNIQUE KEY uq_mtp_application_connection(user_id,application_id),INDEX idx_mtp_application_connections_user(user_id,status,updated_at))`);
+  await pool.execute(`CREATE TABLE IF NOT EXISTS mtp_user_devices (id CHAR(36) NOT NULL PRIMARY KEY,user_id CHAR(36) NOT NULL,device_id VARCHAR(128) NOT NULL,device_label VARCHAR(160) NULL,last_seen_at DATETIME NOT NULL,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,UNIQUE KEY uq_mtp_user_device(user_id,device_id),INDEX idx_mtp_user_devices_seen(user_id,last_seen_at))`);
+}
+const syncTablesReady = ensureSyncTables();
+
+async function touchDevice(req, userId) {
+  if (!pool || !userId) return;
+  await syncTablesReady;
+  const deviceId = String(req.get('x-mtp-device-id') || '').trim().slice(0,128);
+  if (!deviceId) return;
+  const label = String(req.get('x-mtp-device-label') || '').trim().slice(0,160) || null;
+  await pool.execute(`INSERT INTO mtp_user_devices(id,user_id,device_id,device_label,last_seen_at) VALUES(?,?,?,?,UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE device_label=COALESCE(VALUES(device_label),device_label),last_seen_at=UTC_TIMESTAMP()`,[crypto.randomUUID(),userId,deviceId,label]);
+}
+
+app.get('/api/sync', auth, async (req,res) => {
+  if (!pool) return res.status(503).json({error:'DATABASE_NOT_CONFIGURED'});
+  try {
+    await touchDevice(req, req.mtpSession.userId);
+    await syncTablesReady;
+    const [apps, settings, notifications, connections] = await Promise.all([
+      getLibrary(req),
+      pool.execute('SELECT theme,default_view AS defaultView,open_behavior AS openBehavior,compact_mode AS compactMode FROM mtp_user_preferences WHERE user_id=?',[req.mtpSession.userId]).then(([r])=>r[0]||null),
+      pool.execute('SELECT id,type,title,message,read_at AS readAt,created_at AS createdAt FROM mtp_notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 100',[req.mtpSession.userId]).then(([r])=>r),
+      pool.execute('SELECT application_id AS applicationId,provider,connection_type AS connectionType,provider_subject AS providerSubject,status,last_authenticated_at AS lastAuthenticatedAt,last_used_at AS lastUsedAt,updated_at AS updatedAt FROM mtp_application_connections WHERE user_id=?',[req.mtpSession.userId]).then(([r])=>r)
+    ]);
+    res.json({profile:req.vexaUser,apps,settings,notifications,connections,synchronizedAt:new Date().toISOString()});
+  } catch { res.status(500).json({error:'SYNC_LOAD_FAILED'}); }
+});
+
+app.get('/api/connections', auth, async (req,res)=>{
+  if (!pool) return res.status(503).json({error:'DATABASE_NOT_CONFIGURED'});
+  try { await touchDevice(req,req.mtpSession.userId); await syncTablesReady; const [rows]=await pool.execute('SELECT application_id AS applicationId,provider,connection_type AS connectionType,provider_subject AS providerSubject,status,last_authenticated_at AS lastAuthenticatedAt,last_used_at AS lastUsedAt,created_at AS createdAt,updated_at AS updatedAt FROM mtp_application_connections WHERE user_id=? ORDER BY updated_at DESC',[req.mtpSession.userId]); res.json(rows); }
+  catch { res.status(500).json({error:'CONNECTIONS_LOAD_FAILED'}); }
+});
+
+app.put('/api/apps/:id/connection', auth, async (req,res)=>{
+  if (!pool) return res.status(503).json({error:'DATABASE_NOT_CONFIGURED'});
+  try {
+    await touchDevice(req,req.mtpSession.userId); await syncTablesReady;
+    const uid=req.mtpSession.userId;
+    const [owned]=await pool.execute('SELECT 1 FROM user_applications WHERE user_id=? AND application_id=? LIMIT 1',[uid,req.params.id]);
+    if(!owned.length) return res.status(404).json({error:'APPLICATION_NOT_FOUND'});
+    const body=req.body||{};
+    const provider=String(body.provider||'external').slice(0,120);
+    const connectionType=String(body.connectionType||'launcher').slice(0,40);
+    const providerSubject=body.providerSubject?String(body.providerSubject).slice(0,255):null;
+    const status=['restored','connected','sign_in_required','disconnected'].includes(body.status)?body.status:'restored';
+    await pool.execute(`INSERT INTO mtp_application_connections(id,user_id,application_id,provider,connection_type,provider_subject,status,last_authenticated_at,last_used_at) VALUES(?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE provider=VALUES(provider),connection_type=VALUES(connection_type),provider_subject=VALUES(provider_subject),status=VALUES(status),last_authenticated_at=VALUES(last_authenticated_at),last_used_at=VALUES(last_used_at),updated_at=CURRENT_TIMESTAMP`,[crypto.randomUUID(),uid,req.params.id,provider,connectionType,providerSubject,status,status==='connected'?new Date():null,new Date()]);
+    res.json({ok:true,status});
+  } catch { res.status(400).json({error:'CONNECTION_UPDATE_FAILED'}); }
+});
+
+app.get('/api/devices', auth, async (req,res)=>{
+  if (!pool) return res.status(503).json({error:'DATABASE_NOT_CONFIGURED'});
+  try { await touchDevice(req,req.mtpSession.userId); await syncTablesReady; const [rows]=await pool.execute('SELECT id,device_id AS deviceId,device_label AS deviceLabel,last_seen_at AS lastSeenAt,created_at AS createdAt FROM mtp_user_devices WHERE user_id=? ORDER BY last_seen_at DESC',[req.mtpSession.userId]); res.json(rows); }
+  catch { res.status(500).json({error:'DEVICES_LOAD_FAILED'}); }
+});
+
 app.get('/api/apps', auth, async (req, res) => {
   if (!pool) return res.status(503).json({ error: 'DATABASE_NOT_CONFIGURED' });
   try { res.json(await getLibrary(req)); } catch { res.status(500).json({ error: 'LIBRARY_LOAD_FAILED' }); }
