@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS mtp_users (
 
 CREATE TABLE IF NOT EXISTS applications (
   id CHAR(36) NOT NULL PRIMARY KEY,
-  canonical_url VARCHAR(2048) NOT NULL UNIQUE,
+  canonical_url VARCHAR(2048) NOT NULL,
+  canonical_url_hash CHAR(64) NOT NULL UNIQUE,
   title VARCHAR(160) NOT NULL,
   description VARCHAR(500) NULL,
   icon_url VARCHAR(2048) NULL,
