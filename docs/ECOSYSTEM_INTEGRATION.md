@@ -1,66 +1,34 @@
-# VexaAccount ecosystem integration
+# VexaAccount Ecosystem Integration
 
-MTP2026 App Launcher now contains the consumer-side integration toolkit. VexaAccount remains the identity authority and Owner Control Center; MTP2026 does not duplicate Owner authorization or Client Secret storage.
+MTP2026 is the consumer-side launcher and integration host. VexaAccount remains the identity authority and owner control plane.
 
-## Contract
+## Consumer contract
 
 ```text
-Owner registers application in VexaAccount
-  → exact HTTPS redirect URI
-  → supported scopes
-  → one-time Client Secret display
-  → external backend stores VEXA_ACCOUNT_CLIENT_SECRET
-  → generated integration uses Authorization Code + S256 PKCE
-  → VexaAccount authorize
-  → callback
-  → token exchange
-  → /api/sso/userinfo
-  → external application's own session
+Owner registers an application in VexaAccount
+  -> exact HTTPS redirect URI + minimum scopes
+  -> MTP backend stores the client secret
+  -> MTP creates state + S256 PKCE
+  -> VexaAccount User SSO authorization UI
+  -> authorization code
+  -> MTP server-side token exchange
+  -> VexaAccount userinfo
+  -> MTP user mapping + encrypted session
+  -> MTP application APIs
 ```
 
-The current VexaAccount Owner Control Center documentation explicitly requires exact production callbacks, S256 PKCE, server-side state validation, stable `userinfo.sub`, and server-side Client Secret handling. See `README_OWNER_CONTROL_CENTER.md` in VexaAccount.
+## MTP-owned state
 
-## Generator
+MTP stores launcher-specific applications, recent activity, preferences, notifications and its own session. It does not duplicate VexaAccount passwords, registration, verification, 2FA or owner authorization.
 
-```bash
-npm run integration:generate -- --app vexamail --framework all \
-  --client-id YOUR_REGISTERED_CLIENT_ID \
-  --redirect-uri https://vexamail.example.com/auth/callback
-```
+## Generated integrations
 
-Supported framework templates:
-
-- Vanilla browser JavaScript
-- React
-- Next.js
-- Express/Node
-- Android configuration shell
-
-The generator also creates `.env.example`, deployment configuration, integration documentation and a Node test suite. It never writes a Client Secret into generated source.
-
-## Automatic patching
-
-For a local target project:
-
-```bash
-node tools/patch-generated-integration.mjs \
-  --target /path/to/project \
-  --generated generated/vexamail
-```
-
-Existing files are skipped by default. `--force` is required to replace an existing generated file. The patcher is deliberately filesystem-local; it does not execute arbitrary code or modify a remote repository implicitly.
+The repository's integration generator creates consumer-side artifacts without embedding a client secret. Generated applications must still register their own VexaAccount client and exact callback URI.
 
 ## Verification
 
-```bash
-npm run integration:verify -- --dir generated/vexamail
-```
+Run `npm run integration:verify -- --dir <generated-dir>` for generated artifacts. Then separately verify the real deployed consumer with a real VexaAccount account.
 
-Verification checks required artifact files, HTTPS provider/redirect URLs, required `openid` scope, absence of a Client Secret in generated configuration, and executes the generated tests.
+## Security
 
-## Ecosystem templates
-
-`ecosystem/templates.json` defines the initial integration targets:
-VexaMail, VexaWallet, VexaCloud, Vexa Password Manager, VexaAuthenticator and VexaWholes Professional.
-
-Each ecosystem application must still be registered in VexaAccount with its own client ID and exact redirect URI. A template is not a credential and does not bypass VexaAccount authorization.
+Never put a Vexa client secret or refresh token in browser code, Vite variables, generated public files or Git history. Use Authorization Code + S256 PKCE and a server-side consumer session.
