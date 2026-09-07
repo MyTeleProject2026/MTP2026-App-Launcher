@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Search, Star, RefreshCw, Bell, ChevronDown, Menu, X, ExternalLink, CheckCircle2, Globe2, LogIn, LogOut, Settings, Clock3, Grid2X2, Sparkles, Download, Trash2, Check, UserRound, CircleHelp, KeyRound, ArrowRightLeft, ExternalLink } from 'lucide-react';
+import { Search, Star, RefreshCw, Bell, ChevronDown, Menu, X, ExternalLink, CheckCircle2, Globe2, LogIn, LogOut, Settings, Clock3, Grid2X2, Sparkles, Download, Trash2, Check, UserRound, CircleHelp, KeyRound, ArrowRightLeft } from 'lucide-react';
 import './styles.css';
 import { API, startVexaLogin, finishVexaLogin, signOut } from './auth';
 
