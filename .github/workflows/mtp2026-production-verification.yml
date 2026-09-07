@@ -27,9 +27,16 @@ jobs:
           grep -q 'MTP2026' /tmp/frontend.html
           curl --fail --silent --show-error --location --max-time 20 "$frontend/build-info.json" >/tmp/build-info.json
 
-          echo "Checking backend health: $backend"
-          curl --fail --silent --show-error --location --max-time 20 "$backend/api/health" >/tmp/health.json
-          node -e "const h=require('fs').readFileSync('/tmp/health.json','utf8'); const j=JSON.parse(h); if(!j.ok || j.databaseType!=='TiDB MySQL') process.exit(1); console.log(j)"
+          echo "Waiting for backend health: $backend"
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error --location --max-time 20 "$backend/api/health" >/tmp/health.json; then
+              if node -e "const h=require('fs').readFileSync('/tmp/health.json','utf8'); const j=JSON.parse(h); if(!j.ok || j.databaseType!=='TiDB MySQL') process.exit(1); console.log(j)"; then
+                break
+              fi
+            fi
+            test "$attempt" -lt 30 || { echo "Backend did not become healthy"; exit 1; }
+            sleep 10
+          done
 
           echo "Checking backend SSO configuration contract"
           curl --fail --silent --show-error --location --max-time 20 "$backend/api/config" >/tmp/config.json
