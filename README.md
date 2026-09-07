@@ -87,3 +87,19 @@ MTP2026 does not implement VexaAccount registration, password recovery, email ve
 ## Verification boundary
 
 Source/build verification is not the same as production certification. A true production certification requires the deployed frontend/backend, real TiDB database, active VexaAccount SSO client and a real authenticated browser login to be exercised.
+
+
+## VexaAccount-first sign-in UX
+
+MTP2026 is a VexaAccount relying application. The launcher does not own, validate, store, or proxy user passwords.
+
+The MTP2026 login surface provides:
+
+- **Continue with VexaAccount** for normal SSO and account reuse.
+- Email hint entry before redirecting to the registered VexaAccount Authorization Code + S256 PKCE flow.
+- A password-shaped sign-in form for familiar account UX, but credentials are never submitted to MTP2026; authentication, password entry, 2FA, account creation, recovery and verification continue on the VexaAccount origin.
+- **Forgot password**, **Create one**, and **Help with signing in** routes that take the user to VexaAccount instead of creating a second identity system.
+- **Manage VexaAccount** and **Switch account** controls in the signed-in account menu.
+- Profile name, email and avatar supplied only by the VexaAccount OIDC-style userinfo response.
+
+This keeps one authoritative identity system while allowing MTP2026 to provide a Google/YouTube-style account entry point and then return to the launcher with a backend-managed session.
