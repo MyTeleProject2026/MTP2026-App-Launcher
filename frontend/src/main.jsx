@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Search, Star, RefreshCw, Bell, ChevronDown, Menu, X, ExternalLink, CheckCircle2, Globe2, LogIn, LogOut, Settings, Clock3, Grid2X2, Sparkles, Download, Trash2, Check } from 'lucide-react';
+import { Search, Star, RefreshCw, Bell, ChevronDown, Menu, X, ExternalLink, CheckCircle2, Globe2, LogIn, LogOut, Settings, Clock3, Grid2X2, Sparkles, Download, Trash2, Check, UserRound, CircleHelp, KeyRound, ArrowRightLeft, ExternalLink } from 'lucide-react';
 import './styles.css';
 import { API, startVexaLogin, finishVexaLogin, signOut } from './auth';
 
@@ -15,6 +15,53 @@ async function json(response) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
   return data;
+}
+
+function VexaAvatar({ profile, className = 'avatar' }) {
+  if (profile?.picture) return <div className={className}><img src={profile.picture} alt="" /></div>;
+  return <div className={className}>{initials(profile)}</div>;
+}
+
+function LoginScreen({ error }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const provider = 'https://vexaaccount-management.onrender.com';
+
+  async function continueToVexa(options = {}) {
+    setBusy(true);
+    try {
+      await startVexaLogin({ loginHint: email.trim(), ...options });
+    } finally {
+      setBusy(false);
+      setPassword('');
+    }
+  }
+
+  function submit(e) {
+    e.preventDefault();
+    // Passwords deliberately never leave MTP2026. VexaAccount remains the only
+    // credential authority and completes password/2FA/recovery on its own origin.
+    continueToVexa({ prompt: 'login' });
+  }
+
+  return <main className="vexa-login-page">
+    <section className="vexa-login-card">
+      <div className="vexa-login-brand"><div className="brand-mark"><span>V</span></div><div><strong>VexaAccount SSO</strong><small>on MTP2026 App Launcher</small></div></div>
+      <div className="vexa-login-copy"><div className="eyebrow">LOGIN WITH VEXA ACCOUNT</div><h1>Welcome back</h1><p>Sign in to securely use your Vexa identity with MTP2026.</p></div>
+      {error && <div className="error"><X/><span>{error}</span></div>}
+      <button className="vexa-primary-provider" type="button" disabled={busy} onClick={() => continueToVexa({ prompt: 'select_account' })}><UserRound/> Continue with VexaAccount</button>
+      <div className="login-divider"><span>or continue with your VexaAccount</span></div>
+      <form className="vexa-login-form" onSubmit={submit}>
+        <label>Email<input type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} placeholder="User@example.com" /></label>
+        <label>Password<div className="password-row"><input type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter your password" /><KeyRound/></div></label>
+        <button className="text-link" type="button" onClick={() => window.location.assign(provider)}>Forgot password?</button>
+        <button className="vexa-submit" type="submit" disabled={busy}>{busy ? 'Opening VexaAccount…' : 'Sign in'}</button>
+      </form>
+      <div className="vexa-login-links"><p>Don't have an account? <button type="button" onClick={() => window.location.assign(provider)}>Create one</button></p><button className="help-link" type="button" onClick={() => window.location.assign(provider)}><CircleHelp/> Help with signing in</button></div>
+      <div className="vexa-login-security">Your password is never sent to or stored by MTP2026. VexaAccount completes credential, recovery, verification and 2FA on its own secure sign-in flow.</div>
+    </section>
+  </main>;
 }
 
 function App() {
@@ -151,6 +198,8 @@ function App() {
     return list.filter(a => `${a.title} ${a.url} ${a.description || ''} ${a.category || ''}`.toLowerCase().includes(q));
   }, [apps, recentApps, query, view, filter]);
 
+  if (!logged) return <LoginScreen error={error}/>;
+
   const unread = notifications.filter(n => !n.readAt).length;
   const name = profile?.name || profile?.email || 'Vexa Creator';
   const validPreview = (() => { try { const p = new URL(url); return p.protocol === 'https:' ? p : null; } catch { return null; } })();
@@ -171,15 +220,15 @@ function App() {
       <div className="nav-spacer" />
       {installPrompt && <button className="install-side" onClick={install}><Download/><span><b>Install MTP2026</b><small>Install launcher PWA</small></span></button>}
       <div className="sync-card"><div className="sync-top"><span><i className="dot"/> Cloud Synced</span><span>{logged ? 'LIVE' : 'OFFLINE'}</span></div><p>VexaAccount library synchronization</p><div className="sync-bar"><span className={syncing ? 'busy' : ''}/></div></div>
-      <button className="profile-mini" onClick={() => setMenu(v => !v)}><div className="avatar">{initials(profile)}</div><span><b>{name}</b><small>VexaAccount · {logged ? 'Connected' : 'Not signed in'}</small></span><ChevronDown className="profile-chevron"/></button>
-      {menu && <div className="account-menu"><div className="account-head"><div className="avatar">{initials(profile)}</div><div><b>{name}</b><small>{profile?.email || 'VexaAccount'}</small></div></div><hr/>{logged ? <button onClick={() => doLogout()}><LogOut/> Sign out</button> : <button onClick={login}><LogIn/> Sign in with VexaAccount</button>}<button onClick={() => { setShowSettings(true); setMenu(false); }}><Settings/> Settings</button></div>}
+      <button className="profile-mini" onClick={() => setMenu(v => !v)}><VexaAvatar profile={profile}/><span><b>{name}</b><small>VexaAccount · {logged ? 'Connected' : 'Not signed in'}</small></span><ChevronDown className="profile-chevron"/></button>
+      {menu && <div className="account-menu"><div className="account-head"><VexaAvatar profile={profile}/><div><b>{name}</b><small>{profile?.email || 'VexaAccount'}</small></div></div><hr/>{logged ? <button onClick={() => doLogout()}><LogOut/> Sign out</button> : <button onClick={login}><LogIn/> Sign in with VexaAccount</button>}<button onClick={() => window.open('https://vexaaccount-management.onrender.com','_blank','noopener,noreferrer')}><Settings/> Manage VexaAccount</button><button onClick={() => { setShowSettings(true); setMenu(false); }}><Settings/> Launcher Settings</button><button onClick={() => { doLogout(false); startVexaLogin({prompt:'select_account'}); }}><ArrowRightLeft/> Switch account</button></div>}
     </aside>
 
     <main className="main">
       <header className="topbar">
         <button className="icon-btn mobile-menu" onClick={() => setSidebar(true)} aria-label="Open navigation"><Menu/></button>
         <div className="search"><Search/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search applications..."/><kbd>⌘ K</kbd></div>
-        <div className="top-actions"><button className="icon-btn" onClick={() => load()} title="Sync"><RefreshCw className={syncing ? 'spin' : ''}/></button><button className="icon-btn notification" onClick={() => setShowNotifications(true)} title="Notifications"><Bell/>{unread > 0 && <i/>}</button><button className="account-btn" onClick={() => setMenu(v => !v)}><div className="avatar">{initials(profile)}</div><span>{name}</span><ChevronDown/></button></div>
+        <div className="top-actions"><button className="icon-btn" onClick={() => load()} title="Sync"><RefreshCw className={syncing ? 'spin' : ''}/></button><button className="icon-btn notification" onClick={() => setShowNotifications(true)} title="Notifications"><Bell/>{unread > 0 && <i/>}</button><button className="account-btn" onClick={() => setMenu(v => !v)}><VexaAvatar profile={profile}/><span>{name}</span><ChevronDown/></button></div>
       </header>
 
       <section className="hero"><div><div className="eyebrow">VexaAccount · Cloud Workspace</div><h1>Your <span>digital universe.</span></h1><p>One elegant home for every application you use. Your MTP2026 library follows your VexaAccount across devices.</p></div><div className="hero-orbit"><div className="ring"/><div className="ring r2"/><div className="orb"/></div></section>
