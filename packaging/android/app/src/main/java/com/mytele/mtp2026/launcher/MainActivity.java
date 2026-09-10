@@ -1,10 +1,16 @@
 package com.mytele.mtp2026.launcher;
 
+import android.Manifest;
 import android.app.Activity;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -24,6 +30,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 public final class MainActivity extends Activity {
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 2026;
+    private static final String NOTIFICATION_CHANNEL_ID = "mtp2026_general";
     private WebView webView;
     private final Set<String> allowedHosts = new HashSet<>();
 
@@ -41,6 +49,8 @@ public final class MainActivity extends Activity {
         allowedHosts.addAll(Arrays.asList(BuildConfig.ALLOWED_HOSTS.split(",")));
         if (start.getHost() != null) allowedHosts.add(start.getHost().toLowerCase());
         applyImmersive(true);
+        createNotificationChannel();
+        requestNotificationPermissionIfNeeded();
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -78,6 +88,43 @@ public final class MainActivity extends Activity {
         getWindow().getDecorView().setSystemUiVisibility(enabled ? IMMERSIVE_FLAGS : View.SYSTEM_UI_FLAG_VISIBLE);
     }
 
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        if (manager == null) return;
+        NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, "MTP2026", NotificationManager.IMPORTANCE_DEFAULT);
+        channel.setDescription("MTP2026 launcher notifications");
+        manager.createNotificationChannel(channel);
+    }
+
+    private void requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_PERMISSION_REQUEST);
+        }
+    }
+
+    private boolean postNotification(String title, String body) {
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestNotificationPermissionIfNeeded();
+            return false;
+        }
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        if (manager == null) return false;
+        Intent launchIntent = new Intent(this, MainActivity.class);
+        launchIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent pending = PendingIntent.getActivity(this, 2026, launchIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        android.app.Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                ? new android.app.Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
+                : new android.app.Notification.Builder(this);
+        builder.setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle(title == null || title.isEmpty() ? "MTP2026" : title)
+                .setContentText(body == null ? "" : body)
+                .setAutoCancel(true)
+                .setContentIntent(pending);
+        manager.notify((int)(System.currentTimeMillis() & 0x7fffffff), builder.build());
+        return true;
+    }
+
     private final class NativeBridge {
         @JavascriptInterface public void setDeviceMode(String mode) {
             runOnUiThread(() -> {
@@ -89,7 +136,15 @@ public final class MainActivity extends Activity {
         }
 
         @JavascriptInterface public String getCapabilities() {
-            return "{\"native\":true,\"orientation\":true,\"fullscreen\":true,\"filesystem\":true,\"notifications\":true,\"clipboard\":true,\"externalApps\":true,\"gamepad\":true}";
+            return "{\"native\":true,\"orientation\":true,\"fullscreen\":true,\"filesystem\":false,\"notifications\":true,\"clipboard\":true,\"externalApps\":true,\"gamepad\":true}";
+        }
+
+        @JavascriptInterface public boolean notify(String title, String body) {
+            final boolean[] result = {false};
+            Runnable action = () -> result[0] = postNotification(title, body);
+            if (Thread.currentThread() == getMainLooper().getThread()) action.run();
+            else runOnUiThread(action);
+            return result[0];
         }
 
         @JavascriptInterface public void enterFullscreen() { runOnUiThread(() -> applyImmersive(true)); }
