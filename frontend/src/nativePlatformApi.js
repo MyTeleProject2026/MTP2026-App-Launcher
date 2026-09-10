@@ -6,6 +6,7 @@ const hasTauri = () => Boolean(window.__TAURI_INTERNALS__);
 const hasIOSBridge = () => Boolean(window.webkit?.messageHandlers?.mtp2026);
 const cap = () => window.Capacitor || null;
 const browserNotification = () => typeof window !== 'undefined' && 'Notification' in window ? window.Notification : null;
+const validModes = new Set(['android', 'ios', 'windows', 'windows11', 'gaming']);
 
 let invokePromise;
 async function invoke(command, args) {
@@ -41,6 +42,7 @@ export function nativeCapabilities() {
 
 export async function setNativeMode(mode) {
   const normalized = mode === 'windows11' ? 'windows' : mode;
+  if (!validModes.has(mode) || !validModes.has(normalized)) throw new Error('Unsupported MTP2026 device mode');
   if (hasTauri()) return invoke('set_device_mode', { mode: normalized });
   if (window.MTP2026Native?.setDeviceMode) return window.MTP2026Native.setDeviceMode(normalized);
   if (hasIOSBridge()) {
@@ -89,3 +91,9 @@ export async function notifyNative(title, body) {
 }
 
 window.MTP2026NativePlatform = { nativeHost, nativeCapabilities, setNativeMode, nativeFullscreen, nativeOpenExternal, notifyNative };
+
+// Apply the user's first-launch OS choice as soon as the native bridge is ready.
+const startupMode = window.localStorage?.getItem('mtp2026-default-system-os');
+if (startupMode && validModes.has(startupMode)) {
+  void setNativeMode(startupMode).catch(() => {});
+}
