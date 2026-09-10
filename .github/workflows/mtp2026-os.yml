@@ -1,0 +1,66 @@
+name: MTP2026 Real OS Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "os/**"
+      - ".github/workflows/mtp2026-os.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "os/**"
+      - ".github/workflows/mtp2026-os.yml"
+
+jobs:
+  build-and-boot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install QEMU
+        run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
+
+      - name: Build MTP2026 BIOS and UEFI images
+        working-directory: os
+        run: cargo build
+
+      - name: Locate generated BIOS image
+        id: image
+        working-directory: os
+        run: |
+          BIOS_IMAGE="$(find target/debug/build -type f -name 'mtp2026-bios.img' -print -quit)"
+          test -n "$BIOS_IMAGE"
+          echo "path=$BIOS_IMAGE" >> "$GITHUB_OUTPUT"
+          ls -lh "$BIOS_IMAGE"
+
+      - name: Boot MTP2026 kernel in QEMU
+        working-directory: os
+        run: |
+          set +e
+          timeout 30s qemu-system-x86_64 \
+            -drive format=raw,file="${{ steps.image.outputs.path }}" \
+            -serial stdio \
+            -display none \
+            -monitor none \
+            -no-reboot \
+            -no-shutdown \
+            -device isa-debug-exit,iobase=0xf4,iosize=0x04
+          STATUS=$?
+          set -e
+          if [ "$STATUS" -ne 33 ]; then
+            echo "Unexpected QEMU exit status: $STATUS"
+            exit "$STATUS"
+          fi
+          echo "MTP2026 kernel boot smoke test passed."
+
+      - name: Upload bootable images
+        uses: actions/upload-artifact@v4
+        with:
+          name: mtp2026-os-images
+          path: |
+            os/target/debug/build/**/mtp2026-bios.img
+            os/target/debug/build/**/mtp2026-uefi.img
+          if-no-files-found: error
