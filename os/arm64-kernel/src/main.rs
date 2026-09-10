@@ -3,11 +3,11 @@
 
 use core::panic::PanicInfo;
 
-/// Minimal boot contract for an ARM64 MTP2026 platform loader.
-///
-/// x0 must point to a valid Arm64BootInfo structure. The platform loader is
-/// responsible for supplying the kernel stack and entering at the `_start`
-/// symbol in EL1. No Android/Linux userspace assumptions are made here.
+mod arch;
+
+/// Platform-neutral information passed by an ARM64 boot loader.
+/// Device-specific boot code must populate this structure from firmware or DTB
+/// data before entering the MTP2026 kernel at EL1.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Arm64BootInfo {
@@ -20,9 +20,11 @@ pub struct Arm64BootInfo {
     pub memory_base: u64,
     pub memory_size: u64,
     pub dtb_address: u64,
+    pub gicd_base: u64,
+    pub gicr_base: u64,
 }
 
-pub const BOOT_MAGIC: u64 = 0x4D54503230323641; // "MTP2026A"
+pub const BOOT_MAGIC: u64 = 0x4D54503230323641;
 pub const UART_NONE: u32 = 0;
 pub const UART_PL011: u32 = 1;
 
@@ -39,24 +41,27 @@ pub extern "C" fn _start() -> ! {
     )
 }
 
-/// Entry reached after the platform loader has established an EL1 stack.
-/// This intentionally validates the boot contract before touching MMIO.
 #[unsafe(no_mangle)]
 extern "C" fn rust_entry(info: *const Arm64BootInfo) -> ! {
+    arch::exceptions::mask_interrupts();
+
     let boot = unsafe { info.as_ref() };
     if let Some(boot) = boot {
         if boot.magic == BOOT_MAGIC && boot.version == 1 {
             if boot.uart_kind == UART_PL011 && boot.uart_base != 0 {
-                unsafe { pl011_write(boot.uart_base, b'M'); }
-                unsafe { pl011_write(boot.uart_base, b'T'); }
-                unsafe { pl011_write(boot.uart_base, b'P'); }
-                unsafe { pl011_write(boot.uart_base, b'2'); }
-                unsafe { pl011_write(boot.uart_base, b'0'); }
-                unsafe { pl011_write(boot.uart_base, b'2'); }
-                unsafe { pl011_write(boot.uart_base, b'6'); }
-                unsafe { pl011_write(boot.uart_base, b'\r'); }
-                unsafe { pl011_write(boot.uart_base, b'\n'); }
+                uart_line(boot.uart_base, b"MTP2026 ARM64 KERNEL\r\n");
+                uart_line(boot.uart_base, b"Architecture: AArch64 / EL1\r\n");
+                uart_line(boot.uart_base, b"Boot contract: valid\r\n");
+                uart_line(boot.uart_base, b"Generic timer: available\r\n");
+                uart_line(boot.uart_base, b"GIC: platform supplied\r\n");
             }
+
+            // Only read the architectural timer after validating the boot
+            // contract. Device-specific interrupt-controller programming is
+            // deliberately deferred until the correct GIC version/base is
+            // known from the target's platform description.
+            let _ = arch::timer::frequency();
+            let _ = arch::timer::counter();
         }
     }
 
@@ -65,9 +70,12 @@ extern "C" fn rust_entry(info: *const Arm64BootInfo) -> ! {
     }
 }
 
-/// ARM PrimeCell PL011 transmit path. The actual UART base is supplied by the
-/// device-specific loader/device-tree port; this kernel never guesses a phone's
-/// MMIO address.
+fn uart_line(base: u64, bytes: &[u8]) {
+    for &byte in bytes {
+        unsafe { pl011_write(base, byte); }
+    }
+}
+
 unsafe fn pl011_write(base: u64, byte: u8) {
     const FR: u64 = 0x18;
     const DR: u64 = 0x00;
