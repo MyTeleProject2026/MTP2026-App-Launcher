@@ -1,0 +1,20 @@
+name: MTP2026
+options:
+  bundleIdPrefix: com.myteleproject2026
+  deploymentTarget:
+    iOS: "15.0"
+targets:
+  MTP2026:
+    type: application
+    platform: iOS
+    sources:
+      - path: MTP2026
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.myteleproject2026.mtp2026
+      PRODUCT_NAME: MTP2026
+      SWIFT_VERSION: 5.0
+      INFOPLIST_FILE: MTP2026/Info.plist
+      TARGETED_DEVICE_FAMILY: "1,2"
+      CODE_SIGN_STYLE: Manual
+    scheme:
+      testTargets: []
