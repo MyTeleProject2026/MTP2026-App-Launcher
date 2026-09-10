@@ -16,7 +16,6 @@ export function getDeviceMode(mode) {
 
 export function applyNativeDeviceMode(mode) {
   const normalized = getDeviceMode(mode);
-  window.dispatchEvent(new CustomEvent('mtp2026:device-mode', { detail: { mode: normalized } }));
   void setNativeMode(normalized).catch(() => {});
   return normalized;
 }
