@@ -1,0 +1,21 @@
+[package]
+name = "mtp2026-windows"
+version = "1.0.0"
+description = "MTP2026 App Launcher native Windows shell"
+authors = ["MyTeleProject2026"]
+edition = "2021"
+
+[lib]
+name = "mtp2026_windows_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset"] }
+tauri-plugin-fs = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
