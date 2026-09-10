@@ -43,14 +43,14 @@ jobs:
           set -euo pipefail
           APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
           AAPT2="$ANDROID_HOME/build-tools/35.0.0/aapt2"
-          for variant in userRelease ownerRelease; do
+          for variant in user-release owner-release; do
             APK="app/build/outputs/apk/$variant/app-${variant}.apk"
             [ -s "$APK" ] || { echo "Missing APK: $APK" >&2; exit 1; }
             unzip -t "$APK" >/dev/null
             "$AAPT2" dump badging "$APK" | grep -E "package: name=|application-label:|application-icon:" >/dev/null
             "$APKSIGNER" verify --verbose --print-certs "$APK"
           done
-          for variant in userRelease ownerRelease; do
+          for variant in user-release owner-release; do
             AAB="app/build/outputs/bundle/$variant/app-${variant}.aab"
             [ -s "$AAB" ] || { echo "Missing AAB: $AAB" >&2; exit 1; }
             unzip -t "$AAB" >/dev/null
@@ -63,7 +63,7 @@ jobs:
           name: mtp2026-user-owner-android-release
           if-no-files-found: error
           path: |
-            packaging/android/app/build/outputs/apk/userRelease/*.apk
-            packaging/android/app/build/outputs/apk/ownerRelease/*.apk
-            packaging/android/app/build/outputs/bundle/userRelease/*.aab
-            packaging/android/app/build/outputs/bundle/ownerRelease/*.aab
+            packaging/android/app/build/outputs/apk/user-release/*.apk
+            packaging/android/app/build/outputs/apk/owner-release/*.apk
+            packaging/android/app/build/outputs/bundle/user-release/*.aab
+            packaging/android/app/build/outputs/bundle/owner-release/*.aab
