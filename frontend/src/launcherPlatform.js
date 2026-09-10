@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Check, Download, ImagePlus, Monitor, Smartphone, Gamepad2, Trash2, RotateCcw, Star, Pin, X, ExternalLink } from 'lucide-react';
 import './device-mode.css';
+import { setNativeMode } from './nativePlatformApi.js';
 
 export const DEVICE_MODES = {
   android: { label: 'Android device', icon: Smartphone, orientation: 'portrait' },
@@ -16,6 +17,7 @@ export function getDeviceMode(mode) {
 export function applyNativeDeviceMode(mode) {
   const normalized = getDeviceMode(mode);
   window.dispatchEvent(new CustomEvent('mtp2026:device-mode', { detail: { mode: normalized } }));
+  void setNativeMode(normalized).catch(() => {});
   return normalized;
 }
 
