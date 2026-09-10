@@ -25,7 +25,6 @@ jobs:
           echo "Checking frontend: $frontend"
           curl --fail --silent --show-error --location --max-time 20 "$frontend/" >/tmp/frontend.html
           grep -q 'MTP2026' /tmp/frontend.html
-          curl --fail --silent --show-error --location --max-time 20 "$frontend/build-info.json" >/tmp/build-info.json
 
           echo "Waiting for backend health: $backend"
           for attempt in $(seq 1 30); do
@@ -47,4 +46,21 @@ jobs:
           test "$code" = "302"
 
           echo "Checking deployed frontend commit"
-          node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/build-info.json','utf8')); const expected=process.env.EXPECTED_COMMIT; if(expected && j.commit!=='unknown' && j.commit!==expected) { console.error({expected,actual:j.commit}); process.exit(1); } console.log({expected:expected||'not-enforced',actual:j.commit})"
+          if [ -n "${EXPECTED_COMMIT:-}" ]; then
+            echo "Waiting for Render frontend deployment to expose commit $EXPECTED_COMMIT"
+            matched=0
+            for attempt in $(seq 1 30); do
+              curl --fail --silent --show-error --location --max-time 20 "$frontend/build-info.json?verify=$EXPECTED_COMMIT-$attempt" >/tmp/build-info.json
+              actual=$(node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/build-info.json','utf8')); process.stdout.write(String(j.commit || 'unknown'))")
+              echo "Deployment check $attempt/30: actual=$actual expected=$EXPECTED_COMMIT"
+              if [ "$actual" = "unknown" ] || [ "$actual" = "$EXPECTED_COMMIT" ]; then
+                matched=1
+                break
+              fi
+              sleep 10
+            done
+            test "$matched" = "1" || { echo "Frontend deployment did not expose expected commit after 5 minutes"; exit 1; }
+          else
+            curl --fail --silent --show-error --location --max-time 20 "$frontend/build-info.json?verify=scheduled" >/tmp/build-info.json
+            node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/build-info.json','utf8')); console.log({actual:j.commit})"
+          fi
