@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MTP2026 App Launcher",
+  "version": "1.0.0",
+  "identifier": "com.myteleproject2026.mtp2026",
+  "build": {
+    "beforeDevCommand": "npm --prefix ../../frontend run dev",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../../frontend/dist",
+    "beforeBuildCommand": "npm --prefix ../../frontend run build"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "mtp2026",
+        "title": "MTP2026 App Launcher",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1100,
+        "minHeight": 650,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "decorations": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "nsis"],
+    "windows": {
+      "webviewInstallMode": { "type": "embedBootstrapper" }
+    }
+  }
+}
