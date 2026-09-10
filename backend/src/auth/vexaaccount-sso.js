@@ -1,80 +1,15 @@
-import crypto from 'node:crypto';
-
-const VEXA_ACCOUNT_API_URL = 'https://api-vexaaccount.onrender.com';
-const VEXA_ACCOUNT_USER_URL = 'https://vexaaccount-management.onrender.com';
-const raw = process.env.VEXA_ACCOUNT_SSO_CONFIG || '';
-
-export function getVexaConfig() {
-  let parsed = {};
-  if (raw) {
-    try { parsed = JSON.parse(raw); } catch { throw new Error('VEXA_ACCOUNT_SSO_CONFIG_INVALID'); }
-  }
-  const url = VEXA_ACCOUNT_API_URL;
-  const userUrl = VEXA_ACCOUNT_USER_URL;
-  const clientId = String(parsed.clientId || process.env.VEXA_ACCOUNT_CLIENT_ID || '').trim();
-  const redirectUri = String(parsed.redirectUri || process.env.VEXA_ACCOUNT_REDIRECT_URI || '').trim();
-  const scopes = Array.isArray(parsed.scopes) && parsed.scopes.length ? parsed.scopes : ['openid','profile','email','account','session','applications','notifications'];
-  const timeoutMs = Number(parsed.timeoutMs || 10000);
-  // Render environment variables are sometimes pasted with a trailing newline/space.
-  // VexaAccount hashes the exact registered secret, so normalize whitespace here before
-  // sending it. Keep the secret server-side and never expose it to the frontend.
-  const clientSecret = String(process.env.VEXA_ACCOUNT_CLIENT_SECRET || process.env.VEXA_ACCOUNT_SSO_CLIENT_SECRET || '').trim();
-  const encryptionKey = String(process.env.MTP_SESSION_ENCRYPTION_KEY || '').trim();
-  if (!clientId || !redirectUri || !clientSecret) throw new Error('VEXA_SSO_NOT_CONFIGURED');
-  if (!encryptionKey || encryptionKey.length < 32) throw new Error('MTP_SESSION_ENCRYPTION_KEY_REQUIRED');
-  const redirect = new URL(redirectUri);
-  if (redirect.protocol !== 'https:') throw new Error('VEXA_SSO_REDIRECT_MUST_BE_HTTPS');
-  return { url, userUrl, clientId, redirectUri: redirect.toString(), scopes, timeoutMs, clientSecret, encryptionKey };
-}
-
-export function randomUrlToken(bytes=32) { return crypto.randomBytes(bytes).toString('base64url'); }
-export function pkceChallenge(verifier) { return crypto.createHash('sha256').update(verifier).digest('base64url'); }
-export function createLoginTransaction() { const state=randomUrlToken(32),verifier=randomUrlToken(48); return {state,verifier,challenge:pkceChallenge(verifier)}; }
-
-export function buildAuthorizeUrl(transaction, options = {}) {
-  const cfg=getVexaConfig();
-  const params={client_id:cfg.clientId,redirect_uri:cfg.redirectUri,response_type:'code',scope:cfg.scopes.join(' '),state:transaction.state,code_challenge:transaction.challenge,code_challenge_method:'S256'};
-  if (options.loginHint) params.login_hint=String(options.loginHint).trim();
-  if (options.prompt) params.prompt=String(options.prompt).trim();
-  const query=new URLSearchParams(params).toString();
-  const url=new URL('/',cfg.userUrl);
-  url.hash=`#/sso/authorize?${query}`;
-  return url.toString();
-}
-
-async function readUpstreamPayload(response) {
-  const payload=await response.json().catch(()=>({}));
-  const message=String(payload.message||payload.error_description||payload.error||'').trim();
-  return {payload,message};
-}
-
-export async function exchangeAuthorizationCode(code,verifier) {
-  const cfg=getVexaConfig();
-  const body=new URLSearchParams({grant_type:'authorization_code',code,redirect_uri:cfg.redirectUri,client_id:cfg.clientId,client_secret:cfg.clientSecret,code_verifier:verifier});
-  const response=await fetch(new URL('/api/sso/token',cfg.url),{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded','accept':'application/json'},body,signal:AbortSignal.timeout(cfg.timeoutMs)});
-  const {payload,message}=await readUpstreamPayload(response);
-  if(!response.ok||!payload.access_token) throw new Error(`SSO_TOKEN_EXCHANGE_FAILED:${message||`provider HTTP ${response.status}`}`);
-  return payload;
-}
-
-export async function refreshVexaToken(refreshToken) {
-  const cfg=getVexaConfig();
-  const body=new URLSearchParams({grant_type:'refresh_token',refresh_token:refreshToken,client_id:cfg.clientId,client_secret:cfg.clientSecret});
-  const response=await fetch(new URL('/api/sso/token',cfg.url),{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body,signal:AbortSignal.timeout(cfg.timeoutMs)});
-  const {payload,message}=await readUpstreamPayload(response);
-  if(!response.ok||!payload.access_token)throw new Error(`SSO_REFRESH_FAILED:${message||'refresh token rejected'}`);
-  return payload;
-}
-
-export async function fetchVexaUser(accessToken) {
-  const cfg=getVexaConfig();
-  const response=await fetch(new URL('/api/sso/userinfo',cfg.url),{headers:{Authorization:`Bearer ${accessToken}`},signal:AbortSignal.timeout(Math.min(cfg.timeoutMs,7000))});
-  const profile=await response.json().catch(()=>({}));
-  if(!response.ok||!profile?.sub)throw new Error('SSO_USERINFO_FAILED');
-  return profile;
-}
-
-export function serializeCookie(name,value,options={}){const parts=[`${name}=${encodeURIComponent(value)}`];if(options.maxAge!=null)parts.push(`Max-Age=${Math.max(0,Math.floor(options.maxAge))}`);parts.push(`Path=${options.path||'/'}`);if(options.httpOnly!==false)parts.push('HttpOnly');if(options.secure!==false)parts.push('Secure');parts.push(`SameSite=${options.sameSite||'Lax'}`);return parts.join('; ');}
-export function readCookies(req){return Object.fromEntries((req.headers.cookie||'').split(';').map(v=>v.trim()).filter(Boolean).map(v=>{const i=v.indexOf('=');return i<0?[v,'']:[v.slice(0,i),decodeURIComponent(v.slice(i+1))]}));}
-export function encryptSecret(value){const secret=String(process.env.MTP_SESSION_ENCRYPTION_KEY||'').trim();if(secret.length<32)throw new Error('MTP_SESSION_ENCRYPTION_KEY_REQUIRED');const key=crypto.createHash('sha256').update(secret).digest();const iv=crypto.randomBytes(12);const cipher=crypto.createCipheriv('aes-256-gcm',key,iv);const ciphertext=Buffer.concat([cipher.update(String(value),'utf8'),cipher.final()]);const tag=cipher.getAuthTag();return Buffer.concat([iv,tag,ciphertext]).toString('base64url');}
-export function decryptSecret(value){const secret=String(process.env.MTP_SESSION_ENCRYPTION_KEY||'').trim();if(secret.length<32)throw new Error('MTP_SESSION_ENCRYPTION_KEY_REQUIRED');const raw=Buffer.from(String(value),'base64url');if(raw.length<29)throw new Error('INVALID_ENCRYPTED_SESSION');const key=crypto.createHash('sha256').update(secret).digest();const iv=raw.subarray(0,12),tag=raw.subarray(12,28),ciphertext=raw.subarray(28);const decipher=crypto.createDecipheriv('aes-256-gcm',key,iv);decipher.setAuthTag(tag);return Buffer.concat([decipher.update(ciphertext),decipher.final()]).toString('utf8');}
+backend/src/auth/vexaaccount-sso.js
+// MTP2026 Apps Launcher — production VexaAccount SSO service
+// File: backend/src/auth/vexaaccount-sso.js
+const crypto=require('crypto');
+const config=JSON.parse(process.env.VEXA_ACCOUNT_SSO_CONFIG);
+const CLIENT_ID=process.env.VEXA_ACCOUNT_CLIENT_ID||config.clientId;
+const CLIENT_SECRET=process.env.VEXA_ACCOUNT_CLIENT_SECRET;
+if(!CLIENT_ID||!CLIENT_SECRET)throw new Error('VexaAccount SSO credentials are missing');
+const states=new Map();
+function createState(){const state=crypto.randomBytes(32).toString('hex');states.set(state,Date.now()+300000);return state}
+function consumeState(state){const exp=states.get(state);states.delete(state);return Boolean(exp&&exp>Date.now())}
+function authorizationUrl(){const state=createState();const u=new URL(config.url+'/api/sso/authorize');u.searchParams.set('response_type','code');u.searchParams.set('client_id',CLIENT_ID);u.searchParams.set('redirect_uri',config.redirectUri);u.searchParams.set('scope',config.scopes.join(' '));u.searchParams.set('state',state);return {url:u.toString(),state}}
+async function exchangeCode(code){const body=new URLSearchParams({grant_type:'authorization_code',code,client_id:CLIENT_ID,client_secret:CLIENT_SECRET,redirect_uri:config.redirectUri});const r=await fetch(config.url+'/api/sso/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});const d=await r.json().catch(()=>({}));if(!r.ok||d.error)throw new Error(d.error_description||d.error||'VexaAccount token exchange failed');return d}
+async function userInfo(token){const r=await fetch(config.url+'/api/sso/userinfo',{headers:{Authorization:'Bearer '+token}});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'VexaAccount userinfo failed');return d}
+module.exports={createState,consumeState,authorizationUrl,exchangeCode,userInfo,config};
