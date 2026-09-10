@@ -21,11 +21,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install QEMU
-        run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
+        run: sudo apt-get update && sudo apt-get install -y qemu-system-x86 qemu-system-arm
 
       - name: Build MTP2026 BIOS and UEFI images
         working-directory: os
         run: cargo build
+
+      - name: Build MTP2026 ARM64 kernel
+        working-directory: os
+        run: cargo build -p mtp2026-arm64-kernel --target aarch64-unknown-none
 
       - name: Locate generated BIOS image
         id: image
@@ -36,7 +40,7 @@ jobs:
           echo "path=$BIOS_IMAGE" >> "$GITHUB_OUTPUT"
           ls -lh "$BIOS_IMAGE"
 
-      - name: Boot MTP2026 kernel in QEMU
+      - name: Boot MTP2026 x86_64 kernel in QEMU
         working-directory: os
         run: |
           set +e
@@ -54,13 +58,14 @@ jobs:
             echo "Unexpected QEMU exit status: $STATUS"
             exit "$STATUS"
           fi
-          echo "MTP2026 kernel boot smoke test passed."
+          echo "MTP2026 x86_64 kernel boot smoke test passed."
 
-      - name: Upload bootable images
+      - name: Upload bootable and ARM64 kernel artifacts
         uses: actions/upload-artifact@v4
         with:
           name: mtp2026-os-images
           path: |
             os/target/debug/build/**/mtp2026-bios.img
             os/target/debug/build/**/mtp2026-uefi.img
+            os/target/aarch64-unknown-none/debug/mtp2026-arm64-kernel
           if-no-files-found: error
