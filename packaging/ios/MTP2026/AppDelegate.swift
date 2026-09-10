@@ -23,7 +23,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
 
 final class LauncherViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate {
     private let webView: WKWebView
-    private var orientationMask: UIInterfaceOrientationMask = .portrait
+    var orientationMask: UIInterfaceOrientationMask = .portrait
     private let allowedHosts: Set<String> = [
         "mtp2026-app-launcher.onrender.com",
         "api-vexaaccount.onrender.com",
@@ -72,9 +72,7 @@ final class LauncherViewController: UIViewController, WKScriptMessageHandler, WK
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url = navigationAction.request.url else { decisionHandler(.cancel); return }
         if url.scheme == "https", let host = url.host?.lowercased(), allowedHosts.contains(host) { decisionHandler(.allow); return }
-        if url.scheme == "http" || url.scheme == "https" {
-            UIApplication.shared.open(url)
-        }
+        if url.scheme == "http" || url.scheme == "https" { UIApplication.shared.open(url) }
         decisionHandler(.cancel)
     }
 }
