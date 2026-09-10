@@ -1,7 +1,7 @@
 /* MTP2026 native-capable gaming input layer.
  * Uses the real Gamepad API exposed by the host OS/webview. Polling is enabled
- * for the Gaming device mode and remains available for native gamepad hosts.
- * Stable launcher events are emitted without inventing a virtual controller. */
+ * for Gaming mode and the runtime also listens for the first-launch/default-mode
+ * event so controller support is ready immediately after OS selection. */
 
 let active = false;
 let frame = null;
@@ -23,7 +23,9 @@ function poll() {
   frame = null;
   if (!active || !gamingMode) return;
 
+  const seen = new Set();
   connectedPads().forEach((pad) => {
+    seen.add(pad.index);
     const oldButtons = previous.get(pad.index) || [];
     const buttons = pad.buttons.map((button) => ({ pressed: button.pressed, value: button.value }));
 
@@ -48,6 +50,9 @@ function poll() {
     }));
   });
 
+  for (const [index] of previous) {
+    if (!seen.has(index)) previous.delete(index);
+  }
   frame = requestAnimationFrame(poll);
 }
 
@@ -77,6 +82,7 @@ function applyMode(mode) {
 }
 
 window.addEventListener('mtp2026:device-mode', (event) => applyMode(event.detail?.mode));
+window.addEventListener('mtp2026:default-system-os', (event) => applyMode(event.detail?.mode));
 window.addEventListener('gamepadconnected', (event) => {
   if (gamingMode) emitConnection(event.gamepad, true);
 });
@@ -93,5 +99,5 @@ window.MTP2026Gaming = {
   isGamingMode: () => gamingMode,
 };
 
-// Browser/native startup defaults to non-gaming until the launcher selects it.
-applyMode(document.documentElement.dataset.deviceMode || null);
+const startupMode = document.documentElement.dataset.mtpDefaultSystem || document.documentElement.dataset.deviceMode || null;
+applyMode(startupMode);
