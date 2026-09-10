@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Search, Star, RefreshCw, Bell, ChevronDown, Menu, X, ExternalLink, CheckCircle2, Globe2, LogIn, LogOut, Settings, Clock3, Grid2X2, Sparkles, Download, Trash2, Check, UserRound, CircleHelp, KeyRound, ArrowRightLeft } from 'lucide-react';
+import { Search, Star, RefreshCw, Bell, ChevronDown, Menu, X, ExternalLink, CheckCircle2, Globe2, LogIn, LogOut, Settings, Clock3, Grid2X2, Sparkles, Download, Trash2, Check, UserRound, CircleHelp, KeyRound, ArrowRightLeft, Maximize2, Minimize2 } from 'lucide-react';
 import './styles.css';
 import { API, startVexaLogin, finishVexaLogin, signOut } from './auth';
+import { DeviceModeSettings, ApplicationSettingsModal, getDeviceMode } from './launcherPlatform';
 
-const defaults = { theme: 'system', defaultView: 'launcher', openBehavior: 'new_tab', compactMode: false };
+const defaults = { theme: 'system', defaultView: 'launcher', openBehavior: 'new_tab', compactMode: false, deviceMode: 'android' };
 
 function initials(profile) {
   const name = profile?.name || profile?.email || 'Vexa Creator';
@@ -30,20 +31,11 @@ function LoginScreen({ error }) {
 
   async function continueToVexa(options = {}) {
     setBusy(true);
-    try {
-      await startVexaLogin({ loginHint: email.trim(), ...options });
-    } finally {
-      setBusy(false);
-      setPassword('');
-    }
+    try { await startVexaLogin({ loginHint: email.trim(), ...options }); }
+    finally { setBusy(false); setPassword(''); }
   }
 
-  function submit(e) {
-    e.preventDefault();
-    // Passwords deliberately never leave MTP2026. VexaAccount remains the only
-    // credential authority and completes password/2FA/recovery on its own origin.
-    continueToVexa({ prompt: 'login' });
-  }
+  function submit(e) { e.preventDefault(); continueToVexa({ prompt: 'login' }); }
 
   return <main className="vexa-login-page">
     <section className="vexa-login-card">
@@ -85,6 +77,10 @@ function App() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
+  const [selectedApp, setSelectedApp] = useState(null);
+  const [workspaceApp, setWorkspaceApp] = useState(null);
+  const [workspaceFull, setWorkspaceFull] = useState(false);
+  const workspaceRef = useRef(null);
 
   const load = async (silent = false) => {
     if (!logged) return;
@@ -111,11 +107,7 @@ function App() {
 
   useEffect(() => {
     finishVexaLogin().then(async session => {
-      if (session?.profile) {
-        setProfile(session.profile);
-        setLogged(true);
-        return;
-      }
+      if (session?.profile) { setProfile(session.profile); setLogged(true); return; }
       setLogged(false);
     }).catch(e => setError(e.message));
     const handler = e => { e.preventDefault?.(); setInstallPrompt(e); };
@@ -131,12 +123,7 @@ function App() {
   }, [settings.theme]);
 
   async function login() { setError(''); await startVexaLogin(); }
-
-  async function switchAccount() {
-    await doLogout(false);
-    await startVexaLogin({ prompt: 'select_account' });
-  }
-
+  async function switchAccount() { await doLogout(false); await startVexaLogin({ prompt: 'select_account' }); }
   async function doLogout(redirect = true) {
     await signOut();
     setLogged(false); setProfile(null); setApps([]); setRecentApps([]); setNotifications([]); setMenu(false);
@@ -157,12 +144,13 @@ function App() {
     try {
       await json(await fetch(`${API}/apps/${id}`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [key]: value }) }));
       await load(true);
+      setSelectedApp(prev => prev?.id === id ? { ...prev, [key]: value } : prev);
     } catch (e) { setError(e.message); }
   }
 
   async function remove(id) {
-    if (!window.confirm('Remove this application from your launcher?')) return;
-    try { await json(await fetch(`${API}/apps/${id}`, { method: 'DELETE', credentials: 'include' })); await load(true); }
+    if (!window.confirm('Uninstall this application from your launcher?')) return;
+    try { await json(await fetch(`${API}/apps/${id}`, { method: 'DELETE', credentials: 'include' })); setSelectedApp(null); await load(true); }
     catch (e) { setError(e.message); }
   }
 
@@ -170,9 +158,9 @@ function App() {
     try {
       await json(await fetch(`${API}/apps/${app.id}/open`, { method: 'POST', credentials: 'include' }));
       setRecentApps(prev => [app, ...prev.filter(x => x.id !== app.id)]);
+      setWorkspaceApp(app);
+      setWorkspaceFull(false);
     } catch (e) { setError(e.message); }
-    if (settings.openBehavior === 'same_tab') window.location.assign(app.url);
-    else window.open(app.url, '_blank', 'noopener,noreferrer');
   }
 
   async function saveSetting(key, value) {
@@ -186,13 +174,17 @@ function App() {
     try { await json(await fetch(`${API}/notifications/${id}/read`, { method: 'POST', credentials: 'include' })); setNotifications(prev => prev.map(n => n.id === id ? { ...n, readAt: new Date().toISOString() } : n)); }
     catch (e) { setError(e.message); }
   }
-
   async function markAllRead() {
     try { await json(await fetch(`${API}/notifications/read-all`, { method: 'POST', credentials: 'include' })); setNotifications(prev => prev.map(n => ({ ...n, readAt: n.readAt || new Date().toISOString() }))); }
     catch (e) { setError(e.message); }
   }
-
   async function install() { if (installPrompt) { await installPrompt.prompt(); setInstallPrompt(null); } }
+  async function toggleWorkspaceFullscreen() {
+    try {
+      if (!document.fullscreenElement) { await workspaceRef.current?.requestFullscreen?.(); setWorkspaceFull(true); }
+      else { await document.exitFullscreen?.(); setWorkspaceFull(false); }
+    } catch { setWorkspaceFull(false); }
+  }
 
   const filtered = useMemo(() => {
     let list = view === 'recent' ? recentApps : apps;
@@ -209,10 +201,10 @@ function App() {
   const unread = notifications.filter(n => !n.readAt).length;
   const name = profile?.name || profile?.email || 'Vexa Creator';
   const validPreview = (() => { try { const p = new URL(url); return p.protocol === 'https:' ? p : null; } catch { return null; } })();
-
+  const deviceMode = getDeviceMode(settings.deviceMode);
   function nav(next) { setView(next); setSidebar(false); setQuery(''); setFilter('all'); }
 
-  return <div className={`app-shell ${settings.compactMode ? 'compact-mode' : ''}`}>
+  return <div className={`app-shell device-${deviceMode} ${settings.compactMode ? 'compact-mode' : ''}`}>
     <div className={`mobile-overlay ${sidebar ? 'show' : ''}`} onClick={() => setSidebar(false)} />
     <aside className={`sidebar ${sidebar ? 'open' : ''}`}>
       <div className="brand"><div className="brand-mark"><span>M</span></div><div><strong>MTP2026</strong><small>App Launcher</small></div></div>
@@ -225,9 +217,10 @@ function App() {
       </nav>
       <div className="nav-spacer" />
       {installPrompt && <button className="install-side" onClick={install}><Download/><span><b>Install MTP2026</b><small>Install launcher PWA</small></span></button>}
-      <div className="sync-card"><div className="sync-top"><span><i className="dot"/> Cloud Synced</span><span>{logged ? 'LIVE' : 'OFFLINE'}</span></div><p>VexaAccount library synchronization</p><div className="sync-bar"><span className={syncing ? 'busy' : ''}/></div></div>
-      <button className="profile-mini" onClick={() => setMenu(v => !v)}><VexaAvatar profile={profile}/><span><b>{name}</b><small>VexaAccount · {logged ? 'Connected' : 'Not signed in'}</small></span><ChevronDown className="profile-chevron"/></button>
-      {menu && <div className="account-menu"><div className="account-head"><VexaAvatar profile={profile}/><div><b>{name}</b><small>{profile?.email || 'VexaAccount'}</small></div></div><hr/>{logged ? <button onClick={() => doLogout()}><LogOut/> Sign out</button> : <button onClick={login}><LogIn/> Sign in with VexaAccount</button>}<button onClick={() => { setShowProfile(true); setMenu(false); }}><UserRound/> VexaAccount profile</button><button onClick={() => window.open('https://vexaaccount-management.onrender.com','_blank','noopener,noreferrer')}><Settings/> Manage VexaAccount</button><button onClick={() => { setShowSettings(true); setMenu(false); }}><Settings/> Launcher Settings</button><button onClick={switchAccount}><ArrowRightLeft/> Switch account</button></div>}
+      <div className="device-side-card"><span>Device mode</span><b>{deviceMode === 'windows' ? 'Windows 11' : deviceMode === 'ios' ? 'iOS device' : deviceMode === 'gaming' ? 'Gaming system' : 'Android device'}</b><small>{deviceMode === 'windows' ? 'Landscape · Full workspace' : deviceMode === 'gaming' ? 'Portrait + landscape' : 'Portable portrait'}</small></div>
+      <div className="sync-card"><div className="sync-top"><span><i className="dot"/> Cloud Synced</span><span>LIVE</span></div><p>VexaAccount library synchronization</p><div className="sync-bar"><span className={syncing ? 'busy' : ''}/></div></div>
+      <button className="profile-mini" onClick={() => setMenu(v => !v)}><VexaAvatar profile={profile}/><span><b>{name}</b><small>VexaAccount · Connected</small></span><ChevronDown className="profile-chevron"/></button>
+      {menu && <div className="account-menu"><div className="account-head"><VexaAvatar profile={profile}/><div><b>{name}</b><small>{profile?.email || 'VexaAccount'}</small></div></div><hr/><button onClick={() => doLogout()}><LogOut/> Sign out</button><button onClick={() => { setShowProfile(true); setMenu(false); }}><UserRound/> VexaAccount profile</button><button onClick={() => window.open('https://vexaaccount-management.onrender.com','_blank','noopener,noreferrer')}><Settings/> Manage VexaAccount</button><button onClick={() => { setShowSettings(true); setMenu(false); }}><Settings/> MTP2026 Settings</button><button onClick={switchAccount}><ArrowRightLeft/> Switch account</button></div>}
     </aside>
 
     <main className="main">
@@ -237,32 +230,35 @@ function App() {
         <div className="top-actions"><button className="icon-btn" onClick={() => load()} title="Sync"><RefreshCw className={syncing ? 'spin' : ''}/></button><button className="icon-btn notification" onClick={() => setShowNotifications(true)} title="Notifications"><Bell/>{unread > 0 && <i/>}</button><button className="account-btn" onClick={() => setMenu(v => !v)}><VexaAvatar profile={profile}/><span>{name}</span><ChevronDown/></button></div>
       </header>
 
-      <section className="hero"><div><div className="eyebrow">VexaAccount · Cloud Workspace</div><h1>Your <span>digital universe.</span></h1><p>One elegant home for every application you use. Your MTP2026 library follows your VexaAccount across devices.</p></div><div className="hero-orbit"><div className="ring"/><div className="ring r2"/><div className="orb"/></div></section>
+      <section className="hero"><div><div className="eyebrow">VexaAccount · Cloud Workspace · {deviceMode === 'windows' ? 'Windows 11' : deviceMode === 'ios' ? 'iOS' : deviceMode === 'gaming' ? 'Gaming' : 'Android'}</div><h1>Your <span>digital universe.</span></h1><p>One elegant home for every application you use. Your MTP2026 library follows your VexaAccount across devices.</p></div><div className="hero-orbit"><div className="ring"/><div className="ring r2"/><div className="orb"/></div></section>
 
-      <div className="apps-header"><div><div className="section-title">{view === 'favorites' ? 'Favorite Applications' : view === 'recent' ? 'Recently Opened' : 'My Applications'} <small>{view === 'recent' ? recentApps.length : apps.length} {(view === 'recent' ? recentApps.length : apps.length) === 1 ? 'app' : 'apps'}</small></div><p>Your personal cloud-synchronized application library</p></div><button className="primary-add" onClick={() => { setError(''); setShowAdd(true); }} disabled={!logged}><span>＋</span> Add Application</button></div>
-      {!logged && <div className="login-banner"><div><Sparkles/><div><b>Connect your VexaAccount</b><span>Sign in to synchronize your application library across devices.</span></div></div><button onClick={login}><LogIn/> Sign in</button></div>}
+      <div className="apps-header"><div><div className="section-title">{view === 'favorites' ? 'Favorite Applications' : view === 'recent' ? 'Recently Opened' : 'My Applications'} <small>{view === 'recent' ? recentApps.length : apps.length} {(view === 'recent' ? recentApps.length : apps.length) === 1 ? 'app' : 'apps'}</small></div><p>Your personal cloud-synchronized application library</p></div><button className="primary-add" onClick={() => { setError(''); setShowAdd(true); }}><span>＋</span> Add Application</button></div>
       {error && <div className="error"><X/> <span>{error}</span><button onClick={() => setError('')}>×</button></div>}
 
       <div className="control-row"><div className="filters">{[['all','All'],['favorite','Favorites'],['pwa','PWA Ready'],['web','Web Apps']].map(([id,label]) => <button key={id} className={`filter ${filter === id ? 'active' : ''}`} onClick={() => setFilter(id)}>{label}</button>)}</div></div>
       <section className="grid">
         {filtered.map((a, i) => <article className="card" key={a.id} style={{ animationDelay: `${i * 35}ms` }} onClick={() => openApp(a)}>
-          <div className="card-top"><div className="app-icon">{a.iconUrl ? <img src={a.iconUrl} alt="" onError={e => { e.currentTarget.style.display = 'none'; }}/>: <Globe2/>}</div><button className={`fav ${a.favorite ? 'on' : ''}`} onClick={e => { e.stopPropagation(); patch(a.id, 'favorite', !a.favorite); }}>{a.favorite ? '★' : '☆'}</button></div>
+          <div className="card-top"><div className="app-icon">{a.userIconUrl || a.iconUrl ? <img src={a.userIconUrl || a.iconUrl} alt="" onError={e => { e.currentTarget.style.display = 'none'; }}/>: <Globe2/>}</div><div className="card-head-actions"><button className={`fav ${a.favorite ? 'on' : ''}`} onClick={e => { e.stopPropagation(); patch(a.id, 'favorite', !a.favorite); }}>{a.favorite ? '★' : '☆'}</button><button className="app-settings-button" title="Application settings" onClick={e => { e.stopPropagation(); setSelectedApp(a); }}><Settings/></button></div></div>
           <h3>{a.title}</h3><div className="domain">{(() => { try { return new URL(a.url).hostname; } catch { return a.url; } })()}</div><p className="desc">{a.description || 'Web application in your MTP2026 library.'}</p>
-          <div className="card-bottom">{a.pwaSupported ? <span className="pwa"><CheckCircle2/> PWA Ready</span> : <span className="web">Web App</span>}<div className="card-actions"><button onClick={e => { e.stopPropagation(); patch(a.id, 'favorite', !a.favorite); }} className={a.favorite ? 'active' : ''}><Star/></button><button onClick={e => { e.stopPropagation(); remove(a.id); }}><Trash2/></button><button className="launch" onClick={e => { e.stopPropagation(); openApp(a); }}>Open <ExternalLink/></button></div></div>
+          <div className="card-bottom">{a.pwaSupported ? <span className="pwa"><CheckCircle2/> PWA Ready</span> : <span className="web">Web App</span>}<div className="card-actions"><button onClick={e => { e.stopPropagation(); patch(a.id, 'favorite', !a.favorite); }} className={a.favorite ? 'active' : ''}><Star/></button><button onClick={e => { e.stopPropagation(); setSelectedApp(a); }}><Settings/></button><button className="launch" onClick={e => { e.stopPropagation(); openApp(a); }}>Open <ExternalLink/></button></div></div>
           {a.lastOpenedAt && <div className="last-opened"><Clock3/> {new Date(a.lastOpenedAt).toLocaleString()}</div>}
         </article>)}
-        {!filtered.length && <div className="empty-state"><div className="empty-icon">◌</div><h3>{logged ? (view === 'recent' ? 'Nothing opened recently' : 'No applications found') : 'Sign in to open your library'}</h3><p>{logged ? 'Try another filter or add a new application.' : 'Your MTP2026 applications will appear here after VexaAccount SSO.'}</p>{logged && view !== 'recent' && <button className="primary-add" onClick={() => setShowAdd(true)}>＋ Add Application</button>}</div>}
+        {!filtered.length && <div className="empty-state"><div className="empty-icon">◌</div><h3>{view === 'recent' ? 'Nothing opened recently' : 'No applications found'}</h3><p>Try another filter or add a new application.</p><button className="primary-add" onClick={() => setShowAdd(true)}>＋ Add Application</button></div>}
       </section>
 
-      <section className="stats"><div className="stat"><small>Applications</small><b>{apps.length}</b></div><div className="stat"><small>PWA Ready</small><b>{apps.filter(a => a.pwaSupported).length}<em>●</em></b></div><div className="stat"><small>Favorites</small><b>{apps.filter(a => a.favorite).length}</b></div><div className="stat"><small>Sync Status</small><b className="status-value">{logged ? 'Cloud' : 'Offline'} <em>● {logged ? 'Online' : 'Signed out'}</em></b></div></section>
+      <section className="stats"><div className="stat"><small>Applications</small><b>{apps.length}</b></div><div className="stat"><small>PWA Ready</small><b>{apps.filter(a => a.pwaSupported).length}<em>●</em></b></div><div className="stat"><small>Favorites</small><b>{apps.filter(a => a.favorite).length}</b></div><div className="stat"><small>Device</small><b className="status-value">{deviceMode === 'windows' ? 'Windows 11' : deviceMode === 'ios' ? 'iOS' : deviceMode === 'gaming' ? 'Gaming' : 'Android'} <em>● Active</em></b></div></section>
       <footer>MTP2026 App Launcher · Connected through VexaAccount · Cloud library</footer>
     </main>
 
+    {selectedApp && <ApplicationSettingsModal app={selectedApp} onClose={() => setSelectedApp(null)} onPatch={patch} onRemove={remove} onOpen={app => { setSelectedApp(null); openApp(app); }} />}
+
+    {workspaceApp && <div ref={workspaceRef} className={`app-workspace device-${deviceMode} ${workspaceFull ? 'browser-fullscreen' : ''}`}><div className="workspace-bar"><div className="workspace-app-name"><span className="workspace-icon">{workspaceApp.userIconUrl || workspaceApp.iconUrl ? <img src={workspaceApp.userIconUrl || workspaceApp.iconUrl} alt=""/> : <Globe2/>}</span><div><b>{workspaceApp.title}</b><small>{deviceMode === 'windows' ? 'Windows 11 · Landscape software workspace' : deviceMode === 'ios' ? 'iOS · Portrait workspace' : deviceMode === 'gaming' ? 'Gaming · Responsive workspace' : 'Android · Portrait workspace'}</small></div></div><div className="workspace-actions"><button onClick={toggleWorkspaceFullscreen} title="Fullscreen">{workspaceFull ? <Minimize2/> : <Maximize2/>}</button><button onClick={() => window.open(workspaceApp.url, '_blank', 'noopener,noreferrer')} title="Open external"><ExternalLink/></button><button onClick={() => setWorkspaceApp(null)} title="Close"><X/></button></div></div><div className="workspace-frame-wrap"><iframe title={workspaceApp.title} src={workspaceApp.url} className="workspace-frame" allow="fullscreen; clipboard-read; clipboard-write" /></div><div className="workspace-fallback">If this website blocks embedding, use <button onClick={() => window.open(workspaceApp.url, '_blank', 'noopener,noreferrer')}>Open in a browser tab</button>.</div></div>}
+
     {showProfile && <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && setShowProfile(false)}><div className="modal profile-modal"><div className="modal-head"><div><h2>VexaAccount profile</h2><p>Your identity is managed by VexaAccount and shared with MTP2026 through SSO.</p></div><button className="close" onClick={() => setShowProfile(false)}><X/></button></div><div className="modal-body"><div className="profile-identity"><VexaAvatar profile={profile} className="profile-avatar"/><div><h3>{profile?.name || 'VexaAccount user'}</h3><p>{profile?.email || 'Identity connected through VexaAccount'}</p><small>Connected to MTP2026</small></div></div><div className="profile-facts"><div><span>Identity provider</span><b>VexaAccount</b></div><div><span>Account subject</span><b>{profile?.sub || 'Available after SSO'}</b></div></div><div className="profile-actions"><button className="primary-add" onClick={() => window.open('https://vexaaccount-management.onrender.com','_blank','noopener,noreferrer')}><Settings/> Manage VexaAccount</button><button className="secondary" onClick={switchAccount}><ArrowRightLeft/> Switch account</button></div></div></div></div>}
 
-    {showAdd && <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && setShowAdd(false)}><div className="modal"><div className="modal-head"><div><h2>Add Application</h2><p>Add a secure HTTPS application to your cloud library.</p></div><button className="close" onClick={() => setShowAdd(false)}><X/></button></div><div className="modal-body"><label className="url-label">APPLICATION URL</label><div className="url-wrap"><Globe2/><input autoFocus value={url} onChange={e => setUrl(e.target.value)} placeholder="https://your-application.com"/></div><div className={`url-status ${url && !validPreview ? 'invalid' : validPreview ? 'valid' : ''}`}>{!url ? 'Enter a secure HTTPS application URL.' : validPreview ? '✓ Valid HTTPS application URL detected.' : 'Please enter a valid HTTPS URL.'}</div>{validPreview && <div className="preview show"><div className="preview-icon">🌐</div><div><b>{validPreview.hostname}</b><small>Metadata will be detected securely by MTP2026.</small></div></div>}<div className="detect-box"><div>✓ Website title detection</div><div>✓ Favicon detection</div><div>✓ PWA manifest detection</div><div>✓ SSRF/private-network protection</div></div></div><div className="modal-foot"><button className="secondary" onClick={() => setShowAdd(false)}>Cancel</button><button className="primary-add" disabled={!validPreview || loading} onClick={add}>{loading ? 'Adding…' : 'Add Application'}</button></div></div></div>}
+    {showAdd && <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && setShowAdd(false)}><div className="modal"><div className="modal-head"><div><h2>Add Application</h2><p>Install a secure HTTPS application to your cloud library.</p></div><button className="close" onClick={() => setShowAdd(false)}><X/></button></div><div className="modal-body"><label className="url-label">APPLICATION URL</label><div className="url-wrap"><Globe2/><input autoFocus value={url} onChange={e => setUrl(e.target.value)} placeholder="https://your-application.com"/></div><div className={`url-status ${url && !validPreview ? 'invalid' : validPreview ? 'valid' : ''}`}>{!url ? 'Enter a secure HTTPS application URL.' : validPreview ? '✓ Valid HTTPS application URL detected.' : 'Please enter a valid HTTPS URL.'}</div>{validPreview && <div className="preview show"><div className="preview-icon">🌐</div><div><b>{validPreview.hostname}</b><small>Metadata will be detected securely by MTP2026.</small></div></div>}<div className="detect-box"><div>✓ Website title detection</div><div>✓ Favicon detection</div><div>✓ PWA manifest detection</div><div>✓ SSRF/private-network protection</div><div>✓ Install into VexaAccount library</div><div>✓ User-specific icon settings</div></div></div><div className="modal-foot"><button className="secondary" onClick={() => setShowAdd(false)}>Cancel</button><button className="primary-add" disabled={!validPreview || loading} onClick={add}>{loading ? 'Installing…' : 'Install Application'}</button></div></div></div>}
 
-    {showSettings && <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && setShowSettings(false)}><div className="modal"><div className="modal-head"><div><h2>Launcher Settings</h2><p>These preferences are stored in your MTP2026 account database.</p></div><button className="close" onClick={() => setShowSettings(false)}><X/></button></div><div className="modal-body settings-body"><label>Theme<select value={settings.theme} onChange={e => saveSetting('theme', e.target.value)}><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label><label>Default view<select value={settings.defaultView} onChange={e => saveSetting('defaultView', e.target.value)}><option value="launcher">Launcher</option><option value="applications">Applications</option><option value="favorites">Favorites</option><option value="recent">Recent</option></select></label><label>Open applications<select value={settings.openBehavior} onChange={e => saveSetting('openBehavior', e.target.value)}><option value="new_tab">New tab</option><option value="same_tab">Same tab</option></select></label><button className="setting-toggle" onClick={() => saveSetting('compactMode', !settings.compactMode)}><span>Compact mode</span><span>{settings.compactMode ? <Check/> : 'Off'}</span></button></div><div className="modal-foot"><button className="primary-add" onClick={() => setShowSettings(false)}>Done</button></div></div></div>}
+    {showSettings && <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && setShowSettings(false)}><div className="modal settings-modal"><div className="modal-head"><div><h2>MTP2026 Settings</h2><p>Choose how the launcher shell behaves on this device.</p></div><button className="close" onClick={() => setShowSettings(false)}><X/></button></div><div className="modal-body settings-body"><div className="settings-section"><div className="settings-section-title">Device & OS mode</div><p className="settings-help">The launcher UI changes its workspace orientation and application shell according to your selected mode.</p><DeviceModeSettings value={settings.deviceMode} onChange={value => saveSetting('deviceMode', value)} /></div><label>Theme<select value={settings.theme} onChange={e => saveSetting('theme', e.target.value)}><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label><label>Default view<select value={settings.defaultView} onChange={e => saveSetting('defaultView', e.target.value)}><option value="launcher">Launcher</option><option value="applications">Applications</option><option value="favorites">Favorites</option><option value="recent">Recent</option></select></label><label>Open applications<select value={settings.openBehavior} onChange={e => saveSetting('openBehavior', e.target.value)}><option value="new_tab">Workspace + external option</option><option value="same_tab">Workspace</option></select></label><button className="setting-toggle" onClick={() => saveSetting('compactMode', !settings.compactMode)}><span>Compact mode</span><span>{settings.compactMode ? <Check/> : 'Off'}</span></button></div><div className="modal-foot"><button className="primary-add" onClick={() => setShowSettings(false)}>Done</button></div></div></div>}
 
     {showNotifications && <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && setShowNotifications(false)}><div className="modal notifications-modal"><div className="modal-head"><div><h2>Notifications</h2><p>{unread ? `${unread} unread notification${unread === 1 ? '' : 's'}` : 'You are all caught up.'}</p></div><button className="close" onClick={() => setShowNotifications(false)}><X/></button></div><div className="notification-actions"><button onClick={markAllRead}>Mark all read</button></div><div className="notification-list">{notifications.length ? notifications.map(n => <button key={n.id} className={`notification-item ${n.readAt ? 'read' : ''}`} onClick={() => markRead(n.id)}><div><b>{n.title}</b><p>{n.message}</p><small>{new Date(n.createdAt).toLocaleString()}</small></div>{!n.readAt && <span className="unread-dot"/>}</button>) : <div className="empty-state"><div className="empty-icon"><Bell/></div><h3>No notifications</h3><p>System and launcher events will appear here.</p></div>}</div></div></div>}
   </div>;
