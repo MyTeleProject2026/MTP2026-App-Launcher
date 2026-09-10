@@ -1,10 +1,16 @@
-/* MTP2026 native capability bridge.
- * Browser/PWA remains supported. Capacitor mobile shells and the Tauri Windows
- * shell expose native capabilities without changing VexaAccount authentication.
- */
+/* MTP2026 native capability bridge. Browser/PWA remains supported; native
+ * shells expose real platform APIs without changing VexaAccount authentication. */
 
 const capacitor = () => window.Capacitor || null;
 const capPlugins = () => capacitor()?.Plugins || {};
+const isTauri = () => !!window.__TAURI_INTERNALS__;
+let tauriInvokePromise;
+async function tauriInvoke(command, args) {
+  if (!isTauri()) return null;
+  tauriInvokePromise ||= import('@tauri-apps/api/core').then(m => m.invoke);
+  const invoke = await tauriInvokePromise;
+  return invoke(command, args);
+}
 
 const DEFAULT_CAPABILITIES = Object.freeze({
   native: false, platform: 'web', orientationLock: false, fullscreen: true,
@@ -14,15 +20,15 @@ const DEFAULT_CAPABILITIES = Object.freeze({
 
 export function getNativeCapabilities() {
   const cap = capacitor();
-  const platform = cap?.getPlatform?.() || 'web';
+  const platform = cap?.getPlatform?.() || (isTauri() ? 'windows' : 'web');
   return {
     ...DEFAULT_CAPABILITIES,
-    native: platform !== 'web' || !!window.__TAURI_INTERNALS__,
-    platform,
-    orientationLock: !!capPlugins().ScreenOrientation || !!window.MTP2026Native?.capabilities?.orientationLock,
-    filesystem: !!capPlugins().Filesystem || !!window.MTP2026Native?.capabilities?.filesystem,
-    notifications: !!capPlugins().LocalNotifications || !!window.MTP2026Native?.capabilities?.notifications,
-    externalApps: platform === 'android' || platform === 'ios' || !!window.MTP2026Native?.capabilities?.externalApps,
+    native: platform !== 'web', platform,
+    filesystem: !!capPlugins().Filesystem || isTauri(),
+    notifications: !!capPlugins().LocalNotifications || isTauri(),
+    orientationLock: !!capPlugins().ScreenOrientation,
+    externalApps: platform === 'android' || platform === 'ios' || isTauri(),
+    windowControls: isTauri(),
     ...(window.MTP2026Native?.capabilities || {})
   };
 }
@@ -38,27 +44,29 @@ async function capacitorOrientation(mode) {
 export async function applyDeviceMode(mode) {
   const normalized = mode === 'windows11' ? 'windows' : mode || 'android';
   if (window.MTP2026Native?.setDeviceMode) return window.MTP2026Native.setDeviceMode(normalized);
+  if (isTauri()) return tauriInvoke('set_device_mode', { mode: normalized });
   const platform = capacitor()?.getPlatform?.() || 'web';
   if (platform === 'android' || platform === 'ios') return capacitorOrientation(normalized);
   const orientation = normalized === 'windows' ? 'landscape' : normalized === 'android' || normalized === 'ios' ? 'portrait' : null;
-  if (orientation && document.fullscreenElement && screen.orientation?.lock) {
-    try { await screen.orientation.lock(orientation); } catch {}
-  }
+  if (orientation && document.fullscreenElement && screen.orientation?.lock) { try { await screen.orientation.lock(orientation); } catch {} }
   return { native: false, platform: 'web', mode: normalized, orientation };
 }
 
 export async function enterMTPFullscreen(element) {
   if (window.MTP2026Native?.enterFullscreen) return window.MTP2026Native.enterFullscreen();
+  if (isTauri()) return tauriInvoke('enter_fullscreen');
   if (element?.requestFullscreen) return element.requestFullscreen();
   return false;
 }
 export async function exitMTPFullscreen() {
   if (window.MTP2026Native?.exitFullscreen) return window.MTP2026Native.exitFullscreen();
+  if (isTauri()) return tauriInvoke('exit_fullscreen');
   if (document.fullscreenElement && document.exitFullscreen) return document.exitFullscreen();
   return false;
 }
 export async function openExternal(url) {
   if (window.MTP2026Native?.openExternal) return window.MTP2026Native.openExternal(url);
+  if (isTauri()) return tauriInvoke('open_external', { url });
   const browser = capPlugins().Browser;
   if (browser?.open) return browser.open({ url });
   window.open(url, '_blank', 'noopener,noreferrer');
