@@ -1,4 +1,5 @@
 const API=(import.meta.env.VITE_API_BASE_URL||'https://mtp2026-app-launcher-backend.onrender.com/api').replace(/\/$/,'');
+const API_ORIGIN=API.replace(/\/api$/,'');
 
 export function startVexaLogin(options={}){
   const params=new URLSearchParams();
@@ -16,14 +17,14 @@ export async function finishVexaLogin(){
     throw new Error(params.get('error_description')||error);
   }
 
-  // The browser callback is handled by the backend /auth/callback endpoint.
-  // Do not exchange the authorization code from JavaScript: a top-level
-  // navigation lets the backend set its HttpOnly SameSite=None; Secure session
-  // cookie reliably, then redirects back to the launcher origin.
+  // The VexaAccount redirect URI lands on the launcher frontend first.
+  // Forward the authorization code to the backend browser callback, which
+  // validates state/PKCE, creates the backend session and sets its HttpOnly
+  // SameSite=None; Secure cookie before redirecting back to the launcher.
   const code=params.get('code');
   const state=params.get('state');
   if(code&&state){
-    const callbackUrl=new URL(`${API}/auth/callback`);
+    const callbackUrl=new URL(`${API_ORIGIN}/auth/callback`);
     callbackUrl.searchParams.set('code',code);
     callbackUrl.searchParams.set('state',state);
     window.location.replace(callbackUrl.toString());
