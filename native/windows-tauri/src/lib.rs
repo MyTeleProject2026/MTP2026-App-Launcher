@@ -4,6 +4,8 @@ use serde::Serialize;
 use tauri::{Emitter, WindowEvent};
 use tauri_plugin_shell::ShellExt;
 
+mod native_capabilities;
+
 #[derive(Clone, Serialize)]
 struct NativeCapabilities {
     native: bool,
@@ -20,7 +22,14 @@ struct NativeCapabilities {
 
 #[tauri::command]
 fn native_capabilities() -> NativeCapabilities {
-    NativeCapabilities { native: true, platform: "windows", orientation_lock: false, fullscreen: true, filesystem: true, notifications: true, clipboard: true, external_apps: true, gamepad: true, window_controls: true }
+    let c = native_capabilities::capabilities();
+    NativeCapabilities {
+        native: c["native"], platform: "windows", orientation_lock: false,
+        fullscreen: c["fullscreen"], filesystem: c["filesystem"],
+        notifications: c["notifications"], clipboard: c["clipboard"],
+        external_apps: c["external_apps"], gamepad: c["gamepad"],
+        window_controls: c["window_controls"],
+    }
 }
 
 #[tauri::command]
@@ -31,7 +40,6 @@ async fn set_device_mode(window: tauri::Window, mode: String) -> Result<(), Stri
         _ => return Err("Unsupported MTP2026 device mode".into()),
     };
     window.set_size(tauri::Size::Logical(size)).map_err(|e| e.to_string())?;
-    window.set_fullscreen(false).map_err(|e| e.to_string())?;
     Ok(())
 }
 
