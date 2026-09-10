@@ -8,29 +8,15 @@ let tauriInvokePromise;
 async function tauriInvoke(command, args) {
   if (!isTauri()) return null;
   tauriInvokePromise ||= import('@tauri-apps/api/core').then(m => m.invoke);
-  const invoke = await tauriInvokePromise;
-  return invoke(command, args);
+  return (await tauriInvokePromise)(command, args);
 }
 
-const DEFAULT_CAPABILITIES = Object.freeze({
-  native: false, platform: 'web', orientationLock: false, fullscreen: true,
-  filesystem: false, notifications: false, clipboard: !!navigator.clipboard,
-  externalApps: false, gamepad: 'getGamepads' in navigator, windowControls: false,
-});
+const DEFAULT_CAPABILITIES = Object.freeze({ native: false, platform: 'web', orientationLock: false, fullscreen: true, filesystem: false, notifications: false, clipboard: !!navigator.clipboard, externalApps: false, gamepad: 'getGamepads' in navigator, windowControls: false });
 
 export function getNativeCapabilities() {
   const cap = capacitor();
   const platform = cap?.getPlatform?.() || (isTauri() ? 'windows' : 'web');
-  return {
-    ...DEFAULT_CAPABILITIES,
-    native: platform !== 'web', platform,
-    filesystem: !!capPlugins().Filesystem || isTauri(),
-    notifications: !!capPlugins().LocalNotifications || isTauri(),
-    orientationLock: !!capPlugins().ScreenOrientation,
-    externalApps: platform === 'android' || platform === 'ios' || isTauri(),
-    windowControls: isTauri(),
-    ...(window.MTP2026Native?.capabilities || {})
-  };
+  return { ...DEFAULT_CAPABILITIES, native: platform !== 'web', platform, filesystem: !!capPlugins().Filesystem || isTauri(), notifications: !!capPlugins().LocalNotifications || isTauri(), orientationLock: !!capPlugins().ScreenOrientation, externalApps: platform === 'android' || platform === 'ios' || isTauri(), windowControls: isTauri(), ...(window.MTP2026Native?.capabilities || {}) };
 }
 
 async function capacitorOrientation(mode) {
@@ -46,7 +32,11 @@ export async function applyDeviceMode(mode) {
   if (window.MTP2026Native?.setDeviceMode) return window.MTP2026Native.setDeviceMode(normalized);
   if (isTauri()) return tauriInvoke('set_device_mode', { mode: normalized });
   const platform = capacitor()?.getPlatform?.() || 'web';
-  if (platform === 'android' || platform === 'ios') return capacitorOrientation(normalized);
+  if (platform === 'android' || platform === 'ios') {
+    const messageHandler = window.webkit?.messageHandlers?.mtp2026;
+    if (platform === 'ios' && messageHandler) messageHandler.postMessage({ mode: normalized });
+    return capacitorOrientation(normalized);
+  }
   const orientation = normalized === 'windows' ? 'landscape' : normalized === 'android' || normalized === 'ios' ? 'portrait' : null;
   if (orientation && document.fullscreenElement && screen.orientation?.lock) { try { await screen.orientation.lock(orientation); } catch {} }
   return { native: false, platform: 'web', mode: normalized, orientation };
