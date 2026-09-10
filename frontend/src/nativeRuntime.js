@@ -8,6 +8,7 @@ import {
   setNativeMode,
   nativeFullscreen,
   nativeOpenExternal,
+  notifyNative,
 } from './nativePlatformApi.js';
 
 export function getNativeCapabilities() {
@@ -16,7 +17,9 @@ export function getNativeCapabilities() {
 
 export async function applyDeviceMode(mode) {
   const normalized = mode === 'windows11' ? 'windows' : mode || 'android';
-  return setNativeMode(normalized);
+  const result = await setNativeMode(normalized);
+  window.dispatchEvent(new CustomEvent('mtp2026:device-mode', { detail: { mode: normalized } }));
+  return result;
 }
 
 export async function enterMTPFullscreen(element) {
@@ -31,10 +34,15 @@ export async function openExternal(url) {
   return nativeOpenExternal(url);
 }
 
+export async function notify(title, body) {
+  return notifyNative(title, body);
+}
+
 window.MTP2026Runtime = {
   getNativeCapabilities,
   applyDeviceMode,
   enterMTPFullscreen,
   exitMTPFullscreen,
   openExternal,
+  notify,
 };
