@@ -5,6 +5,7 @@
 const hasTauri = () => Boolean(window.__TAURI_INTERNALS__);
 const hasIOSBridge = () => Boolean(window.webkit?.messageHandlers?.mtp2026);
 const cap = () => window.Capacitor || null;
+const browserNotification = () => typeof window !== 'undefined' && 'Notification' in window ? window.Notification : null;
 
 let invokePromise;
 async function invoke(command, args) {
@@ -72,7 +73,14 @@ export async function notifyNative(title, body) {
   if (notifications?.schedule) {
     return notifications.schedule({ notifications: [{ id: Date.now() % 2147483647, title, body }] });
   }
-  if (Notification?.permission === 'granted') new Notification(title, { body });
+  const NotificationAPI = browserNotification();
+  if (NotificationAPI?.permission === 'granted') return new NotificationAPI(title, { body });
+  if (NotificationAPI?.permission === 'default') {
+    try {
+      const permission = await NotificationAPI.requestPermission();
+      if (permission === 'granted') return new NotificationAPI(title, { body });
+    } catch (_) {}
+  }
   return false;
 }
 
