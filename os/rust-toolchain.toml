@@ -1,5 +1,5 @@
 [toolchain]
 channel = "nightly-2026-07-27"
 components = ["llvm-tools-preview"]
-targets = ["x86_64-unknown-none", "x86_64-unknown-uefi"]
+targets = ["x86_64-unknown-none", "x86_64-unknown-uefi", "aarch64-unknown-none"]
 profile = "minimal"
