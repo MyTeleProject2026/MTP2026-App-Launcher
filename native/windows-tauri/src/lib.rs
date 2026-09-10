@@ -1,7 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use serde::Serialize;
-use tauri::{Manager, WindowEvent};
+use tauri::{Emitter, WindowEvent};
+use tauri_plugin_shell::ShellExt;
 
 #[derive(Clone, Serialize)]
 struct NativeCapabilities {
@@ -19,46 +20,30 @@ struct NativeCapabilities {
 
 #[tauri::command]
 fn native_capabilities() -> NativeCapabilities {
-    NativeCapabilities {
-        native: true,
-        platform: "windows",
-        orientation_lock: false,
-        fullscreen: true,
-        filesystem: true,
-        notifications: true,
-        clipboard: true,
-        external_apps: true,
-        gamepad: true,
-        window_controls: true,
-    }
+    NativeCapabilities { native: true, platform: "windows", orientation_lock: false, fullscreen: true, filesystem: true, notifications: true, clipboard: true, external_apps: true, gamepad: true, window_controls: true }
 }
 
 #[tauri::command]
 async fn set_device_mode(window: tauri::Window, mode: String) -> Result<(), String> {
-    match mode.as_str() {
-        "windows" | "gaming" => window.set_size(tauri::Size::Logical(tauri::LogicalSize::new(1440.0, 900.0))).map_err(|e| e.to_string())?,
-        "android" | "ios" => window.set_size(tauri::Size::Logical(tauri::LogicalSize::new(900.0, 1440.0))).map_err(|e| e.to_string())?,
+    let size = match mode.as_str() {
+        "windows" | "gaming" => tauri::LogicalSize::new(1440.0, 900.0),
+        "android" | "ios" => tauri::LogicalSize::new(900.0, 1440.0),
         _ => return Err("Unsupported MTP2026 device mode".into()),
-    }
+    };
+    window.set_size(tauri::Size::Logical(size)).map_err(|e| e.to_string())?;
     window.set_fullscreen(false).map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-async fn enter_fullscreen(window: tauri::Window) -> Result<(), String> {
-    window.set_fullscreen(true).map_err(|e| e.to_string())
-}
+async fn enter_fullscreen(window: tauri::Window) -> Result<(), String> { window.set_fullscreen(true).map_err(|e| e.to_string()) }
 
 #[tauri::command]
-async fn exit_fullscreen(window: tauri::Window) -> Result<(), String> {
-    window.set_fullscreen(false).map_err(|e| e.to_string())
-}
+async fn exit_fullscreen(window: tauri::Window) -> Result<(), String> { window.set_fullscreen(false).map_err(|e| e.to_string()) }
 
 #[tauri::command]
-async fn open_external(url: String) -> Result<(), String> {
-    tauri_plugin_shell::ShellExt::shell(&tauri::AppHandle::current().ok_or("No application handle")?)
-        .open(url, None)
-        .map_err(|e| e.to_string())
+async fn open_external(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    app.shell().open(url, None).map_err(|e| e.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
