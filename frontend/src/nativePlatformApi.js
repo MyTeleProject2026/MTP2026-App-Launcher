@@ -97,3 +97,29 @@ const startupMode = window.localStorage?.getItem('mtp2026-default-system-os');
 if (startupMode && validModes.has(startupMode)) {
   void setNativeMode(startupMode).catch(() => {});
 }
+
+// On a first launch, show an MTP2026 startup mark before revealing the
+// system-OS selector. This is a real startup layer, not a React-only screen,
+// so it also runs inside the native Tauri/Android/iOS web host.
+(function showStartupLogoBeforeOsPicker() {
+  if (startupMode && validModes.has(startupMode)) return;
+  const picker = document.getElementById('mtp-os-picker');
+  if (!picker || document.getElementById('mtp2026-startup-logo')) return;
+
+  picker.classList.add('mtp-os-hidden');
+  const splash = document.createElement('div');
+  splash.id = 'mtp2026-startup-logo';
+  splash.setAttribute('aria-label', 'MTP2026 starting');
+  splash.innerHTML = '<div class="mtp-startup-mark">M</div><div class="mtp-startup-name">MTP2026</div><div class="mtp-startup-subtitle">Universal App Launcher</div>';
+  const style = document.createElement('style');
+  style.textContent = '#mtp2026-startup-logo{position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 42%,#14284a 0,#070811 48%,#03050b 100%);color:#eef6ff;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;animation:mtp-startup-fade .45s ease-out}.mtp-startup-mark{width:86px;height:86px;border-radius:25px;display:grid;place-items:center;background:linear-gradient(135deg,#21d4fd,#4f46e5);font-size:42px;font-weight:900;box-shadow:0 0 0 1px rgba(148,190,255,.22),0 20px 70px rgba(33,212,253,.28);animation:mtp-startup-pulse 1.1s ease-in-out infinite}.mtp-startup-name{margin-top:22px;font-size:25px;font-weight:800;letter-spacing:.02em}.mtp-startup-subtitle{margin-top:6px;color:#8fa6c4;font-size:12px;letter-spacing:.08em;text-transform:uppercase}@keyframes mtp-startup-pulse{0%,100%{transform:scale(.96);opacity:.84}50%{transform:scale(1);opacity:1}}@keyframes mtp-startup-fade{from{opacity:0}to{opacity:1}}';
+  document.head.appendChild(style);
+  document.body.appendChild(splash);
+  window.setTimeout(() => {
+    splash.style.transition = 'opacity .32s ease, visibility .32s ease';
+    splash.style.opacity = '0';
+    splash.style.visibility = 'hidden';
+    picker.classList.remove('mtp-os-hidden');
+    window.setTimeout(() => { splash.remove(); style.remove(); }, 340);
+  }, 1050);
+})();
