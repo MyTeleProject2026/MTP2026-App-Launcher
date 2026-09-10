@@ -1,0 +1,28 @@
+name: MTP2026 Windows native shell
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install
+      - name: Build web application
+        run: npm run frontend:build
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version '^2'
+      - name: Build Windows native application
+        working-directory: native/windows-tauri
+        run: cargo tauri build
