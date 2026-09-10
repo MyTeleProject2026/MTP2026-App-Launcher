@@ -50,8 +50,8 @@ jobs:
             "$AAPT2" dump badging "$APK" | grep -E "package: name=|application-label:|application-icon:" >/dev/null
             "$APKSIGNER" verify --verbose --print-certs "$APK"
           done
-          for variant in user owner; do
-            AAB="app/build/outputs/bundle/$variantRelease/app-$variant-release.aab"
+          for variant in userRelease ownerRelease; do
+            AAB="app/build/outputs/bundle/$variant/app-${variant%-Release}-release.aab"
             [ -s "$AAB" ] || { echo "Missing AAB: $AAB" >&2; find app/build/outputs/bundle -maxdepth 4 -type f -print >&2; exit 1; }
             unzip -t "$AAB" >/dev/null
             unzip -l "$AAB" | grep -q 'base/manifest/AndroidManifest.xml'
