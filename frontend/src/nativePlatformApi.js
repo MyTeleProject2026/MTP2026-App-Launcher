@@ -31,10 +31,10 @@ export function nativeCapabilities() {
     orientation: host === 'windows' || host === 'android' || host === 'ios' || host === 'gaming',
     fullscreen: true,
     filesystem: Boolean(plugins.Filesystem) || host === 'windows',
-    notifications: Boolean(plugins.LocalNotifications) || host === 'windows' || host === 'android',
+    notifications: Boolean(plugins.LocalNotifications) || host === 'windows' || host === 'android' || host === 'ios',
     clipboard: Boolean(navigator.clipboard) || host !== 'web',
     externalApps: host !== 'web',
-    gamepad: 'getGamepads' in navigator,
+    gamepad: 'getGamepads' in navigator && host !== 'ios',
     windowManagement: host === 'windows',
   });
 }
