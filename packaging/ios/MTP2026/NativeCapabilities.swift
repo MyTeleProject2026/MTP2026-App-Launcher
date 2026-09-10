@@ -1,5 +1,4 @@
 import UIKit
-import WebKit
 
 final class MTP2026NativeCapabilities: NSObject {
     static let shared = MTP2026NativeCapabilities()
@@ -16,5 +15,29 @@ final class MTP2026NativeCapabilities: NSObject {
             delegate.rootViewController?.orientationMask = mask
         }
         UIViewController.attemptRotationToDeviceOrientation()
+    }
+
+    func enterFullscreen(_ controller: UIViewController) {
+        controller.setNeedsStatusBarAppearanceUpdate()
+        controller.prefersStatusBarHidden = true
+    }
+
+    func exitFullscreen(_ controller: UIViewController) {
+        controller.prefersStatusBarHidden = false
+        controller.setNeedsStatusBarAppearanceUpdate()
+    }
+
+    func capabilities() -> [String: Any] {
+        [
+            "native": true,
+            "platform": "ios",
+            "orientationLock": true,
+            "fullscreen": true,
+            "filesystem": true,
+            "notifications": true,
+            "clipboard": true,
+            "externalApps": true,
+            "gamepad": true
+        ]
     }
 }
