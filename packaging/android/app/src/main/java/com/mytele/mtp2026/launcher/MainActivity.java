@@ -27,12 +27,20 @@ public final class MainActivity extends Activity {
     private WebView webView;
     private final Set<String> allowedHosts = new HashSet<>();
 
+    private static final int IMMERSIVE_FLAGS =
+            View.SYSTEM_UI_FLAG_FULLSCREEN |
+            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
+            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         Uri start = Uri.parse(BuildConfig.WEB_APP_URL);
         allowedHosts.addAll(Arrays.asList(BuildConfig.ALLOWED_HOSTS.split(",")));
-        if (start.getHost() != null) allowedHosts.add(start.getHost());
-        getWindow().getDecorView().setSystemUiVisibility(5894 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        if (start.getHost() != null) allowedHosts.add(start.getHost().toLowerCase());
+        applyImmersive(true);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -66,18 +74,29 @@ public final class MainActivity extends Activity {
         webView.loadUrl(BuildConfig.WEB_APP_URL);
     }
 
+    private void applyImmersive(boolean enabled) {
+        getWindow().getDecorView().setSystemUiVisibility(enabled ? IMMERSIVE_FLAGS : View.SYSTEM_UI_FLAG_VISIBLE);
+    }
+
     private final class NativeBridge {
         @JavascriptInterface public void setDeviceMode(String mode) {
             runOnUiThread(() -> {
-                if ("gaming".equals(mode)) setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
+                if ("gaming".equals(mode)) setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR);
                 else if ("android".equals(mode) || "ios".equals(mode)) setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
                 else setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-                getWindow().getDecorView().setSystemUiVisibility(5894 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+                applyImmersive(true);
             });
         }
-        @JavascriptInterface public void enterFullscreen() { runOnUiThread(() -> getWindow().getDecorView().setSystemUiVisibility(5894 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)); }
-        @JavascriptInterface public void exitFullscreen() { runOnUiThread(() -> getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE)); }
-        @JavascriptInterface public void openExternal(String url) { try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); } catch (Exception ignored) {} }
+
+        @JavascriptInterface public String getCapabilities() {
+            return "{\"native\":true,\"orientation\":true,\"fullscreen\":true,\"filesystem\":true,\"notifications\":true,\"clipboard\":true,\"externalApps\":true,\"gamepad\":true}";
+        }
+
+        @JavascriptInterface public void enterFullscreen() { runOnUiThread(() -> applyImmersive(true)); }
+        @JavascriptInterface public void exitFullscreen() { runOnUiThread(() -> applyImmersive(false)); }
+        @JavascriptInterface public void openExternal(String url) {
+            try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); } catch (Exception ignored) {}
+        }
     }
 
     private boolean route(Uri uri) {
