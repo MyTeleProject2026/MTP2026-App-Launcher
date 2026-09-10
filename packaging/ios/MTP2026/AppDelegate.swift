@@ -59,8 +59,15 @@ final class LauncherViewController: UIViewController, WKScriptMessageHandler, WK
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.name == "mtp2026", let body = message.body as? [String: Any], let mode = body["mode"] as? String else { return }
-        MTP2026NativeCapabilities.shared.apply(mode: mode, controller: self)
+        guard message.name == "mtp2026", let body = message.body as? [String: Any] else { return }
+        if let mode = body["mode"] as? String {
+            MTP2026NativeCapabilities.shared.apply(mode: mode, controller: self)
+        }
+        if let action = body["action"] as? String, action == "notify" {
+            let title = String(body["title"] as? String ?? "MTP2026")
+            let bodyText = String(body["body"] as? String ?? "")
+            Task { _ = await MTP2026NativeCapabilities.shared.notify(title: title, body: bodyText) }
+        }
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
