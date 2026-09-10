@@ -1,0 +1,20 @@
+{
+  "name": "mtp2026-native-tooling",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "cap": "cap"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/app": "^7.1.0",
+    "@capacitor/core": "^7.4.3",
+    "@capacitor/filesystem": "^7.1.0",
+    "@capacitor/ios": "^7.4.3",
+    "@capacitor/local-notifications": "^7.0.1",
+    "@capacitor/preferences": "^7.0.1",
+    "@capacitor/screen-orientation": "^7.0.1",
+    "@capacitor/cli": "^7.4.3"
+  }
+}
