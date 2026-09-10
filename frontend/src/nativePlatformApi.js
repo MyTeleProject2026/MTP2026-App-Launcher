@@ -28,11 +28,11 @@ export function nativeCapabilities() {
   return Object.freeze({
     native: host !== 'web',
     host,
-    orientation: host === 'windows' || host === 'android' || host === 'ios' || host === 'gaming',
+    orientation: host === 'android' || host === 'ios',
     fullscreen: true,
     filesystem: Boolean(plugins.Filesystem) || host === 'windows',
     notifications: Boolean(plugins.LocalNotifications) || host === 'windows' || host === 'android' || host === 'ios',
-    clipboard: Boolean(navigator.clipboard) || host !== 'web',
+    clipboard: Boolean(navigator.clipboard),
     externalApps: host !== 'web',
     gamepad: 'getGamepads' in navigator && host !== 'ios',
     windowManagement: host === 'windows',
@@ -69,17 +69,20 @@ export async function nativeOpenExternal(url) {
 }
 
 export async function notifyNative(title, body) {
-  if (window.MTP2026Native?.notify) return window.MTP2026Native.notify(String(title || ''), String(body || ''));
+  const safeTitle = String(title || 'MTP2026');
+  const safeBody = String(body || '');
+  if (hasTauri()) return invoke('notify_native', { title: safeTitle, body: safeBody });
+  if (window.MTP2026Native?.notify) return window.MTP2026Native.notify(safeTitle, safeBody);
   const notifications = cap()?.Plugins?.LocalNotifications;
   if (notifications?.schedule) {
-    return notifications.schedule({ notifications: [{ id: Date.now() % 2147483647, title, body }] });
+    return notifications.schedule({ notifications: [{ id: Date.now() % 2147483647, title: safeTitle, body: safeBody }] });
   }
   const NotificationAPI = browserNotification();
-  if (NotificationAPI?.permission === 'granted') return new NotificationAPI(title, { body });
+  if (NotificationAPI?.permission === 'granted') return new NotificationAPI(safeTitle, { body: safeBody });
   if (NotificationAPI?.permission === 'default') {
     try {
       const permission = await NotificationAPI.requestPermission();
-      if (permission === 'granted') return new NotificationAPI(title, { body });
+      if (permission === 'granted') return new NotificationAPI(safeTitle, { body: safeBody });
     } catch (_) {}
   }
   return false;
