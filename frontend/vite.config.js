@@ -21,5 +21,9 @@ export default defineConfig({
       }
     }
   ],
+  esbuild: {
+    loader: 'jsx',
+    include: /src\/.*\.js$/
+  },
   server: { port: 5173 }
 });
