@@ -1,0 +1,28 @@
+name: MTP2026 iOS native shell
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+      - name: Build web application
+        run: npm run frontend:build
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        working-directory: packaging/ios
+        run: xcodegen generate
+      - name: Build iOS application for simulator
+        working-directory: packaging/ios
+        run: xcodebuild -project MTP2026.xcodeproj -scheme MTP2026 -sdk iphonesimulator -configuration Debug -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
