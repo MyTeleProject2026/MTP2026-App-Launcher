@@ -36,7 +36,7 @@ const pool = createDbPool();
 const allowedOrigins = (process.env.FRONTEND_ORIGIN || '').split(',').map(x => x.trim()).filter(Boolean);
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : true, credentials: true }));
-app.use(express.json({ limit: '256kb' }));
+app.use(express.json({ limit: '350kb' }));
 
 function errorCode(e) { return e instanceof Error ? e.message : 'UNKNOWN_ERROR'; }
 
@@ -78,9 +78,9 @@ async function fetchMetadata(target) {
     if (!contentType.includes('text/html')) return { title: parsed.hostname, iconUrl: new URL('/favicon.ico', parsed).toString(), manifestUrl: null, pwaSupported: false, themeColor: null };
     const html = (await response.text()).slice(0, 1000000);
     const title = (firstMatch(html, /<title[^>]*>([\s\S]*?)<\/title>/i) || parsed.hostname).slice(0, 160);
-    const icon = firstMatch(html, /<link[^>]+rel=["'][^"']*(?:icon|apple-touch-icon)[^"']*["'][^>]+href=["']([^"']+)["']/i);
-    const manifest = firstMatch(html, /<link[^>]+rel=["'][^"']*manifest[^"']*["'][^>]+href=["']([^"']+)["']/i);
-    return { title, iconUrl: icon ? new URL(icon, parsed).toString() : new URL('/favicon.ico', parsed).toString(), manifestUrl: manifest ? new URL(manifest, parsed).toString() : null, pwaSupported: Boolean(manifest), themeColor: firstMatch(html, /<meta[^>]+name=["']theme-color["'][^>]+content=["']([^"']+)["']/i) };
+    const icon = firstMatch(html, /<link[^>]+rel=[\"'][^\"']*(?:icon|apple-touch-icon)[^\"']*[\"'][^>]+href=[\"']([^\"']+)[\"']/i);
+    const manifest = firstMatch(html, /<link[^>]+rel=[\"'][^\"']*manifest[^\"']*[\"'][^>]+href=[\"']([^\"']+)[\"']/i);
+    return { title, iconUrl: icon ? new URL(icon, parsed).toString() : new URL('/favicon.ico', parsed).toString(), manifestUrl: manifest ? new URL(manifest, parsed).toString() : null, pwaSupported: Boolean(manifest), themeColor: firstMatch(html, /<meta[^>]+name=[\"']theme-color[\"'][^>]+content=[\"']([^\"']+)[\"']/i) };
   } finally { clearTimeout(timer); }
 }
 
@@ -107,15 +107,15 @@ app.get('/api/config', (_req, res) => res.json({ service: 'MTP2026 App Launcher'
 
 async function getLibrary(req) {
   const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
-  const [rows] = await pool.execute(`SELECT a.id,a.canonical_url AS url,a.title,a.description,a.icon_url AS iconUrl,a.manifest_url AS manifestUrl,a.theme_color AS themeColor,a.pwa_supported AS pwaSupported,ua.category,ua.is_favorite AS favorite,ua.is_pinned AS pinned,ua.sort_order AS sortOrder,ua.last_opened_at AS lastOpenedAt FROM user_applications ua JOIN applications a ON a.id=ua.application_id WHERE ua.user_id=? ORDER BY ua.is_pinned DESC,ua.is_favorite DESC,ua.sort_order,a.title`, [uid]);
+  const [rows] = await pool.execute(`SELECT a.id,a.canonical_url AS url,a.title,a.description,a.icon_url AS iconUrl,ua.user_icon_url AS userIconUrl,a.manifest_url AS manifestUrl,a.theme_color AS themeColor,a.pwa_supported AS pwaSupported,ua.category,ua.is_favorite AS favorite,ua.is_pinned AS pinned,ua.sort_order AS sortOrder,ua.last_opened_at AS lastOpenedAt FROM user_applications ua JOIN applications a ON a.id=ua.application_id WHERE ua.user_id=? ORDER BY ua.is_pinned DESC,ua.is_favorite DESC,ua.sort_order,a.title`, [uid]);
   return rows;
 }
-
 
 async function ensureSyncTables() {
   if (!pool) return;
   await pool.execute(`CREATE TABLE IF NOT EXISTS mtp_application_connections (id CHAR(36) NOT NULL PRIMARY KEY,user_id CHAR(36) NOT NULL,application_id CHAR(36) NOT NULL,provider VARCHAR(120) NOT NULL DEFAULT 'external',connection_type VARCHAR(40) NOT NULL DEFAULT 'launcher',provider_subject VARCHAR(255) NULL,status VARCHAR(30) NOT NULL DEFAULT 'restored',last_authenticated_at DATETIME NULL,last_used_at DATETIME NULL,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,UNIQUE KEY uq_mtp_application_connection(user_id,application_id),INDEX idx_mtp_application_connections_user(user_id,status,updated_at))`);
   await pool.execute(`CREATE TABLE IF NOT EXISTS mtp_user_devices (id CHAR(36) NOT NULL PRIMARY KEY,user_id CHAR(36) NOT NULL,device_id VARCHAR(128) NOT NULL,device_label VARCHAR(160) NULL,last_seen_at DATETIME NOT NULL,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,UNIQUE KEY uq_mtp_user_device(user_id,device_id),INDEX idx_mtp_user_devices_seen(user_id,last_seen_at))`);
+  await pool.execute(`ALTER TABLE user_applications ADD COLUMN user_icon_url TEXT NULL` ).catch(() => {});
 }
 const syncTablesReady = ensureSyncTables();
 
@@ -135,7 +135,7 @@ app.get('/api/sync', auth, async (req,res) => {
     await syncTablesReady;
     const [apps, settings, notifications, connections] = await Promise.all([
       getLibrary(req),
-      pool.execute('SELECT theme,default_view AS defaultView,open_behavior AS openBehavior,compact_mode AS compactMode FROM mtp_user_preferences WHERE user_id=?',[req.mtpSession.userId]).then(([r])=>r[0]||null),
+      pool.execute('SELECT theme,default_view AS defaultView,open_behavior AS openBehavior,compact_mode AS compactMode,device_mode AS deviceMode FROM mtp_user_preferences WHERE user_id=?',[req.mtpSession.userId]).then(([r])=>r[0]||null),
       pool.execute('SELECT id,type,title,message,read_at AS readAt,created_at AS createdAt FROM mtp_notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 100',[req.mtpSession.userId]).then(([r])=>r),
       pool.execute('SELECT application_id AS applicationId,provider,connection_type AS connectionType,provider_subject AS providerSubject,status,last_authenticated_at AS lastAuthenticatedAt,last_used_at AS lastUsedAt,updated_at AS updatedAt FROM mtp_application_connections WHERE user_id=?',[req.mtpSession.userId]).then(([r])=>r)
     ]);
@@ -189,11 +189,22 @@ app.post('/api/apps', auth, async (req, res) => {
     const [existing] = await pool.execute('SELECT id FROM applications WHERE canonical_url_hash=? AND canonical_url=? LIMIT 1', [canonicalUrlHash, url]);
     const realId = existing[0]?.id || applicationId;
     await pool.execute('INSERT IGNORE INTO user_applications(user_id,application_id) VALUES(?,?)', [uid, realId]);
-    res.status(201).json({ id: realId, url, ...metadata, favorite: false, pinned: false });
+    res.status(201).json({ id: realId, url, ...metadata, favorite: false, pinned: false, userIconUrl: null });
   } catch (e) {
     const code = errorCode(e);
     res.status(400).json({ error: ['PRIVATE_HOST_BLOCKED','ONLY_HTTPS_URLS_ALLOWED'].includes(code) ? code : 'INVALID_OR_UNAVAILABLE_URL' });
   }
+});
+
+app.post('/api/apps/:id/install', auth, async (req,res) => {
+  if (!pool) return res.status(503).json({error:'DATABASE_NOT_CONFIGURED'});
+  try {
+    const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
+    const [appRows] = await pool.execute('SELECT id,canonical_url AS url,title,description,icon_url AS iconUrl,manifest_url AS manifestUrl,theme_color AS themeColor,pwa_supported AS pwaSupported FROM applications WHERE id=? LIMIT 1',[req.params.id]);
+    if (!appRows.length) return res.status(404).json({error:'APPLICATION_NOT_FOUND'});
+    await pool.execute('INSERT IGNORE INTO user_applications(user_id,application_id) VALUES(?,?)',[uid,req.params.id]);
+    res.status(201).json({ok:true,application:appRows[0]});
+  } catch { res.status(400).json({error:'INSTALL_FAILED'}); }
 });
 
 app.post('/api/apps/:id/open', auth, async (req, res) => {
@@ -210,7 +221,7 @@ app.get('/api/apps/recent', auth, async (req, res) => {
   if (!pool) return res.status(503).json({ error: 'DATABASE_NOT_CONFIGURED' });
   try {
     const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
-    const [rows] = await pool.execute(`SELECT a.id,a.canonical_url AS url,a.title,a.description,a.icon_url AS iconUrl,a.manifest_url AS manifestUrl,a.theme_color AS themeColor,a.pwa_supported AS pwaSupported,ua.category,ua.is_favorite AS favorite,ua.is_pinned AS pinned,ua.sort_order AS sortOrder,ua.last_opened_at AS lastOpenedAt FROM user_applications ua JOIN applications a ON a.id=ua.application_id WHERE ua.user_id=? AND ua.last_opened_at IS NOT NULL ORDER BY ua.last_opened_at DESC LIMIT 50`, [uid]);
+    const [rows] = await pool.execute(`SELECT a.id,a.canonical_url AS url,a.title,a.description,a.icon_url AS iconUrl,ua.user_icon_url AS userIconUrl,a.manifest_url AS manifestUrl,a.theme_color AS themeColor,a.pwa_supported AS pwaSupported,ua.category,ua.is_favorite AS favorite,ua.is_pinned AS pinned,ua.sort_order AS sortOrder,ua.last_opened_at AS lastOpenedAt FROM user_applications ua JOIN applications a ON a.id=ua.application_id WHERE ua.user_id=? AND ua.last_opened_at IS NOT NULL ORDER BY ua.last_opened_at DESC LIMIT 50`, [uid]);
     res.json(rows);
   } catch { res.status(500).json({ error: 'RECENT_ACTIVITY_LOAD_FAILED' }); }
 });
@@ -218,16 +229,28 @@ app.get('/api/apps/recent', auth, async (req, res) => {
 app.patch('/api/apps/:id', auth, async (req, res) => {
   if (!pool) return res.status(503).json({ error: 'DATABASE_NOT_CONFIGURED' });
   try {
+    await syncTablesReady;
     const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
-    const allowed = { favorite: 'is_favorite', pinned: 'is_pinned', category: 'category', sortOrder: 'sort_order' };
-    const entries = Object.entries(allowed).filter(([key]) => Object.hasOwn(req.body || {}, key));
+    const allowed = { favorite: 'is_favorite', pinned: 'is_pinned', category: 'category', sortOrder: 'sort_order', userIconUrl: 'user_icon_url' };
+    const body = req.body || {};
+    const entries = Object.entries(allowed).filter(([key]) => Object.hasOwn(body, key));
     if (!entries.length) return res.status(400).json({ error: 'NO_CHANGES' });
-    const values = entries.map(([key]) => key === 'favorite' || key === 'pinned' ? (req.body[key] ? 1 : 0) : req.body[key]);
+    const values = entries.map(([key]) => {
+      if (key === 'favorite' || key === 'pinned') return body[key] ? 1 : 0;
+      if (key === 'userIconUrl') {
+        if (body[key] === null || body[key] === '') return null;
+        const value = String(body[key]);
+        if (!/^data:image\/(png|jpeg|webp|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(value) || value.length > 280000) throw new Error('INVALID_ICON');
+        return value;
+      }
+      return body[key];
+    });
     const sets = entries.map(([_, column]) => `${column}=?`);
     values.push(uid, req.params.id);
-    await pool.execute(`UPDATE user_applications SET ${sets.join(',')},updated_at=CURRENT_TIMESTAMP WHERE user_id=? AND application_id=?`, values);
+    const [result] = await pool.execute(`UPDATE user_applications SET ${sets.join(',')},updated_at=CURRENT_TIMESTAMP WHERE user_id=? AND application_id=?`, values);
+    if (!result.affectedRows) return res.status(404).json({error:'APPLICATION_NOT_FOUND'});
     res.json({ ok: true });
-  } catch { res.status(400).json({ error: 'UPDATE_FAILED' }); }
+  } catch (e) { res.status(400).json({ error: e?.message === 'INVALID_ICON' ? 'INVALID_ICON' : 'UPDATE_FAILED' }); }
 });
 
 app.delete('/api/apps/:id', auth, async (req, res) => {
