@@ -41,18 +41,25 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     writeln!(serial, "Usable memory : {} MiB", arch::memory::total_usable_bytes(&boot_info.memory_regions) / (1024 * 1024)).ok();
     writeln!(serial, "Framebuffer   : {:?}", boot_info.framebuffer).ok();
 
+    arch::frame_allocator::init(&boot_info.memory_regions);
+    let first_frame = arch::frame_allocator::allocate_frame();
     arch::interrupts::init();
     let first_thread = scheduler::create_kernel_thread();
     scheduler::schedule(first_thread);
     timer::tick();
 
+    writeln!(serial, "Frame allocator: {} usable regions", arch::frame_allocator::region_count()).ok();
+    match first_frame {
+        Some(frame) => writeln!(serial, "First free frame: {:#x}", frame).ok(),
+        None => writeln!(serial, "First free frame: none").ok(),
+    };
     writeln!(serial, "Interrupts    : IDT loaded and enabled").ok();
     writeln!(serial, "Scheduler     : kernel thread {} ready", scheduler::current_thread()).ok();
     writeln!(serial, "Timer ticks   : {}", timer::ticks()).ok();
     writeln!(serial, "Syscall ABI   : yield=0 ticks=1 console=2").ok();
     writeln!(serial, "----------------------------------------").ok();
     writeln!(serial, "MTP2026 kernel initialization complete.").ok();
-    writeln!(serial, "Kernel alive: memory + interrupts + scheduler + timer + syscall ABI").ok();
+    writeln!(serial, "Kernel alive: memory + frame allocator + interrupts + scheduler + timer + syscall ABI").ok();
     exit_qemu(QemuExitCode::Success);
 }
 
