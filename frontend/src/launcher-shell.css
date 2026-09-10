@@ -1,0 +1,213 @@
+/* MTP2026 launcher shell: the launcher surface intentionally exposes only app icon + app name. */
+
+/* Never expose technical/library metadata on launcher tiles. */
+.app-shell .grid .card .domain,
+.app-shell .grid .card .desc,
+.app-shell .grid .card .card-bottom,
+.app-shell .grid .card .last-opened,
+.app-shell .grid .card .card-head-actions {
+  display: none !important;
+}
+
+.app-shell .grid .card {
+  min-height: 154px;
+  height: 154px;
+  padding: 20px 14px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+.app-shell .grid .card .card-top {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.app-shell .grid .card .app-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 18px;
+  flex: 0 0 68px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.20);
+}
+
+.app-shell .grid .card h3 {
+  width: 100%;
+  margin: 11px 0 0;
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The launcher is a true app surface: tapping anywhere on the tile launches it. */
+.app-shell .grid .card:focus-visible {
+  outline: 2px solid rgba(34,211,238,.8);
+  outline-offset: 3px;
+}
+
+/* Windows 11: desktop-like grid and full-width workspace. */
+.app-shell.device-windows {
+  min-height: 100dvh;
+}
+
+.app-shell.device-windows .main {
+  min-height: 100dvh;
+}
+
+.app-shell.device-windows .grid {
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 18px;
+}
+
+.app-shell.device-windows .grid .card {
+  min-height: 142px;
+  height: 142px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.035);
+}
+
+.app-shell.device-windows .grid .card .app-icon {
+  width: 58px;
+  height: 58px;
+  flex-basis: 58px;
+  border-radius: 14px;
+}
+
+.app-shell.device-windows .grid .card h3 {
+  font-size: 11px;
+}
+
+/* Android/iOS: compact home-screen icon grid. */
+.app-shell.device-android .grid,
+.app-shell.device-ios .grid {
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 20px 12px;
+}
+
+.app-shell.device-android .grid .card,
+.app-shell.device-ios .grid .card {
+  min-height: 128px;
+  height: 128px;
+  padding: 10px 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-shell.device-android .grid .card:hover,
+.app-shell.device-ios .grid .card:hover {
+  transform: translateY(-2px) scale(1.02);
+  background: rgba(255,255,255,.035);
+  box-shadow: none;
+}
+
+.app-shell.device-android .grid .card .app-icon,
+.app-shell.device-ios .grid .card .app-icon {
+  width: 64px;
+  height: 64px;
+  flex-basis: 64px;
+  border-radius: 17px;
+}
+
+/* Gaming: larger touch targets while remaining responsive to either orientation. */
+.app-shell.device-gaming .grid {
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 18px;
+}
+
+.app-shell.device-gaming .grid .card {
+  min-height: 158px;
+  height: 158px;
+}
+
+/* Application workspace is the runtime surface, not a metadata card. */
+.app-workspace.device-windows {
+  width: 100vw !important;
+  height: 100dvh !important;
+  inset: 0 !important;
+  border-radius: 0 !important;
+}
+
+.app-workspace.device-windows .workspace-frame-wrap,
+.app-workspace.device-windows .workspace-frame {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.app-workspace.device-windows .workspace-frame-wrap {
+  flex: 1 1 auto;
+}
+
+/* Fullscreen runtime removes launcher chrome around the real application. */
+.app-workspace.browser-fullscreen {
+  width: 100vw !important;
+  height: 100dvh !important;
+  inset: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* If a browser refuses orientation lock, the JS orientation gate can use this class. */
+.mtp-orientation-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: none;
+  place-items: center;
+  padding: 24px;
+  background: #070811;
+  color: #fff;
+  text-align: center;
+}
+
+.mtp-orientation-gate.show {
+  display: grid;
+}
+
+.mtp-orientation-gate > div {
+  max-width: 420px;
+}
+
+.mtp-orientation-gate .rotate-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.mtp-orientation-gate h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.mtp-orientation-gate p {
+  margin: 0;
+  color: #9298ae;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (orientation: portrait) and (max-width: 900px) {
+  .app-shell.device-windows .main {
+    display: none;
+  }
+  .app-shell.device-windows::after {
+    content: 'Rotate your device to landscape to use Windows 11 mode';
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: grid;
+    place-items: center;
+    padding: 32px;
+    text-align: center;
+    font-weight: 800;
+    font-size: 18px;
+    background: #070811;
+  }
+}
