@@ -12,32 +12,21 @@
     "frontend:build": "npm --prefix frontend run build",
     "integration:generate": "node tools/generate-integration.mjs",
     "integration:verify": "node tools/verify-generated-integration.mjs",
+    "native:install": "npm --prefix native install",
     "native:build:web": "npm --prefix frontend run build",
-    "native:sync:android": "npm run native:build:web && npx cap sync android",
-    "native:sync:ios": "npm run native:build:web && npx cap sync ios",
-    "native:open:android": "npx cap open android",
-    "native:open:ios": "npx cap open ios",
+    "native:sync:android": "npm run native:install && npm run native:build:web && npx --prefix native cap sync android",
+    "native:sync:ios": "npm run native:install && npm run native:build:web && npx --prefix native cap sync ios",
+    "native:open:android": "npm run native:install && npx --prefix native cap open android",
+    "native:open:ios": "npm run native:install && npx --prefix native cap open ios",
     "native:windows:dev": "cd native/windows-tauri && cargo tauri dev",
     "native:windows:build": "npm run native:build:web && cd native/windows-tauri && cargo tauri build",
     "test": "node --test"
   },
   "engines": { "node": ">=20" },
   "dependencies": {
-    "@capacitor/android": "^7.4.3",
-    "@capacitor/app": "^7.1.0",
-    "@capacitor/core": "^7.4.3",
-    "@capacitor/filesystem": "^7.1.0",
-    "@capacitor/ios": "^7.4.3",
-    "@capacitor/local-notifications": "^7.0.1",
-    "@capacitor/preferences": "^7.0.1",
-    "@capacitor/screen-orientation": "^7.0.1",
-    "capacitor": "^7.4.3",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
     "mysql2": "^3.14.4"
-  },
-  "devDependencies": {
-    "@capacitor/cli": "^7.4.3"
   }
 }
