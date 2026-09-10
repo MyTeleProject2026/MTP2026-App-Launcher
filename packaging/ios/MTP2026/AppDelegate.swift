@@ -4,7 +4,7 @@ import WebKit
 @main
 final class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
-    private var rootViewController: LauncherViewController?
+    var rootViewController: LauncherViewController?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         let controller = LauncherViewController()
@@ -60,13 +60,7 @@ final class LauncherViewController: UIViewController, WKScriptMessageHandler, WK
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.name == "mtp2026", let body = message.body as? [String: Any], let mode = body["mode"] as? String else { return }
-        switch mode {
-        case "windows": orientationMask = .landscape
-        case "android", "ios": orientationMask = .portrait
-        case "gaming": orientationMask = .allButUpsideDown
-        default: return
-        }
-        UIViewController.attemptRotationToDeviceOrientation()
+        MTP2026NativeCapabilities.shared.apply(mode: mode, controller: self)
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
