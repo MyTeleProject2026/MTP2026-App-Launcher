@@ -29,7 +29,7 @@ jobs:
 
       - name: Build MTP2026 ARM64 kernel
         working-directory: os
-        run: cargo build -p mtp2026-arm64-kernel --target aarch64-unknown-none
+        run: cargo build --manifest-path arm64-kernel/Cargo.toml --target aarch64-unknown-none
 
       - name: Locate generated BIOS image
         id: image
