@@ -21,9 +21,15 @@ export default defineConfig({
       }
     }
   ],
-  esbuild: {
-    loader: 'jsx',
-    include: /src\/.*\.js$/
+  // Vite 8 uses Oxc for JavaScript transforms. Keep the existing .js
+  // launcher modules intact because several of them contain JSX.
+  // The previous esbuild loader setting is deprecated and is ignored by
+  // Oxc's parser, which caused launcherPlatform.js to fail at build time.
+  oxc: {
+    include: /src\/.*\.js$/,
+    jsx: {
+      runtime: 'classic'
+    }
   },
   server: { port: 5173 }
 });
