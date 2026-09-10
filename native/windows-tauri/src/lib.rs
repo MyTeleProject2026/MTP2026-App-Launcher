@@ -2,6 +2,7 @@
 
 use serde::Serialize;
 use tauri::{Emitter, WindowEvent};
+use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_shell::ShellExt;
 
 mod native_capabilities;
@@ -24,10 +25,17 @@ struct NativeCapabilities {
 fn native_capabilities() -> NativeCapabilities {
     let c = native_capabilities::capabilities();
     NativeCapabilities {
-        native: c["native"], platform: "windows", orientation_lock: false,
-        fullscreen: c["fullscreen"], filesystem: c["filesystem"],
-        notifications: c["notifications"], clipboard: c["clipboard"],
-        external_apps: c["external_apps"], gamepad: c["gamepad"],
+        native: c["native"],
+        platform: "windows",
+        orientation_lock: false,
+        fullscreen: c["fullscreen"],
+        filesystem: c["filesystem"],
+        notifications: c["notifications"],
+        // Clipboard is supplied by the WebView/browser API rather than a
+        // dedicated native bridge command in this shell.
+        clipboard: false,
+        external_apps: c["external_apps"],
+        gamepad: c["gamepad"],
         window_controls: c["window_controls"],
     }
 }
@@ -44,14 +52,38 @@ async fn set_device_mode(window: tauri::Window, mode: String) -> Result<(), Stri
 }
 
 #[tauri::command]
-async fn enter_fullscreen(window: tauri::Window) -> Result<(), String> { window.set_fullscreen(true).map_err(|e| e.to_string()) }
+async fn enter_fullscreen(window: tauri::Window) -> Result<(), String> {
+    window.set_fullscreen(true).map_err(|e| e.to_string())
+}
 
 #[tauri::command]
-async fn exit_fullscreen(window: tauri::Window) -> Result<(), String> { window.set_fullscreen(false).map_err(|e| e.to_string()) }
+async fn exit_fullscreen(window: tauri::Window) -> Result<(), String> {
+    window.set_fullscreen(false).map_err(|e| e.to_string())
+}
 
 #[tauri::command]
 async fn open_external(app: tauri::AppHandle, url: String) -> Result<(), String> {
     app.shell().open(url, None).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn notify_native(
+    app: tauri::AppHandle,
+    title: String,
+    body: String,
+) -> Result<(), String> {
+    let title = title.trim();
+    let body = body.trim();
+    if title.is_empty() && body.is_empty() {
+        return Err("Notification title and body cannot both be empty".into());
+    }
+
+    app.notification()
+        .builder()
+        .title(if title.is_empty() { "MTP2026" } else { title })
+        .body(body)
+        .show()
+        .map_err(|e| e.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -60,7 +92,14 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![native_capabilities, set_device_mode, enter_fullscreen, exit_fullscreen, open_external])
+        .invoke_handler(tauri::generate_handler![
+            native_capabilities,
+            set_device_mode,
+            enter_fullscreen,
+            exit_fullscreen,
+            open_external,
+            notify_native
+        ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { .. } = event {
                 let _ = window.emit("mtp2026:window-closing", ());
