@@ -31,7 +31,7 @@ export function nativeCapabilities() {
     orientation: host === 'windows' || host === 'android' || host === 'ios' || host === 'gaming',
     fullscreen: true,
     filesystem: Boolean(plugins.Filesystem) || host === 'windows',
-    notifications: Boolean(plugins.LocalNotifications) || host === 'windows',
+    notifications: Boolean(plugins.LocalNotifications) || host === 'windows' || host === 'android',
     clipboard: Boolean(navigator.clipboard) || host !== 'web',
     externalApps: host !== 'web',
     gamepad: 'getGamepads' in navigator,
@@ -69,6 +69,7 @@ export async function nativeOpenExternal(url) {
 }
 
 export async function notifyNative(title, body) {
+  if (window.MTP2026Native?.notify) return window.MTP2026Native.notify(String(title || ''), String(body || ''));
   const notifications = cap()?.Plugins?.LocalNotifications;
   if (notifications?.schedule) {
     return notifications.schedule({ notifications: [{ id: Date.now() % 2147483647, title, body }] });
