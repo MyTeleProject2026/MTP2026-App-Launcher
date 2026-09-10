@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["kernel"]
+members = ["kernel", "arm64-kernel"]
 
 [package]
 name = "mtp2026-os"
