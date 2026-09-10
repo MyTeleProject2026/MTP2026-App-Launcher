@@ -21,6 +21,12 @@ MTP2026 is the MYTELEPROJECT2026 central web/PWA application launcher. **VexaAcc
 - Cross-device launcher synchronization keyed by the stable VexaAccount subject.
 - Connected-application records and device presence records without copying third-party cookies or raw third-party tokens.
 
+## Current production deployment
+
+The MTP backend is deployed as the Render web service `MTP2026-App-Launcher-Backend` at `https://mtp2026-app-launcher-backend.onrender.com`, using the `main` branch and the `backend` root directory. The current deployed repair for cross-origin VexaAccount SSO session handling is commit `e4bf3df54f7392a14e5d0e45e459163dc55d0ad1` and the Render deployment was reported live after deployment.
+
+A live deployment is not by itself end-to-end certification. The authenticated browser flow must still be verified through the deployed frontend, VexaAccount authorization, callback, MTP session, protected APIs and logout.
+
 ## SSO workflow
 
 ```text
@@ -95,10 +101,13 @@ Render hosts the MTP backend and frontend independently. Required backend secret
 
 MTP2026 does not implement VexaAccount registration, password recovery, email verification, 2FA or Owner authorization. Those remain VexaAccount workflows. MTP consumes the existing provider contract and must not modify VexaAccount source code for ordinary MTP work.
 
+## VexaAccount Owner Source Repair boundary
+
+Consumer-side source repairs may be prepared through the VexaAccount Owner SSO Control System when the MTP repository is authorized/allowlisted. The Owner workflow is repository-aware: it can analyze the bounded source tree, identify relevant authentication/session/routing candidates, prepare a precise repair plan, show affected files/findings, generate reviewed repair source, run fresh preflight checks and commit only after explicit Owner approval. MTP remains the owner of its own consumer-side implementation; VexaAccount remains the identity provider and control-plane authority.
+
 ## Verification boundary
 
-Source/build verification is not the same as production certification. A true production certification requires the deployed frontend/backend, real TiDB database, active VexaAccount SSO client and a real authenticated browser login to be exercised.
-
+Source/build verification is not the same as production certification. A true production certification requires the deployed frontend/backend, real TiDB database, active VexaAccount SSO client and a real authenticated browser login to be exercised. In particular, verify `/api/auth/session`, protected launcher endpoints such as `/api/apps`, `/api/apps/recent`, `/api/settings` and `/api/notifications`, and logout after the callback succeeds.
 
 ## VexaAccount-first sign-in UX
 
@@ -114,3 +123,7 @@ The MTP2026 login surface provides:
 - Profile name, email and avatar supplied only by the VexaAccount OIDC-style userinfo response.
 
 This keeps one authoritative identity system while allowing MTP2026 to provide a Google/YouTube-style account entry point and then return to the launcher with a backend-managed session.
+
+## Documentation maintenance
+
+Keep this README synchronized with the actual `main` branch implementation. Distinguish source implementation, CI/build verification, Render deployment state and true end-to-end runtime certification. Do not describe an in-progress or unverified browser flow as certified.
