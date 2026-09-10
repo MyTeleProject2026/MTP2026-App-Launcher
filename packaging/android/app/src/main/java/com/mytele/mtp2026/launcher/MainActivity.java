@@ -105,7 +105,7 @@ public final class MainActivity extends Activity {
 
     private boolean postNotification(String title, String body) {
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            requestNotificationPermissionIfNeeded();
+            runOnUiThread(this::requestNotificationPermissionIfNeeded);
             return false;
         }
         NotificationManager manager = getSystemService(NotificationManager.class);
@@ -140,11 +140,7 @@ public final class MainActivity extends Activity {
         }
 
         @JavascriptInterface public boolean notify(String title, String body) {
-            final boolean[] result = {false};
-            Runnable action = () -> result[0] = postNotification(title, body);
-            if (Thread.currentThread() == getMainLooper().getThread()) action.run();
-            else runOnUiThread(action);
-            return result[0];
+            return postNotification(title, body);
         }
 
         @JavascriptInterface public void enterFullscreen() { runOnUiThread(() -> applyImmersive(true)); }
