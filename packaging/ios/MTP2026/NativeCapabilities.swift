@@ -17,16 +17,6 @@ final class MTP2026NativeCapabilities: NSObject {
         UIViewController.attemptRotationToDeviceOrientation()
     }
 
-    func enterFullscreen(_ controller: UIViewController) {
-        controller.setNeedsStatusBarAppearanceUpdate()
-        controller.prefersStatusBarHidden = true
-    }
-
-    func exitFullscreen(_ controller: UIViewController) {
-        controller.prefersStatusBarHidden = false
-        controller.setNeedsStatusBarAppearanceUpdate()
-    }
-
     func capabilities() -> [String: Any] {
         [
             "native": true,
