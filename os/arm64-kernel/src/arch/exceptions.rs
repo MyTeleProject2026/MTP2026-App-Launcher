@@ -2,12 +2,23 @@
 
 use core::arch::asm;
 
-/// Install the architectural AArch64 exception-vector base address.
-/// The vector table itself is supplied by `vectors.S`; this function only
-/// publishes its address to VBAR_EL1 after the kernel has entered EL1.
-pub unsafe fn install_vectors(vector_base: u64) {
+unsafe extern "C" {
+    static mtp2026_vectors: u8;
+}
+
+/// Install the MTP2026 AArch64 EL1 exception vector table.
+///
+/// The vector table is 2048-byte aligned and contains the architecturally
+/// defined EL1 synchronous/IRQ/FIQ/SError entry points.
+pub unsafe fn init() {
+    let vector_base = &mtp2026_vectors as *const u8 as u64;
     unsafe {
-        asm!("msr VBAR_EL1, {0}", "isb", in(reg) vector_base, options(nostack, preserves_flags));
+        asm!(
+            "msr VBAR_EL1, {0}",
+            "isb",
+            in(reg) vector_base,
+            options(nostack, preserves_flags)
+        );
     }
 }
 
