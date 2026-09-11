@@ -6,6 +6,7 @@ on:
     paths:
       - 'os/arm64-kernel/**'
       - 'tools/build-arm64-kernel.mjs'
+      - 'tools/verify-arm64-kernel.py'
       - '.github/workflows/build-arm64-kernel.yml'
   workflow_dispatch:
 
@@ -39,6 +40,12 @@ jobs:
               raise SystemExit('placeholder ARM64 image detected')
           print(f'ARM64 image bytes: {len(data)}')
           PY
+
+      - name: Install ARM64 emulator verification dependency
+        run: python3 -m pip install --disable-pip-version-check --no-input unicorn==2.1.4
+
+      - name: Execute ARM64 kernel boot verification
+        run: python3 tools/verify-arm64-kernel.py
 
       - name: Commit generated kernel image
         run: |
