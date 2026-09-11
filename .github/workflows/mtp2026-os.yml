@@ -5,11 +5,15 @@ on:
     branches: [main]
     paths:
       - "os/**"
+      - "tools/build-arm64-kernel.mjs"
+      - "tools/verify-arm64-kernel.py"
       - ".github/workflows/mtp2026-os.yml"
   pull_request:
     branches: [main]
     paths:
       - "os/**"
+      - "tools/build-arm64-kernel.mjs"
+      - "tools/verify-arm64-kernel.py"
       - ".github/workflows/mtp2026-os.yml"
 
 jobs:
@@ -19,6 +23,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
       - name: Install QEMU
         run: sudo apt-get update && sudo apt-get install -y qemu-system-x86 qemu-system-arm
@@ -30,6 +39,14 @@ jobs:
       - name: Build MTP2026 ARM64 kernel
         working-directory: os
         run: cargo build --manifest-path arm64-kernel/Cargo.toml --target aarch64-unknown-none
+
+      - name: Build flat ARM64 guest image
+        run: node tools/build-arm64-kernel.mjs
+
+      - name: Execute ARM64 kernel boot verification
+        run: |
+          python3 -m pip install --disable-pip-version-check --no-input unicorn==2.1.4
+          python3 tools/verify-arm64-kernel.py
 
       - name: Locate generated BIOS image
         id: image
@@ -68,4 +85,5 @@ jobs:
             os/target/debug/build/**/mtp2026-bios.img
             os/target/debug/build/**/mtp2026-uefi.img
             os/target/aarch64-unknown-none/debug/mtp2026-arm64-kernel
+            frontend/public/arm64/mtp2026-arm64-kernel.bin
           if-no-files-found: error
