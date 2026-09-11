@@ -3,6 +3,7 @@
  * exposes only capabilities supplied by the current native host. */
 
 import './startupOrchestrator.js';
+import './osRuntime.js';
 
 const hasTauri = () => Boolean(window.__TAURI_INTERNALS__);
 const hasIOSBridge = () => Boolean(window.webkit?.messageHandlers?.mtp2026);
@@ -55,6 +56,10 @@ export async function setNativeMode(mode) {
   if (orientation && document.fullscreenElement && screen.orientation?.lock) {
     try { await screen.orientation.lock(orientation); } catch (_) {}
   }
+  try {
+    localStorage.setItem('mtp2026-default-system-os', normalized);
+    void window.MTP2026Runtime?.boot?.(normalized);
+  } catch (_) {}
   return false;
 }
 
@@ -100,9 +105,8 @@ if (startupMode && validModes.has(startupMode)) {
   void setNativeMode(startupMode).catch(() => {});
 }
 
-// The startup orchestrator owns the first-launch gate. Keep this legacy startup
-// mark available for older hosts, but never let it reveal the OS picker before
-// the session/ARM64 readiness gate has completed.
+// Keep the legacy startup logo available for hosts that do not use the new
+// orchestrator, but never make it a long-running network gate.
 (function showStartupLogoBeforeOsPicker() {
   if (window.MTP2026Startup || (startupMode && validModes.has(startupMode))) return;
   const picker = document.getElementById('mtp-os-picker');
@@ -123,5 +127,5 @@ if (startupMode && validModes.has(startupMode)) {
     splash.style.visibility = 'hidden';
     picker.classList.remove('mtp-os-hidden');
     window.setTimeout(() => { splash.remove(); style.remove(); }, 340);
-  }, 1050);
+  }, 650);
 })();
