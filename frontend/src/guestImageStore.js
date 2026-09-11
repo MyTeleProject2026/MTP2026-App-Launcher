@@ -16,7 +16,9 @@ function openDb() {
   return new Promise((resolve, reject) => {
     if (!('indexedDB' in window)) return reject(new Error('INDEXEDDB_UNAVAILABLE'));
     const request = indexedDB.open(DB_NAME, VERSION);
-    request.onupgradeneeded = () => request.result.createObjectStore(STORE);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(STORE)) request.result.createObjectStore(STORE);
+    };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error || new Error('GUEST_STORAGE_OPEN_FAILED'));
   });
@@ -32,9 +34,7 @@ async function toUint8Array(value) {
 export async function saveGuestImage(id, image, metadata = {}) {
   const bytes = await toUint8Array(image);
   const native = nativeStorage();
-  if (native?.saveImage) {
-    return native.saveImage(id, bytes.buffer, { ...metadata, byteLength: bytes.byteLength });
-  }
+  if (native?.saveImage) return native.saveImage(id, bytes.buffer, { ...metadata, byteLength: bytes.byteLength });
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
@@ -52,10 +52,7 @@ export async function loadGuestImage(id) {
   if (native?.loadImage) {
     const result = await native.loadImage(id);
     if (!result) return null;
-    return {
-      bytes: await toUint8Array(result.bytes || result),
-      metadata: result.metadata || {},
-    };
+    return { bytes: await toUint8Array(result.bytes || result), metadata: result.metadata || {} };
   }
   const db = await openDb();
   return new Promise((resolve, reject) => {
@@ -85,11 +82,7 @@ export async function removeGuestImage(id) {
 export async function inspectGuestImage(id) {
   const image = await loadGuestImage(id);
   if (!image) return null;
-  return {
-    id,
-    byteLength: image.bytes.byteLength,
-    metadata: image.metadata,
-  };
+  return { id, byteLength: image.bytes.byteLength, metadata: image.metadata };
 }
 
 window.MTP2026GuestImageStore = Object.freeze({ saveGuestImage, loadGuestImage, removeGuestImage, inspectGuestImage });
