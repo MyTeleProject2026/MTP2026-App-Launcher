@@ -40,6 +40,12 @@ jobs:
           node --check frontend/src/networkResilience.js
           node --check frontend/src/nativePlatformApi.js
           node --check frontend/src/osRuntime.js
+          node --check frontend/src/guestSystemRegistry.js
+          node --check frontend/src/guestStorage.js
+          node --check frontend/src/guestImageStore.js
+          node --check frontend/src/arm64GuestRuntime.js
+          node --check frontend/src/arm64GuestWorker.js
+          node --check frontend/src/guestBootController.js
           node --check frontend/src/startupOrchestrator.js
           node --check frontend/src/systemBootExperience.js
           node --check frontend/src/experience.js
