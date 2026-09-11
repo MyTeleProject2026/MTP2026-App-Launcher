@@ -43,14 +43,14 @@ function buildBootInfo() {
   writeU64(view, 0, BOOT_MAGIC);
   writeU32(view, 8, 1);
   writeU32(view, 12, 0);
-  writeU64(view, 16, 0); // no UART MMIO in browser worker
+  writeU64(view, 16, 0);
   writeU32(view, 24, 0);
   writeU32(view, 28, 0);
   writeU64(view, 32, MEMORY_BASE);
   writeU64(view, 40, MEMORY_SIZE);
-  writeU64(view, 48, 0); // no DTB in the browser executor
-  writeU64(view, 56, 0); // no GICD MMIO mapping
-  writeU64(view, 64, 0); // no GICR MMIO mapping
+  writeU64(view, 48, 0);
+  writeU64(view, 56, 0);
+  writeU64(view, 64, 0);
   return new Uint8Array(buffer);
 }
 
@@ -61,6 +61,14 @@ function readU64(bytes) {
 
 function currentPc(uc) {
   try { return Number(uc.reg_read_i64(uc.ARM64_REG_PC)); } catch (_) { return guestEntry; }
+}
+
+function kernelReady() {
+  try {
+    return readU64(engine.mem_read(READY_FLAG, 8)) === KERNEL_READY_MAGIC;
+  } catch (_) {
+    return false;
+  }
 }
 
 async function start(payload) {
@@ -75,8 +83,6 @@ async function start(payload) {
   const imageEnd = guestEntry + imagePages;
   if (imageEnd > RAM_SIZE) throw new Error('ARM64_IMAGE_TOO_LARGE');
 
-  // Map low RAM so the guest can use its boot-info pointer and the kernel's
-  // host-visible readiness marker at 0x6000, plus its linked 0x400000 image.
   engine.mem_map(RAM_BASE, RAM_SIZE, uc.PROT_ALL);
   engine.mem_write(guestEntry, bytes);
   engine.mem_write(BOOT_INFO, buildBootInfo());
@@ -92,12 +98,22 @@ async function start(payload) {
     memoryBytes: RAM_SIZE,
   });
 
-  // First execution slice must reach the real Rust kernel entry and write its
-  // readiness marker. A mere UI transition is never treated as a successful boot.
-  engine.emu_start(guestEntry, 0, 0, 250000);
-  const readyBytes = engine.mem_read(READY_FLAG, 8);
-  const ready = readU64(readyBytes) === KERNEL_READY_MAGIC;
-  if (!ready) {
+  // The kernel intentionally parks in WFE after writing the ready marker.
+  // Some Unicorn.js/WASM builds surface WFE as UC_ERR_EXCEPTION instead of
+  // treating it as an idle instruction. Therefore an exception is recoverable
+  // when the authoritative kernel-ready marker has already been written.
+  try {
+    engine.emu_start(guestEntry, 0, 0, 250000);
+  } catch (error) {
+    if (!kernelReady()) {
+      running = false;
+      const pc = currentPc(uc);
+      throw new Error(`ARM64_KERNEL_EXECUTION_FAILED_${String(error?.message || error)}_PC_${pc.toString(16)}`);
+    }
+  }
+
+  if (!kernelReady()) {
+    running = false;
     const pc = currentPc(uc);
     throw new Error(`ARM64_KERNEL_BOOT_NOT_CONFIRMED_PC_${pc.toString(16)}`);
   }
@@ -110,19 +126,10 @@ async function start(payload) {
     kernelReady: true,
   });
 
-  const runSlice = () => {
-    if (!running || !engine) return;
-    try {
-      const pc = currentPc(uc);
-      engine.emu_start(pc, 0, 0, 100000);
-      post('tick', { pc: currentPc(uc), running: true, kernelReady: true });
-      setTimeout(runSlice, 0);
-    } catch (error) {
-      running = false;
-      post('error', { message: String(error?.message || error || 'ARM64_EMULATION_FAILED') });
-    }
-  };
-  runSlice();
+  // The generated kernel intentionally waits in WFE. Do not repeatedly invoke
+  // the unsupported idle instruction after a successful boot; keep the worker
+  // alive so the launcher can manage the guest and stop it explicitly.
+  post('tick', { pc: currentPc(uc), running: true, kernelReady: true });
 }
 
 function stop() {
