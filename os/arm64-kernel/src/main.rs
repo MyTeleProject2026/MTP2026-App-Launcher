@@ -29,7 +29,13 @@ pub const UART_PL011: u32 = 1;
 #[unsafe(naked)]
 pub extern "C" fn _start() -> ! {
     core::arch::naked_asm!(
+        // x0 contains the MTP2026 boot-info pointer supplied by the loader.
         "mov x19, x0",
+        // Build a valid kernel stack at the end of guest RAM.
+        "ldr x1, [x19, #32]",
+        "ldr x2, [x19, #40]",
+        "add sp, x1, x2",
+        "mov x0, x19",
         "bl {entry}",
         "1:",
         "wfe",
