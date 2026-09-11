@@ -1,0 +1,36 @@
+name: MTP2026 ARM64 Kernel Image
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - frontend/public/arm64/mtp2026-arm64-kernel.bin
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-kernel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-none
+          components: llvm-tools-preview
+      - name: Build ARM64 kernel image
+        run: node tools/build-arm64-kernel.mjs
+      - name: Publish kernel image
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/public/arm64/mtp2026-arm64-kernel.bin
+          if git diff --cached --quiet; then
+            echo "Kernel image is already current."
+            exit 0
+          fi
+          git commit -m "build(webos): publish ARM64 guest kernel image"
+          git push
