@@ -1,0 +1,53 @@
+name: MTP2026 ARM64 kernel image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'os/arm64-kernel/**'
+      - 'tools/build-arm64-kernel.mjs'
+      - '.github/workflows/build-arm64-kernel.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-none
+          components: llvm-tools-preview
+
+      - name: Build ARM64 kernel image
+        run: npm run arm64:kernel:build
+
+      - name: Validate image is binary
+        run: |
+          test -s frontend/public/arm64/mtp2026-arm64-kernel.bin
+          python3 - <<'PY'
+          from pathlib import Path
+          data = Path('frontend/public/arm64/mtp2026-arm64-kernel.bin').read_bytes()
+          if data.startswith(b'MTP2026 ARM64 KERNEL'):
+              raise SystemExit('placeholder ARM64 image detected')
+          print(f'ARM64 image bytes: {len(data)}')
+          PY
+
+      - name: Commit generated kernel image
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add frontend/public/arm64/mtp2026-arm64-kernel.bin
+          if git diff --cached --quiet; then
+            echo 'Kernel image is already current.'
+            exit 0
+          fi
+          git commit -m 'build: refresh real ARM64 guest kernel image [skip ci]'
+          git push
