@@ -34,27 +34,9 @@ function buildBootProgram() {
 async function loadEngine() { if (engine) return engine; const module = await import('@alexaltea/unicorn-js/aarch64'); engine = await module.default(); return engine; }
 function createGuest(mode) {
   const profile = modeProfile(mode);
-  return {
-    version: MACHINE_VERSION, mode: normalizeMode(mode), profile, ram: RAM_SIZE,
-    cpu: { architecture: 'AArch64', execution: 'WebAssembly', registers: 31, exceptionLevel: 'EL1' },
-    devices: {
-      display: { width: profile.viewport[0], height: profile.viewport[1], orientation: profile.orientation },
-      input: { touch: profile.touch, keyboard: true, pointer: true, gamepad: profile.gamepad },
-      storage: { type: 'IndexedDB/localStorage-backed virtual disk', mounted: true },
-      network: { type: 'browser-fetch bridge', online: typeof navigator !== 'undefined' ? navigator.onLine !== false : true },
-      timer: { virtualHz: 100 },
-    },
-    services: ['init', 'vfs', 'display', 'input', 'network', 'settings', 'app-host'],
-    apps: [], activeAppId: null, bootedAt: 0, ticks: 0,
-  };
+  return { version: MACHINE_VERSION, mode: normalizeMode(mode), profile, ram: RAM_SIZE, cpu: { architecture: 'AArch64', execution: 'WebAssembly', registers: 31, exceptionLevel: 'EL1' }, devices: { display: { width: profile.viewport[0], height: profile.viewport[1], orientation: profile.orientation }, input: { touch: profile.touch, keyboard: true, pointer: true, gamepad: profile.gamepad }, storage: { type: 'IndexedDB/localStorage-backed virtual disk', mounted: true }, network: { type: 'browser-fetch bridge', online: typeof navigator !== 'undefined' ? navigator.onLine !== false : true }, timer: { virtualHz: 100 } }, services: ['init', 'vfs', 'display', 'input', 'network', 'settings', 'app-host'], apps: [], activeAppId: null, bootedAt: 0, ticks: 0 };
 }
-function publishGuest(extra = {}) {
-  postMessage({ type: 'guest-state', guest: guest ? {
-    ...guest, profile: { ...guest.profile },
-    devices: { ...guest.devices, display: { ...guest.devices.display }, input: { ...guest.devices.input }, network: { ...guest.devices.network } },
-    apps: guest.apps.map(app => ({ ...app })),
-  } : null, ...extra });
-}
+function publishGuest(extra = {}) { postMessage({ type: 'guest-state', guest: guest ? { ...guest, profile: { ...guest.profile }, devices: { ...guest.devices, display: { ...guest.devices.display }, input: { ...guest.devices.input }, network: { ...guest.devices.network } }, apps: guest.apps.map(app => ({ ...app })) } : null, ...extra }); }
 async function boot() {
   if (running) return;
   running = true;
@@ -79,18 +61,19 @@ async function boot() {
     guest.bootedAt = Date.now(); guest.ticks = 1;
     postMessage({ type: 'ready', architecture: 'AArch64', execution: 'WebAssembly CPU emulation', bootMagic: `0x${BOOT_MAGIC.toString(16)}`, kernelEntry: 'guest-virtual-kernel-entry', contract: 'MTP2026-ARM64-BOOT-v1', machineVersion: MACHINE_VERSION, mode: guest.mode, profile: guest.profile, devices: guest.devices, services: guest.services });
     publishGuest();
-  } catch (error) {
-    postMessage({ type: 'error', message: error?.stack || error?.message || String(error) }); guest = null;
-  } finally { try { cpu?.close?.(); } catch (_) {} cpu = null; running = false; }
+  } catch (error) { postMessage({ type: 'error', message: error?.stack || error?.message || String(error) }); guest = null; }
+  finally { try { cpu?.close?.(); } catch (_) {} cpu = null; running = false; }
 }
-function setMode(mode) {
-  const next = normalizeMode(mode);
-  if (!guest) guest = createGuest(next); else {
-    guest.mode = next; guest.profile = modeProfile(next);
-    guest.devices.display = { width: guest.profile.viewport[0], height: guest.profile.viewport[1], orientation: guest.profile.orientation };
-    guest.devices.input = { touch: guest.profile.touch, keyboard: true, pointer: true, gamepad: guest.profile.gamepad };
-  }
-  publishGuest({ type: 'mode-changed', mode: next, profile: guest.profile });
+function setMode(mode) { const next = normalizeMode(mode); if (!guest) guest = createGuest(next); else { guest.mode = next; guest.profile = modeProfile(next); guest.devices.display = { width: guest.profile.viewport[0], height: guest.profile.viewport[1], orientation: guest.profile.orientation }; guest.devices.input = { touch: guest.profile.touch, keyboard: true, pointer: true, gamepad: guest.profile.gamepad }; } publishGuest({ type: 'mode-changed', mode: next, profile: guest.profile }); }
+function appCommand(command, payload = {}) {
+  const id = String(payload.id || '');
+  const app = guest?.apps?.find(item => item.id === id);
+  if (!app) return postMessage({ type: 'command-result', ok: false, command, error: `Guest application not found: ${id}` });
+  if (command === 'start-app' || command === 'focus-app') app.state = 'running';
+  else if (command === 'minimize-app') app.state = 'minimized';
+  else if (command === 'stop-app' || command === 'close-app') { guest.apps = guest.apps.filter(item => item.id !== id); if (guest.activeAppId === id) guest.activeAppId = guest.apps.find(item => item.state === 'running')?.id || null; publishGuest(); return postMessage({ type: 'command-result', ok: true, command, result: { id, state: 'closed' } }); }
+  else return postMessage({ type: 'command-result', ok: false, command, error: `Unknown app command: ${command}` });
+  guest.activeAppId = id; guest.ticks += 1; publishGuest(); postMessage({ type: 'command-result', ok: true, command, result: app });
 }
 function guestCommand(command, payload = {}) {
   if (!guest) return postMessage({ type: 'command-result', ok: false, command, error: 'Guest machine is not booted.' });
@@ -98,37 +81,12 @@ function guestCommand(command, payload = {}) {
   if (command === 'ping') return postMessage({ type: 'command-result', ok: true, command, result: 'pong', ticks: guest.ticks });
   if (command === 'set-network') { guest.devices.network.online = Boolean(payload.online); publishGuest(); return postMessage({ type: 'command-result', ok: true, command, result: guest.devices.network }); }
   if (command === 'mount-app') {
-    const app = { id: String(payload.id || `guest-app-${guest.apps.length + 1}`), title: String(payload.title || 'Web App'), url: String(payload.url || ''), state: 'mounted' };
+    const app = { id: String(payload.id || `guest-app-${guest.apps.length + 1}`), title: String(payload.title || 'Web App'), url: String(payload.url || ''), icon: String(payload.icon || ''), state: 'running', mountedAt: Date.now() };
     if (!app.url.startsWith('https://')) return postMessage({ type: 'command-result', ok: false, command, error: 'Only HTTPS applications can be mounted.' });
-    guest.apps = [...guest.apps.filter(item => item.id !== app.id), app];
-    guest.activeAppId = guest.activeAppId || app.id;
-    publishGuest(); return postMessage({ type: 'command-result', ok: true, command, result: app });
+    guest.apps = [...guest.apps.filter(item => item.id !== app.id), app]; guest.activeAppId = app.id; publishGuest(); return postMessage({ type: 'command-result', ok: true, command, result: app });
   }
-  if (command === 'start-app' || command === 'focus-app') {
-    const id = String(payload.id || ''); const app = guest.apps.find(item => item.id === id);
-    if (!app) return postMessage({ type: 'command-result', ok: false, command, error: 'Guest application not found.' });
-    guest.apps = guest.apps.map(item => item.id === id ? { ...item, state: 'running' } : item);
-    guest.activeAppId = id; publishGuest(); return postMessage({ type: 'command-result', ok: true, command, result: { id, state: 'running' } });
-  }
-  if (command === 'stop-app' || command === 'close-app') {
-    const id = String(payload.id || ''); const exists = guest.apps.some(item => item.id === id);
-    if (!exists) return postMessage({ type: 'command-result', ok: false, command, error: 'Guest application not found.' });
-    guest.apps = guest.apps.filter(item => item.id !== id); if (guest.activeAppId === id) guest.activeAppId = guest.apps[0]?.id || null;
-    publishGuest(); return postMessage({ type: 'command-result', ok: true, command, result: { id, state: 'closed' } });
-  }
-  if (command === 'minimize-app') {
-    const id = String(payload.id || ''); const app = guest.apps.find(item => item.id === id);
-    if (!app) return postMessage({ type: 'command-result', ok: false, command, error: 'Guest application not found.' });
-    guest.apps = guest.apps.map(item => item.id === id ? { ...item, state: 'minimized' } : item);
-    if (guest.activeAppId === id) guest.activeAppId = null; publishGuest(); return postMessage({ type: 'command-result', ok: true, command, result: { id, state: 'minimized' } });
-  }
+  if (['start-app', 'focus-app', 'minimize-app', 'stop-app', 'close-app'].includes(command)) return appCommand(command, payload);
   postMessage({ type: 'command-result', ok: false, command, error: `Unknown guest command: ${command}` });
 }
-self.onmessage = (event) => {
-  const data = event.data || {};
-  if (data.type === 'set-mode') return setMode(data.mode);
-  if (data.type === 'command') return guestCommand(data.command, data.payload);
-  if (data.type === 'boot') return void boot();
-  if (data.type === 'reset') { try { cpu?.close?.(); } catch (_) {} cpu = null; running = false; guest = null; postMessage({ type: 'reset' }); }
-};
+self.onmessage = event => { const data = event.data || {}; if (data.type === 'set-mode') return setMode(data.mode); if (data.type === 'command') return guestCommand(data.command, data.payload); if (data.type === 'boot') return void boot(); if (data.type === 'reset') { try { cpu?.close?.(); } catch (_) {} cpu = null; running = false; guest = null; postMessage({ type: 'reset' }); } };
 postMessage({ type: 'loaded', architecture: 'AArch64', execution: 'WebAssembly', machineVersion: MACHINE_VERSION });
