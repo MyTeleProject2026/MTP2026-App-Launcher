@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Check, Download, ImagePlus, Monitor, Smartphone, Gamepad2, Trash2, RotateCcw, Star, Pin, X, ExternalLink } from 'lucide-react';
+import { Check, Download, ImagePlus, Monitor, Smartphone, Gamepad2, Trash2, RotateCcw, Star, Pin, X, ExternalLink, Github, Cpu } from 'lucide-react';
 import './device-mode.css';
 import { setNativeMode } from './nativePlatformApi.js';
 
@@ -9,6 +9,8 @@ export const DEVICE_MODES = {
   windows: { label: 'Windows 11', icon: Monitor, orientation: 'landscape' },
   gaming: { label: 'Gaming system', icon: Gamepad2, orientation: 'responsive' }
 };
+
+export const MTP2026_ARM64_BOOT_GITHUB_URL = 'https://github.com/MyTeleProject2026/MTP2026-App-Launcher/tree/main/os/arm64-kernel';
 
 export function getDeviceMode(mode) {
   return mode === 'windows11' ? 'windows' : DEVICE_MODES[mode] ? mode : 'android';
@@ -22,14 +24,28 @@ export function applyNativeDeviceMode(mode) {
 
 export function DeviceModeSettings({ value, onChange }) {
   const current = getDeviceMode(value);
-  return <div className="device-mode-grid">{Object.entries(DEVICE_MODES).map(([id, item]) => {
-    const Icon = item.icon;
-    return <button key={id} type="button" className={`device-mode-card ${current === id ? 'active' : ''}`} onClick={() => { onChange(id); applyNativeDeviceMode(id); }}>
-      <span className="device-mode-icon"><Icon/></span>
-      <span><b>{item.label}</b><small>{item.orientation === 'portrait' ? 'Portable portrait' : item.orientation === 'landscape' ? 'Landscape only' : 'Portrait + landscape'}</small></span>
-      {current === id && <Check className="device-mode-check"/>}
-    </button>;
-  })}</div>;
+  return <div className="device-mode-settings">
+    <div className="device-mode-grid">{Object.entries(DEVICE_MODES).map(([id, item]) => {
+      const Icon = item.icon;
+      return <button key={id} type="button" className={`device-mode-card ${current === id ? 'active' : ''}`} onClick={() => { onChange(id); applyNativeDeviceMode(id); }}>
+        <span className="device-mode-icon"><Icon/></span>
+        <span><b>{item.label}</b><small>{item.orientation === 'portrait' ? 'Portable portrait' : item.orientation === 'landscape' ? 'Landscape only' : 'Portrait + landscape'}</small></span>
+        {current === id && <Check className="device-mode-check"/>}
+      </button>;
+    })}</div>
+
+    <div className="mtp2026-arm64-boot-panel">
+      <div className="mtp2026-arm64-boot-icon"><Cpu/></div>
+      <div className="mtp2026-arm64-boot-copy">
+        <strong>MTP2026 ARM64 OS</strong>
+        <span>Real ARM64 kernel source and boot foundation</span>
+        <small>Open the GitHub source/build area. A phone-specific boot image is required before a physical device can be flashed.</small>
+      </div>
+      <a className="mtp2026-arm64-boot-link" href={MTP2026_ARM64_BOOT_GITHUB_URL} target="_blank" rel="noopener noreferrer" aria-label="Open MTP2026 ARM64 boot GitHub source">
+        <Github/> <span>ARM64 GitHub</span> <ExternalLink/>
+      </a>
+    </div>
+  </div>;
 }
 
 function readImage(file) {
