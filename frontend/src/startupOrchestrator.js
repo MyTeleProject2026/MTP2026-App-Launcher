@@ -74,6 +74,28 @@ async function getSession() {
   }
 }
 
+async function getSettings() {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), SESSION_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${SESSION_API}/settings`, { credentials: 'include', headers: { Accept: 'application/json' }, cache: 'no-store', signal: controller.signal });
+    if (!response.ok) return null;
+    return await response.json().catch(() => null);
+  } catch (_) {
+    return null;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+function syncSavedMode(settings) {
+  const serverMode = settings?.deviceMode === 'windows11' ? 'windows' : settings?.deviceMode;
+  if (!VALID_MODES.has(serverMode)) return savedMode();
+  localStorage.setItem(MODE_KEY, serverMode);
+  document.documentElement.dataset.mtpDefaultSystem = serverMode;
+  return serverMode;
+}
+
 async function getArm64BootStatus() {
   try {
     const native = window.MTP2026Native;
@@ -128,6 +150,9 @@ async function run() {
     }
 
     step('session', 'done', 'Authenticated');
+    const settings = await getSettings();
+    const mode = syncSavedMode(settings) || savedMode();
+    step('arm64', '', 'Checking…');
     setText('Checking ARM64 boot…', 'Preparing the native host and validating what the current device can actually boot.');
     const arm64 = await getArm64BootStatus();
     persistState(session, arm64);
@@ -136,12 +161,11 @@ async function run() {
     if (nativeReady) step('arm64', 'ready', physical ? 'Device boot target ready' : 'Virtual/host ready');
     else step('arm64', 'blocked', arm64?.state || 'Unavailable');
 
-    const mode = savedMode();
     if (mode) {
       step('system', 'done', `${mode} selected`);
       setText('Starting MTP2026…', physical ? 'ARM64 boot target is ready. Restoring your selected system mode.' : 'ARM64 virtual/host readiness is confirmed. Restoring your selected launcher mode.');
       getRoot().dataset.mtpStartup = 'ready';
-      window.setTimeout(hideOverlay, 350);
+      window.setTimeout(hideOverlay, 250);
       return;
     }
 
