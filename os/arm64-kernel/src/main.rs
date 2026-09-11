@@ -22,6 +22,7 @@ pub struct Arm64BootInfo {
 }
 
 pub const BOOT_MAGIC: u64 = 0x4D54503230323641;
+pub const KERNEL_READY_MAGIC: u64 = 0x4D5450324B524E4C;
 pub const UART_NONE: u32 = 0;
 pub const UART_PL011: u32 = 1;
 
@@ -29,9 +30,7 @@ pub const UART_PL011: u32 = 1;
 #[unsafe(naked)]
 pub extern "C" fn _start() -> ! {
     core::arch::naked_asm!(
-        // x0 contains the MTP2026 boot-info pointer supplied by the loader.
         "mov x19, x0",
-        // Build a valid kernel stack at the end of guest RAM.
         "ldr x1, [x19, #32]",
         "ldr x2, [x19, #40]",
         "add sp, x1, x2",
@@ -51,6 +50,9 @@ extern "C" fn rust_entry(info: *const Arm64BootInfo) -> ! {
 
     if let Some(boot) = boot {
         if boot.magic == BOOT_MAGIC && boot.version == 1 {
+            // Host/emulator-visible proof that the real Rust ARM64 kernel entry was reached.
+            unsafe { core::ptr::write_volatile(0x6000 as *mut u64, KERNEL_READY_MAGIC); }
+
             unsafe { arch::exceptions::init(); }
 
             let gic = arch::gic::from_boot_info(boot.gicd_base, boot.gicr_base);
