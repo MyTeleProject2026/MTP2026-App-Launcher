@@ -19,6 +19,7 @@ export function getDeviceMode(mode) {
 export function applyNativeDeviceMode(mode) {
   const normalized = getDeviceMode(mode);
   void setNativeMode(normalized).catch(() => {});
+  try { window.MTP2026WebOS?.setMode?.(normalized); } catch (_) {}
   return normalized;
 }
 
