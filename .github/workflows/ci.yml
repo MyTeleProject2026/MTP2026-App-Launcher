@@ -39,6 +39,7 @@ jobs:
           node --check frontend/src/auth/vexaAuth.js
           node --check frontend/src/networkResilience.js
           node --check frontend/src/nativePlatformApi.js
+          node --check frontend/src/nativeGuestStorage.js
           node --check frontend/src/osRuntime.js
           node --check frontend/src/guestSystemRegistry.js
           node --check frontend/src/guestStorage.js
@@ -57,6 +58,10 @@ jobs:
         run: |
           test -s frontend/public/arm64/mtp2026-arm64-kernel.bin
           file frontend/public/arm64/mtp2026-arm64-kernel.bin
+      - name: Install ARM64 emulator verification dependency
+        run: python3 -m pip install --disable-pip-version-check --no-input unicorn==2.1.4
+      - name: Execute ARM64 kernel boot verification
+        run: python3 tools/verify-arm64-kernel.py
       - name: Run regression tests
         run: npm test
       - name: Generate integration fixture
