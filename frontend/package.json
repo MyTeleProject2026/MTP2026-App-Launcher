@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@alexaltea/unicorn-js": "2.1.4",
+    "@capacitor/filesystem": "^7.1.0",
     "@tauri-apps/api": "^2.8.0",
     "@vitejs/plugin-react": "latest",
     "vite": "latest",
