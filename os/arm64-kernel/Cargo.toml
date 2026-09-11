@@ -1,3 +1,6 @@
+[workspace]
+resolver = "3"
+
 [package]
 name = "mtp2026-arm64-kernel"
 version = "0.1.0"
