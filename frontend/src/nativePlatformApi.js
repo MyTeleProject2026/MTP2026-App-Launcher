@@ -1,8 +1,9 @@
 /* MTP2026 unified native platform capability API.
  * Keeps the existing React/VexaAccount session architecture intact and
- * exposes only capabilities supplied by the current native host. */
+ * exposes capabilities supplied by the current native host. */
 
 import './startupOrchestrator.js';
+import './nativeGuestStorage.js';
 import './osRuntime.js';
 import './guestBootController.js';
 
@@ -35,7 +36,8 @@ export function nativeCapabilities() {
     host,
     orientation: host === 'android' || host === 'ios',
     fullscreen: true,
-    filesystem: Boolean(plugins.Filesystem) || host === 'windows',
+    filesystem: Boolean(plugins.Filesystem) || host === 'windows' || Boolean(window.MTP2026NativeGuestStorage),
+    guestStorage: Boolean(window.MTP2026NativeGuestStorage),
     notifications: Boolean(plugins.LocalNotifications) || host === 'windows' || host === 'android' || host === 'ios',
     clipboard: Boolean(navigator.clipboard),
     externalApps: host !== 'web',
@@ -121,7 +123,7 @@ if (startupMode && validModes.has(startupMode)) {
   splash.setAttribute('aria-label', 'MTP2026 starting');
   splash.innerHTML = '<div class="mtp-startup-mark">M</div><div class="mtp-startup-name">MTP2026</div><div class="mtp-startup-subtitle">Universal App Launcher</div>';
   const style = document.createElement('style');
-  style.textContent = '#mtp2026-startup-logo{position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 42%,#14284a 0,#070811 48%,#03050b 100%);color:#eef6ff;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;animation:mtp-startup-fade .45s ease-out}.mtp-startup-mark{width:86px;height:86px;border-radius:25px;display:grid;place-items:center;background:linear-gradient(135deg,#21d4fd,#4f46e5);font-size:42px;font-weight:900;box-shadow:0 0 0 1px rgba(148,190,255,.22),0 20px 70px rgba(33,212,253,.28);animation:mtp-startup-pulse 1.1s ease-in-out infinite}.mtp-startup-name{margin-top:22px;font-size:25px;font-weight:800;letter-spacing:.02em}.mtp-startup-subtitle{margin-top:6px;color:#8fa6c4;font-size:12px;letter-spacing:.08em;text-transform:uppercase}@keyframes mtp-startup-pulse{0%,100%{transform:scale(.96);opacity:.84}50%{transform:scale(1);opacity:1}}@keyframes mtp-startup-fade{from{opacity:0}to{opacity:1}}';
+  style.textContent = '#mtp2026-startup-logo{position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 42%,#14284a 0,#070811 48%,#03050b 100%);color:#eef6ff;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;animation:mtp-startup-fade .45s ease-out}.mtp-startup-mark{width:86px;height:86px;border-radius:25px;display:grid;place-items:center;background:linear-gradient(135deg,#21d4fd,#4f46e5);font-size:42px;font-weight:900;box-shadow:0 0 0 1px rgba(148,190,255,.22),0 20px 70px rgba(33,212,253,.28);animation:mtp-startup-pulse 1.1s ease-in-out infinite}.mtp-startup-name{margin-top:22px;font-size:25px;font-weight:800}.mtp-startup-subtitle{margin-top:6px;color:#8fa6c4;font-size:12px;letter-spacing:.08em;text-transform:uppercase}@keyframes mtp-startup-pulse{0%,100%{transform:scale(.96);opacity:.84}50%{transform:scale(1);opacity:1}}@keyframes mtp-startup-fade{from{opacity:0}to{opacity:1}}';
   document.head.appendChild(style);
   document.body.appendChild(splash);
   window.setTimeout(() => {
