@@ -2,7 +2,8 @@ ENTRY(_start)
 
 SECTIONS
 {
-  . = 0x0000000000000000;
+  /* The flat guest image is loaded by the MTP2026 ARM64 executor at 0x400000. */
+  . = 0x0000000000400000;
 
   .text : ALIGN(2048)
   {
