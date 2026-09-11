@@ -8,6 +8,9 @@ export default defineConfig({
     react(),
     {
       name: 'mtp-build-info',
+      transformIndexHtml(html) {
+        return html.replace('</head>', '<script type="module" src="/src/networkResilience.js"></script></head>');
+      },
       generateBundle() {
         this.emitFile({
           type: 'asset',
@@ -21,10 +24,6 @@ export default defineConfig({
       }
     }
   ],
-  // Vite 8 uses Oxc for JavaScript transforms. Keep the existing .js
-  // launcher modules intact because several of them contain JSX.
-  // The previous esbuild loader setting is deprecated and is ignored by
-  // Oxc's parser, which caused launcherPlatform.js to fail at build time.
   oxc: {
     include: /src\/.*\.js$/,
     jsx: {
