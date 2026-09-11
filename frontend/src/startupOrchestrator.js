@@ -3,6 +3,7 @@ const SESSION_KEY = 'mtp2026-startup-session';
 const MODE_KEY = 'mtp2026-default-system-os';
 const VALID_MODES = new Set(['android','ios','windows','gaming']);
 const SESSION_TIMEOUT_MS = 1800;
+const SETTINGS_TIMEOUT_MS = 2200;
 const MAX_STARTUP_BLOCK_MS = 2200;
 
 function root(){return document.documentElement;}
@@ -15,10 +16,10 @@ function hide(){const el=document.getElementById('mtp2026-boot-orchestrator');if
 function hidePicker(){picker()?.classList.add('mtp-os-hidden');}
 function showPicker(){const p=picker();if(p&&savedMode()===null)p.classList.remove('mtp-os-hidden');}
 async function session(){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),SESSION_TIMEOUT_MS);try{const r=await fetch(`${SESSION_API}/auth/session`,{credentials:'include',headers:{Accept:'application/json'},cache:'no-store',signal:controller.signal});if(r.status===401)return null;if(!r.ok)throw new Error(`AUTH_SESSION_${r.status}`);return await r.json();}catch(error){return{__error:error};}finally{clearTimeout(timer);}}
-async function settings(){try{const r=await fetch(`${SESSION_API}/settings`,{credentials:'include',headers:{Accept:'application/json'},cache:'no-store'});return r.ok?await r.json().catch(()=>null):null;}catch(_){return null;}}
-async function saveMode(mode){try{const r=await fetch(`${SESSION_API}/settings`,{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({deviceMode:mode})});return r.ok;}catch(_){return false;}}
-function normalize(value){return value==='windows11'?'windows':value;}
-async function selectedMode(serverSettings){const local=savedMode();const server=normalize(serverSettings?.deviceMode);if(local){document.documentElement.dataset.mtpDefaultSystem=local;void saveMode(local);return local;}if(VALID_MODES.has(server)){try{localStorage.setItem(MODE_KEY,server);}catch(_){}document.documentElement.dataset.mtpDefaultSystem=server;return server;}return null;}
+async function settings(){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),SETTINGS_TIMEOUT_MS);try{const r=await fetch(`${SESSION_API}/settings`,{credentials:'include',headers:{Accept:'application/json'},cache:'no-store',signal:controller.signal});return r.ok?await r.json().catch(()=>null):null;}catch(_){return null;}finally{clearTimeout(timer);}}
+async function saveMode(mode){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),SETTINGS_TIMEOUT_MS);try{const r=await fetch(`${SESSION_API}/settings`,{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({deviceMode:mode}),signal:controller.signal});return r.ok;}catch(_){return false;}finally{clearTimeout(timer);}}
+function normalize(value){return value==='windows11'?'windows':(VALID_MODES.has(value)?value:null);}
+async function selectedMode(serverSettings){const local=savedMode();const server=normalize(serverSettings?.deviceMode);if(local){document.documentElement.dataset.mtpDefaultSystem=local;void saveMode(local);return local;}if(server){try{localStorage.setItem(MODE_KEY,server);}catch(_){}document.documentElement.dataset.mtpDefaultSystem=server;return server;}return null;}
 async function arm64(){try{const native=window.MTP2026Native;if(native?.getArm64BootStatus){const value=native.getArm64BootStatus();return typeof value==='string'?JSON.parse(value):value;}}catch(_){}return{state:'launcher-host-ready',host:window.MTP2026NativePlatform?.nativeHost?.()||'web',architecture:navigator.userAgentData?.architecture||navigator.platform||'unknown',physicalOsBoot:false,kernelControl:false,virtualArm64:true};}
 function persist(s,a){try{localStorage.setItem(SESSION_KEY,JSON.stringify({checkedAt:Date.now(),authenticated:Boolean(s?.profile),arm64:a?.state||'unknown',virtualArm64:a?.virtualArm64!==false}));}catch(_){} }
 async function run(){
