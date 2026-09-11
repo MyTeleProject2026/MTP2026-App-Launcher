@@ -46,21 +46,25 @@ export function nativeCapabilities() {
 export async function setNativeMode(mode) {
   const normalized = mode === 'windows11' ? 'windows' : mode;
   if (!validModes.has(mode) || !validModes.has(normalized)) throw new Error('Unsupported MTP2026 device mode');
-  if (hasTauri()) return invoke('set_device_mode', { mode: normalized });
-  if (window.MTP2026Native?.setDeviceMode) return window.MTP2026Native.setDeviceMode(normalized);
-  if (hasIOSBridge()) {
+
+  let nativeResult = null;
+  if (hasTauri()) nativeResult = await invoke('set_device_mode', { mode: normalized });
+  else if (window.MTP2026Native?.setDeviceMode) nativeResult = await window.MTP2026Native.setDeviceMode(normalized);
+  else if (hasIOSBridge()) {
     window.webkit.messageHandlers.mtp2026.postMessage({ mode: normalized });
-    return true;
+    nativeResult = true;
+  } else {
+    const orientation = normalized === 'windows' ? 'landscape' : normalized === 'android' || normalized === 'ios' ? 'portrait' : null;
+    if (orientation && document.fullscreenElement && screen.orientation?.lock) {
+      try { await screen.orientation.lock(orientation); } catch (_) {}
+    }
   }
-  const orientation = normalized === 'windows' ? 'landscape' : normalized === 'android' || normalized === 'ios' ? 'portrait' : null;
-  if (orientation && document.fullscreenElement && screen.orientation?.lock) {
-    try { await screen.orientation.lock(orientation); } catch (_) {}
-  }
+
   try {
     localStorage.setItem('mtp2026-default-system-os', normalized);
-    void window.MTP2026Runtime?.boot?.(normalized);
+    void window.MTP2026Runtime?.boot?.(normalized, { nativeResult });
   } catch (_) {}
-  return false;
+  return nativeResult;
 }
 
 export async function nativeFullscreen(enter, element) {
@@ -99,14 +103,11 @@ export async function notifyNative(title, body) {
 
 window.MTP2026NativePlatform = { nativeHost, nativeCapabilities, setNativeMode, nativeFullscreen, nativeOpenExternal, notifyNative };
 
-// Apply the user's first-launch OS choice as soon as the native bridge is ready.
 const startupMode = window.localStorage?.getItem('mtp2026-default-system-os');
 if (startupMode && validModes.has(startupMode)) {
   void setNativeMode(startupMode).catch(() => {});
 }
 
-// Keep the legacy startup logo available for hosts that do not use the new
-// orchestrator, but never make it a long-running network gate.
 (function showStartupLogoBeforeOsPicker() {
   if (window.MTP2026Startup || (startupMode && validModes.has(startupMode))) return;
   const picker = document.getElementById('mtp-os-picker');
