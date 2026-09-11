@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = join(root, 'os', 'arm64-kernel', 'Cargo.toml');
 const outDir = join(root, 'frontend', 'public', 'arm64');
-const elf = join(root, 'target', 'aarch64-unknown-none', 'release', 'mtp2026-arm64-kernel');
+const cargoTargetDir = join(root, 'os', 'arm64-kernel', 'target');
+const elf = join(cargoTargetDir, 'aarch64-unknown-none', 'release', 'mtp2026-arm64-kernel');
 const image = join(outDir, 'mtp2026-arm64-kernel.bin');
 
 if (!existsSync(manifest)) throw new Error(`ARM64 kernel manifest not found: ${manifest}`);
