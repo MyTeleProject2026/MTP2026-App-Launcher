@@ -50,9 +50,6 @@ extern "C" fn rust_entry(info: *const Arm64BootInfo) -> ! {
 
     if let Some(boot) = boot {
         if boot.magic == BOOT_MAGIC && boot.version == 1 {
-            // Host/emulator-visible proof that the real Rust ARM64 kernel entry was reached.
-            unsafe { core::ptr::write_volatile(0x6000 as *mut u64, KERNEL_READY_MAGIC); }
-
             unsafe { arch::exceptions::init(); }
 
             let gic = arch::gic::from_boot_info(boot.gicd_base, boot.gicr_base);
@@ -77,6 +74,12 @@ extern "C" fn rust_entry(info: *const Arm64BootInfo) -> ! {
 
             let _ = arch::timer::frequency();
             let _ = arch::timer::counter();
+
+            // The marker is written only after the boot contract, exception
+            // vectors, timer and optional GIC initialization all completed.
+            // Hosts use this value to distinguish a real kernel boot from a
+            // launcher-only transition.
+            unsafe { core::ptr::write_volatile(0x6000 as *mut u64, KERNEL_READY_MAGIC); }
         }
     }
 
