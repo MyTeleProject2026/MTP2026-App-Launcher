@@ -41,6 +41,11 @@
     try { return await originalFetch(input,{...(init || {}),signal:controller.signal}); }
     finally { clearTimeout(timer); callerSignal?.removeEventListener('abort',onAbort); }
   }
+  function refreshInBackground(input, init, url, timeout) {
+    boundedFetch(input,init,timeout).then(normalizeSettingsResponse).then(response => {
+      if (response?.ok) response.clone().text().then(body => writeCache(url,response,body)).catch(() => {});
+    }).catch(() => {});
+  }
   window.fetch = async (input, init = {}) => {
     const url = typeof input === 'string' ? input : input?.url || '';
     const method = String(init.method || (typeof input !== 'string' ? input?.method : 'GET') || 'GET').toUpperCase();
@@ -48,7 +53,10 @@
     const cacheable = isCacheable(url,method);
     const cached = cacheable ? readCache(url) : null;
     const timeout = isAuth(url) ? AUTH_TIMEOUT : method === 'GET' ? GET_TIMEOUT : MUTATION_TIMEOUT;
-    if (cacheable && cached && navigator.onLine === false) return cachedResponse(cached);
+    if (cacheable && cached) {
+      refreshInBackground(input,init,url,timeout);
+      return cachedResponse(cached);
+    }
     try {
       let response = await boundedFetch(input,init,timeout);
       response = await normalizeSettingsResponse(response,url);
