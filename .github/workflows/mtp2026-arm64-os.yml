@@ -1,0 +1,45 @@
+name: MTP2026 ARM64 OS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'os/arm64-kernel/**'
+      - '.github/workflows/mtp2026-arm64-os.yml'
+  pull_request:
+    paths:
+      - 'os/arm64-kernel/**'
+      - '.github/workflows/mtp2026-arm64-os.yml'
+  workflow_dispatch:
+
+jobs:
+  build-arm64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install AArch64 target
+        run: rustup target add aarch64-unknown-none
+
+      - name: Build isolated ARM64 kernel
+        working-directory: os/arm64-kernel
+        run: cargo build --release --target aarch64-unknown-none
+
+      - name: Validate ELF architecture
+        working-directory: os/arm64-kernel
+        run: |
+          file target/aarch64-unknown-none/release/mtp2026-arm64-kernel
+          readelf -h target/aarch64-unknown-none/release/mtp2026-arm64-kernel | grep -E 'Class:|Machine:|Type:'
+
+      - name: Install QEMU AArch64
+        run: sudo apt-get update && sudo apt-get install -y qemu-system-aarch64
+
+      - name: Record QEMU availability
+        run: qemu-system-aarch64 --version
+
+      - name: Upload ARM64 kernel ELF
+        uses: actions/upload-artifact@v4
+        with:
+          name: mtp2026-arm64-kernel
+          path: os/arm64-kernel/target/aarch64-unknown-none/release/mtp2026-arm64-kernel
