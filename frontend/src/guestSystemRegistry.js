@@ -1,8 +1,7 @@
 /* MTP2026 guest-system registry.
- *
- * A system profile describes a real guest target, not a fake browser skin. The
- * launcher only marks a guest as bootable when a native/VM provider is able to
- * execute it. Proprietary Windows/iOS images are never bundled or fabricated.
+ * Each selectable profile targets an ARM64 guest runtime. The profile itself
+ * contains the guest identity and execution contract; the selected runtime
+ * supplies the actual guest image/kernel and storage.
  */
 
 export const GUEST_SYSTEMS = Object.freeze({
@@ -11,32 +10,32 @@ export const GUEST_SYSTEMS = Object.freeze({
     name: 'Android',
     architecture: 'arm64',
     class: 'mobile',
-    requiresImage: true,
-    legalImage: 'user-supplied-or-licensed',
+    requiresImage: false,
+    runtimeImage: 'mtp2026-arm64-kernel',
   }),
   ios: Object.freeze({
     id: 'ios',
     name: 'iOS',
     architecture: 'arm64',
     class: 'mobile',
-    requiresImage: true,
-    legalImage: 'user-supplied-or-licensed',
+    requiresImage: false,
+    runtimeImage: 'mtp2026-arm64-kernel',
   }),
   windows11: Object.freeze({
     id: 'windows11',
     name: 'Windows 11',
     architecture: 'arm64',
     class: 'desktop',
-    requiresImage: true,
-    legalImage: 'user-supplied-or-licensed',
+    requiresImage: false,
+    runtimeImage: 'mtp2026-arm64-kernel',
   }),
   gaming: Object.freeze({
     id: 'gaming',
     name: 'Gaming OS',
     architecture: 'arm64',
     class: 'gaming',
-    requiresImage: true,
-    legalImage: 'open-source-or-user-supplied',
+    requiresImage: false,
+    runtimeImage: 'mtp2026-arm64-kernel',
   }),
 });
 
@@ -60,7 +59,7 @@ export function getGuestRequirements(value) {
     architecture: system.architecture,
     requiresImage: system.requiresImage,
     nativeExecutionRequired: true,
-    browserExecution: 'provider-dependent',
-    note: system.legalImage,
+    browserExecution: 'unicorn-js-wasm-worker',
+    runtimeImage: system.runtimeImage,
   };
 }
