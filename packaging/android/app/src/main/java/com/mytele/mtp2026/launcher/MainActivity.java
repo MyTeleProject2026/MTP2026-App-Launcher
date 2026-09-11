@@ -139,6 +139,25 @@ public final class MainActivity extends Activity {
             return "{\"native\":true,\"orientation\":true,\"fullscreen\":true,\"filesystem\":false,\"notifications\":true,\"clipboard\":true,\"externalApps\":true,\"gamepad\":true}";
         }
 
+        @JavascriptInterface public String getArm64BootStatus() {
+            String[] abis = Build.SUPPORTED_ABIS == null ? new String[0] : Build.SUPPORTED_ABIS;
+            boolean arm64 = false;
+            for (String abi : abis) {
+                if ("arm64-v8a".equalsIgnoreCase(abi) || "aarch64".equalsIgnoreCase(abi)) {
+                    arm64 = true;
+                    break;
+                }
+            }
+            String architecture = System.getProperty("os.arch", "unknown");
+            String abi = abis.length == 0 ? "unknown" : abis[0];
+            String state = arm64 ? "native-arm64-ready" : "unsupported-host";
+            return "{\"state\":\"" + state + "\",\"host\":\"android\",\"architecture\":\"" + jsonSafe(architecture) + "\",\"hostAbi\":\"" + jsonSafe(abi) + "\",\"physicalOsBoot\":false,\"kernelControl\":false}";
+        }
+
+        private String jsonSafe(String value) {
+            return value == null ? "unknown" : value.replace("\\", "\\\\").replace("\"", "\\\"");
+        }
+
         @JavascriptInterface public boolean notify(String title, String body) {
             return postNotification(title, body);
         }
