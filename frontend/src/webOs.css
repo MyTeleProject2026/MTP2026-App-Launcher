@@ -30,6 +30,10 @@
 .mtp-webos-card { min-width:0; overflow:hidden; background:rgba(11,25,43,.88); border:1px solid rgba(148,163,184,.13); border-radius:10px; }
 .mtp-webos-card-head { min-height:38px; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 9px; border-bottom:1px solid rgba(148,163,184,.1); font-size:11px; }
 .mtp-webos-card-head > span { color:#667f9d; }
+.mtp-webos-display-card { display:flex; flex-direction:column; min-height:260px; }
+.mtp-webos-display { min-height:0; flex:1; display:grid; place-items:center; padding:10px; overflow:auto; background:#030912; }
+.mtp-webos-display canvas { display:block; width:auto; height:auto; max-width:100%; max-height:100%; border:1px solid rgba(103,232,249,.2); border-radius:8px; background:#050b15; box-shadow:0 12px 40px rgba(0,0,0,.35); outline:none; touch-action:none; cursor:crosshair; }
+.mtp-webos-display canvas:focus { border-color:rgba(103,232,249,.55); box-shadow:0 0 0 2px rgba(103,232,249,.12),0 12px 40px rgba(0,0,0,.35); }
 .mtp-webos-terminal pre { height:calc(100% - 38px); margin:0; padding:10px; overflow:auto; color:#a7f3d0; background:#030a13; font:11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space:pre-wrap; }
 .mtp-webos-editor-card { display:flex; flex-direction:column; }
 .mtp-webos-editor-card .mtp-webos-card-head div { display:flex; gap:4px; }
@@ -52,7 +56,8 @@
   .mtp-webos-brand { padding:5px; text-align:center; font-size:11px; }
   .mtp-webos-brand span, .mtp-webos-sidebar > button:not(:first-of-type), .mtp-webos-side-title, .mtp-webos-files { display:none; }
   .mtp-webos-sidebar > button:first-of-type { text-align:center; font-size:18px; }
-  .mtp-webos-grid { grid-template-columns:1fr; grid-template-rows:320px 320px auto auto; }
+  .mtp-webos-grid { grid-template-columns:1fr; grid-template-rows:minmax(260px,45vh) 280px 320px auto auto; }
+  .mtp-webos-display-card { min-height:260px; }
   .mtp-webos-titlebar span { display:none; }
   .mtp-webos-title-actions button { padding:6px; }
   .mtp-webos-taskbar span:nth-child(2) { display:none; }
