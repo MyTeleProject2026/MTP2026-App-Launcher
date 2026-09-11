@@ -1,0 +1,59 @@
+.mtp-webos-open { overflow: hidden; }
+.mtp-webos-overlay { position: fixed; inset: 0; z-index: 100000; display: grid; place-items: center; padding: 12px; background: rgba(2, 8, 20, .82); backdrop-filter: blur(8px); }
+.mtp-webos-window { width: min(1180px, 100%); height: min(760px, calc(100vh - 24px)); overflow: hidden; display: flex; flex-direction: column; color: #e8f2ff; background: #071221; border: 1px solid rgba(99, 214, 255, .28); border-radius: 16px; box-shadow: 0 24px 80px rgba(0,0,0,.55); font: 14px/1.4 Inter, system-ui, sans-serif; }
+.mtp-webos-titlebar { min-height: 58px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding: 8px 12px 8px 16px; background:#0b182b; border-bottom:1px solid rgba(148,163,184,.15); }
+.mtp-webos-titlebar strong { display:block; font-size:15px; }
+.mtp-webos-titlebar span { display:block; color:#8da3bf; font-size:11px; }
+.mtp-webos-title-actions { display:flex; gap:6px; }
+.mtp-webos-title-actions button, .mtp-webos-card-head button { border:1px solid rgba(148,163,184,.2); background:#101f34; color:#dbeafe; border-radius:7px; padding:6px 9px; cursor:pointer; }
+.mtp-webos-title-actions button:hover, .mtp-webos-card-head button:hover { background:#172b46; }
+.mtp-webos-title-actions button:last-child { font-size:20px; line-height:20px; padding:4px 9px; }
+.mtp-webos-body { min-height:0; flex:1; display:flex; }
+.mtp-webos-sidebar { width:190px; min-width:190px; padding:14px 10px; background:#091526; border-right:1px solid rgba(148,163,184,.12); display:flex; flex-direction:column; gap:6px; }
+.mtp-webos-brand { padding:4px 8px 12px; font-weight:800; letter-spacing:.3px; }
+.mtp-webos-brand span { color:#67e8f9; }
+.mtp-webos-sidebar > button { width:100%; text-align:left; border:0; color:#a9bdd5; background:transparent; border-radius:7px; padding:8px; cursor:pointer; }
+.mtp-webos-sidebar > button.active, .mtp-webos-sidebar > button:hover { background:#10243c; color:#e7f8ff; }
+.mtp-webos-side-title { margin:12px 8px 3px; color:#7186a0; font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
+.mtp-webos-files { min-height:0; overflow:auto; display:flex; flex-direction:column; gap:3px; }
+.mtp-webos-files button { display:grid; grid-template-columns:20px 1fr auto; gap:5px; align-items:center; border:0; background:transparent; color:#c9d7e8; padding:7px; border-radius:6px; text-align:left; cursor:pointer; }
+.mtp-webos-files button:hover { background:#10243c; }
+.mtp-webos-files small { color:#6f87a4; }
+.mtp-webos-empty { padding:7px; color:#6f87a4; font-size:11px; }
+.mtp-webos-desktop { min-width:0; min-height:0; flex:1; display:flex; flex-direction:column; background:radial-gradient(circle at 80% 15%, rgba(34,211,238,.07), transparent 35%), #071221; }
+.mtp-webos-topline { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid rgba(148,163,184,.1); }
+.mtp-webos-chip { display:inline-block; margin-right:5px; padding:3px 6px; border:1px solid rgba(103,232,249,.18); border-radius:99px; color:#8fe9f6; font-size:10px; }
+.mtp-webos-topline strong { font-size:11px; color:#91a8c1; }
+.mtp-webos-topline strong[data-state="ready"] { color:#6ee7b7; }
+.mtp-webos-topline strong[data-state="error"] { color:#fca5a5; }
+.mtp-webos-grid { min-height:0; flex:1; overflow:auto; padding:14px; display:grid; grid-template-columns:1.35fr 1fr; grid-template-rows:minmax(230px,1fr) auto; gap:10px; }
+.mtp-webos-card { min-width:0; overflow:hidden; background:rgba(11,25,43,.88); border:1px solid rgba(148,163,184,.13); border-radius:10px; }
+.mtp-webos-card-head { min-height:38px; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 9px; border-bottom:1px solid rgba(148,163,184,.1); font-size:11px; }
+.mtp-webos-card-head > span { color:#667f9d; }
+.mtp-webos-terminal pre { height:calc(100% - 38px); margin:0; padding:10px; overflow:auto; color:#a7f3d0; background:#030a13; font:11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space:pre-wrap; }
+.mtp-webos-editor-card { display:flex; flex-direction:column; }
+.mtp-webos-editor-card .mtp-webos-card-head div { display:flex; gap:4px; }
+.mtp-webos-editor-card input { width:105px; min-width:0; border:1px solid rgba(148,163,184,.2); background:#071221; color:#dbeafe; border-radius:5px; padding:5px; font-size:11px; }
+.mtp-webos-editor-card textarea { min-height:0; flex:1; width:100%; resize:none; border:0; outline:0; padding:10px; color:#d9e8f8; background:#081525; font:11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.mtp-webos-info, .mtp-webos-apps { padding:11px; }
+.mtp-webos-info > b, .mtp-webos-apps > b { display:block; margin-bottom:8px; font-size:11px; }
+.mtp-webos-info div { display:flex; justify-content:space-between; gap:10px; padding:5px 0; border-bottom:1px solid rgba(148,163,184,.07); color:#7187a2; font-size:11px; }
+.mtp-webos-info strong { color:#c9d8e9; font-weight:600; }
+.mtp-webos-app-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; }
+.mtp-webos-app-grid button { border:1px solid rgba(148,163,184,.13); background:#0c1b2e; color:#dce9f7; border-radius:8px; padding:10px 5px; cursor:pointer; font-size:18px; }
+.mtp-webos-app-grid button span { display:block; margin-top:3px; color:#839ab4; font-size:9px; }
+.mtp-webos-taskbar { min-height:34px; display:flex; justify-content:space-between; align-items:center; padding:0 12px; border-top:1px solid rgba(148,163,184,.1); color:#7187a2; font-size:10px; }
+.mtp-webos-launch-button { display:flex; width:calc(100% - 24px); margin:8px 12px; padding:9px 10px; border:1px solid rgba(103,232,249,.22); border-radius:8px; background:#0b1e32; color:#bff6ff; cursor:pointer; font-size:12px; font-weight:600; }
+.mtp-webos-launch-button:hover { background:#102b45; }
+@media (max-width: 760px) {
+  .mtp-webos-overlay { padding:0; }
+  .mtp-webos-window { height:100vh; border-radius:0; }
+  .mtp-webos-sidebar { width:52px; min-width:52px; padding:10px 5px; }
+  .mtp-webos-brand { padding:5px; text-align:center; font-size:11px; }
+  .mtp-webos-brand span, .mtp-webos-sidebar > button:not(:first-of-type), .mtp-webos-side-title, .mtp-webos-files { display:none; }
+  .mtp-webos-sidebar > button:first-of-type { text-align:center; font-size:18px; }
+  .mtp-webos-grid { grid-template-columns:1fr; grid-template-rows:320px 320px auto auto; }
+  .mtp-webos-titlebar span { display:none; }
+  .mtp-webos-title-actions button { padding:6px; }
+  .mtp-webos-taskbar span:nth-child(2) { display:none; }
+}
