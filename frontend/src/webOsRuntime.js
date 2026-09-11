@@ -6,6 +6,7 @@
   let logLines = [];
   let state = 'idle';
   let guest = null;
+  let appFetchPatched = false;
   const STORAGE_KEY = 'mtp2026-web-os-files-v1';
   const MODE_KEY = 'mtp2026-default-system-os';
   const MODES = new Set(['android', 'ios', 'windows', 'gaming']);
@@ -67,6 +68,36 @@
     const files = readFiles(); files[name] = overlay.querySelector('[data-webos-editor]').value; writeFiles(files); renderFiles(); addLog(`[fs] saved ${name}`);
   }
   function sendCommand(command, payload = {}) { if (!worker || !booted) { addLog(`[guest] command skipped: guest is not ready (${command})`); return; } worker.postMessage({ type:'command', command, payload }); }
+  function mountApp(app) {
+    if (!app || !app.url || !String(app.url).startsWith('https://')) return false;
+    const normalized = { id: String(app.id || `guest-app-${Date.now()}`), title: String(app.title || 'Web App'), url: String(app.url) };
+    if (!worker || !booted) { addLog(`[app-host] queued ${normalized.title}; ARM64 guest is not ready yet`); return false; }
+    worker.postMessage({ type:'command', command:'mount-app', payload: normalized });
+    addLog(`[app-host] mounted ${normalized.title}`);
+    return true;
+  }
+  function patchAppOpenFetch() {
+    if (appFetchPatched || typeof window.fetch !== 'function') return;
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (...args) => {
+      const response = await originalFetch(...args);
+      try {
+        const requestUrl = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
+        const requestInit = args[1] || {};
+        if (requestUrl.includes('/apps/') && requestUrl.endsWith('/open') && String(requestInit.method || 'GET').toUpperCase() === 'POST') {
+          const id = requestUrl.split('/apps/')[1].split('/open')[0];
+          const appsResponse = await originalFetch('/api/apps', { credentials:'include' });
+          if (appsResponse.ok) {
+            const apps = await appsResponse.clone().json().catch(() => []);
+            const app = Array.isArray(apps) ? apps.find(item => String(item.id) === String(id)) : null;
+            if (app) mountApp(app);
+          }
+        }
+      } catch (_) {}
+      return response;
+    };
+    appFetchPatched = true;
+  }
 
   function startWorker() {
     if (worker) return worker;
