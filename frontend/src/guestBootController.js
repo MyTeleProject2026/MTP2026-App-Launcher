@@ -1,13 +1,14 @@
-/* Real guest boot coordinator.
+/* MTP2026 guest boot coordinator.
  *
- * This module deliberately separates launcher UX from execution. A provider must
- * implement bootGuest() before MTP2026 reports a physical guest as running.
- * Browser-only mode remains useful for orchestration and can attach a WASM/VM
- * provider later without rewriting the launcher UI.
+ * Boot is real only when an execution provider successfully starts a guest.
+ * Native APK/desktop hosts can supply a VM/emulator provider. Web/PWA hosts use
+ * the ARM64 WASM execution provider in a Worker so guest execution never blocks
+ * the launcher UI thread.
  */
 
 import { getGuestSystem, normalizeGuestSystem } from './guestSystemRegistry.js';
 import { loadGuestMetadata, saveGuestMetadata } from './guestStorage.js';
+import { bootArm64Guest, stopArm64Guest } from './arm64GuestRuntime.js';
 
 const listeners = new Set();
 let state = Object.freeze({ id: null, phase: 'idle', running: false, provider: 'none', error: null });
@@ -24,56 +25,80 @@ function publish(next) {
 export function getGuestState() { return state; }
 export function subscribeGuestState(listener) { listeners.add(listener); return () => listeners.delete(listener); }
 
-function provider() {
-  return window.MTP2026NativeGuestRuntime || window.MTP2026Native || null;
+function nativeProvider() {
+  return window.MTP2026NativeGuestRuntime || null;
+}
+
+function resolveImageOption(options, metadata) {
+  return options.image || metadata?.imageBytes || metadata?.image || null;
+}
+
+export async function installGuestImage(mode, image, metadata = {}) {
+  const id = normalizeGuestSystem(mode);
+  const { installGuestImage: install } = await import('./arm64GuestRuntime.js');
+  const result = await install(id, image, { ...metadata, guestId: id });
+  await saveGuestMetadata(id, {
+    ...(await loadGuestMetadata(id).catch(() => null)),
+    image: { stored: true, byteLength: result.byteLength },
+    architecture: 'arm64',
+    status: 'installed',
+  });
+  return result;
 }
 
 export async function bootGuest(mode, options = {}) {
   const id = normalizeGuestSystem(mode);
   const system = getGuestSystem(id);
   const token = `${id}:${Date.now()}`;
-  const runtime = provider();
+  const native = nativeProvider();
 
-  publish({ id, phase: 'splash', running: false, provider: runtime?.bootGuest ? 'native-vm' : 'none', error: null, token });
+  publish({
+    id,
+    phase: 'splash',
+    running: false,
+    provider: native?.bootGuest ? 'native-vm' : 'arm64-wasm',
+    error: null,
+    token,
+  });
 
   try {
     const metadata = await loadGuestMetadata(id).catch(() => null);
     publish({ phase: 'prepare', metadata });
 
-    if (!runtime?.bootGuest) {
-      publish({ phase: 'provider-required', running: false, provider: 'none', error: 'GUEST_RUNTIME_PROVIDER_REQUIRED' });
-      return getGuestState();
-    }
-
-    publish({ phase: 'booting' });
-    const result = await runtime.bootGuest({
+    publish({ phase: 'booting', progress: 35 });
+    const result = await bootArm64Guest({
       id,
-      architecture: system.architecture,
-      class: system.class,
-      image: options.image || metadata?.image || null,
+      image: resolveImageOption(options, metadata),
       storage: options.storage || metadata?.storage || null,
     });
 
     await saveGuestMetadata(id, {
       ...metadata,
       image: result?.image || metadata?.image || null,
-      provider: result?.provider || 'native-vm',
+      provider: result?.provider || 'arm64-wasm',
       architecture: system.architecture,
       status: 'ready',
+      runningAt: new Date().toISOString(),
     });
 
-    publish({ phase: 'ready', running: true, provider: result?.provider || 'native-vm', result, error: null });
+    publish({ phase: 'ready', running: true, provider: result?.provider || 'arm64-wasm', result, error: null, progress: 100 });
     return getGuestState();
   } catch (error) {
     const message = String(error?.message || error || 'GUEST_BOOT_FAILED');
-    publish({ phase: 'error', running: false, error: message });
+    publish({ phase: 'error', running: false, error: message, progress: 0 });
     throw error;
   }
 }
 
 export async function stopGuest() {
-  const runtime = provider();
-  try { await runtime?.stopGuest?.(); } finally { publish({ phase: 'stopped', running: false }); }
+  const id = state.id;
+  const native = nativeProvider();
+  try {
+    if (native?.stopGuest) await native.stopGuest(id);
+    else if (id) await stopArm64Guest(id);
+  } finally {
+    publish({ phase: 'stopped', running: false });
+  }
 }
 
-window.MTP2026GuestBoot = Object.freeze({ bootGuest, stopGuest, getGuestState, subscribeGuestState });
+window.MTP2026GuestBoot = Object.freeze({ bootGuest, stopGuest, installGuestImage, getGuestState, subscribeGuestState });
