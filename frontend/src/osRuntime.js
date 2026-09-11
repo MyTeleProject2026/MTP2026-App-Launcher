@@ -1,18 +1,19 @@
 /* MTP2026 guest-system runtime coordinator.
- * This is the browser/native orchestration layer: it owns the visible splash,
- * boot state machine and runtime capability contract. It never pretends that
- * a web page is a real Android/iOS/Windows kernel; a native/VM provider can
- * attach through window.MTP2026Native when one is available.
+ * The launcher owns the visible splash/boot UI while guestBootController owns
+ * actual execution. The launcher never reports READY unless the guest provider
+ * has really started the selected ARM64 guest.
  */
 
+import './guestBootController.js';
+
 const MODES = {
-  android: { name: 'Android', subtitle: 'ARM64 mobile runtime' },
-  ios: { name: 'iOS', subtitle: 'Apple platform profile' },
-  windows: { name: 'Windows 11', subtitle: 'ARM64 desktop runtime' },
-  gaming: { name: 'Gaming', subtitle: 'ARM64 gaming runtime' },
+  android: { name: 'Android', subtitle: 'ARM64 mobile guest' },
+  ios: { name: 'iOS', subtitle: 'ARM64 mobile guest' },
+  windows: { name: 'Windows 11', subtitle: 'ARM64 desktop guest' },
+  gaming: { name: 'Gaming OS', subtitle: 'ARM64 gaming guest' },
 };
 
-let state = { mode: null, phase: 'idle', provider: 'launcher', ready: false, error: null };
+let state = { mode: null, phase: 'idle', provider: 'none', ready: false, error: null };
 let bootToken = 0;
 
 function normalize(mode) {
@@ -20,13 +21,13 @@ function normalize(mode) {
 }
 
 function capabilities() {
-  const native = window.MTP2026Native;
   const platform = window.MTP2026NativePlatform;
+  const arm64 = window.MTP2026Arm64GuestRuntime;
   return {
     nativeHost: platform?.nativeHost?.() || 'web',
     native: Boolean(platform?.nativeCapabilities?.().native),
-    provider: typeof native?.bootSystem === 'function' ? 'native-runtime' : 'launcher-runtime',
-    physicalKernel: Boolean(native?.getArm64BootStatus?.()?.physicalOsBoot),
+    provider: arm64?.arm64RuntimeCapabilities?.().backend || 'none',
+    physicalKernel: Boolean(window.MTP2026Native?.getArm64BootStatus?.()?.physicalOsBoot),
   };
 }
 
@@ -44,6 +45,7 @@ function ensureStyle() {
     .mtp-runtime-title{font-size:27px;margin:7px 0 4px;font-weight:800}.mtp-runtime-subtitle{font-size:12px;color:#91a4bd}
     .mtp-runtime-progress{height:5px;margin:25px 0 13px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}.mtp-runtime-progress span{display:block;height:100%;width:8%;border-radius:99px;background:linear-gradient(90deg,#21d4fd,#8b5cf6);transition:width .28s ease}
     .mtp-runtime-status{font-size:11px;color:#7f91aa;min-height:17px}.mtp-runtime-badge{margin-top:18px;font-size:10px;color:#a6b6cb}.mtp-runtime-badge strong{color:#b8f4df}
+    .mtp-runtime-error{margin-top:16px;color:#ff9caa;font-size:11px;line-height:1.45}.mtp-runtime-actions{display:flex;justify-content:center;margin-top:18px}.mtp-runtime-actions button{border:1px solid rgba(148,190,255,.2);background:#101d33;color:#eef6ff;border-radius:12px;padding:9px 14px;font-weight:700;cursor:pointer}
     @keyframes mtp-os-in{from{opacity:0}to{opacity:1}}@keyframes mtp-runtime-drift{from{transform:translate3d(-2%,0,0) scale(1)}to{transform:translate3d(2%,2%,0) scale(1.05)}}
   `;
   document.head.appendChild(style);
@@ -55,18 +57,22 @@ function ensureOverlay() {
   ensureStyle();
   el = document.createElement('div');
   el.id = 'mtp2026-os-runtime';
-  el.innerHTML = '<div class="mtp-runtime-bg"></div><div class="mtp-runtime-card"><div class="mtp-runtime-logo">M</div><div class="mtp-runtime-eyebrow">MTP2026 GUEST SYSTEM</div><div class="mtp-runtime-title">Starting system…</div><div class="mtp-runtime-subtitle">Preparing runtime</div><div class="mtp-runtime-progress"><span></span></div><div class="mtp-runtime-status">Initializing</div><div class="mtp-runtime-badge">Runtime provider: <strong>launcher</strong></div></div>';
+  el.innerHTML = '<div class="mtp-runtime-bg"></div><div class="mtp-runtime-card"><div class="mtp-runtime-logo">M</div><div class="mtp-runtime-eyebrow">MTP2026 GUEST SYSTEM</div><div class="mtp-runtime-title">Starting system…</div><div class="mtp-runtime-subtitle">Preparing runtime</div><div class="mtp-runtime-progress"><span></span></div><div class="mtp-runtime-status">Initializing</div><div class="mtp-runtime-badge">Runtime provider: <strong>none</strong></div><div class="mtp-runtime-error" hidden></div><div class="mtp-runtime-actions"><button type="button" data-action="close">Back to systems</button></div></div>';
+  el.querySelector('[data-action="close"]').addEventListener('click', stop);
   document.body.appendChild(el);
   return el;
 }
 
-function render(phase, progress, status, mode, provider) {
+function render(phase, progress, status, mode, provider, error = null) {
   const el = ensureOverlay();
   el.querySelector('.mtp-runtime-title').textContent = MODES[mode]?.name || 'MTP2026';
   el.querySelector('.mtp-runtime-subtitle').textContent = MODES[mode]?.subtitle || '';
   el.querySelector('.mtp-runtime-progress span').style.width = `${Math.max(5, Math.min(100, progress))}%`;
   el.querySelector('.mtp-runtime-status').textContent = status;
   el.querySelector('.mtp-runtime-badge strong').textContent = provider;
+  const errorEl = el.querySelector('.mtp-runtime-error');
+  errorEl.hidden = !error;
+  errorEl.textContent = error || '';
   el.dataset.phase = phase;
   el.classList.add('show');
 }
@@ -83,43 +89,53 @@ async function boot(mode, options = {}) {
   const normalized = normalize(mode);
   const token = ++bootToken;
   const caps = capabilities();
-  const provider = options.provider || caps.provider;
-  state = { mode: normalized, phase: 'splash', provider, ready: false, error: null };
+  state = { mode: normalized, phase: 'splash', provider: caps.provider, ready: false, error: null };
   document.documentElement.dataset.mtpRuntime = normalized;
-  render('splash', 8, `${MODES[normalized].name} splash`, normalized, provider);
+  render('splash', 8, `${MODES[normalized].name} splash`, normalized, caps.provider);
   await new Promise(r => setTimeout(r, 380));
   if (token !== bootToken) return state;
 
-  state.phase = 'firmware'; render('firmware', 24, 'Checking runtime firmware', normalized, provider);
-  await new Promise(r => setTimeout(r, 260));
+  state.phase = 'prepare';
+  render('prepare', 24, 'Preparing guest storage and execution backend', normalized, caps.provider);
+  await new Promise(r => setTimeout(r, 100));
   if (token !== bootToken) return state;
 
-  state.phase = 'kernel'; render('kernel', 48, caps.physicalKernel ? 'Starting native ARM64 kernel' : 'Preparing ARM64 runtime boundary', normalized, provider);
-  let nativeResult = null;
   try {
-    if (typeof window.MTP2026Native?.bootSystem === 'function') {
-      nativeResult = await window.MTP2026Native.bootSystem(normalized);
-    }
+    state.phase = 'kernel';
+    render('kernel', 48, 'Starting ARM64 guest execution', normalized, caps.provider);
+    const guestState = await window.MTP2026GuestBoot.bootGuest(normalized, options);
+    if (token !== bootToken) return state;
+
+    state.phase = 'services';
+    render('services', 82, 'Guest runtime services online', normalized, guestState.provider);
+    await new Promise(r => setTimeout(r, 120));
+    if (token !== bootToken) return state;
+
+    state.phase = 'desktop';
+    render('desktop', 94, `${MODES[normalized].name} guest surface ready`, normalized, guestState.provider);
+    await new Promise(r => setTimeout(r, 160));
+    if (token !== bootToken) return state;
+
+    state.phase = 'ready';
+    state.ready = true;
+    state.provider = guestState.provider;
+    hide(token);
+    window.dispatchEvent(new CustomEvent('mtp2026:runtime-ready', { detail: { ...state, guestState } }));
+    return state;
   } catch (error) {
-    state.error = String(error?.message || error);
+    if (token !== bootToken) return state;
+    state.phase = 'error';
+    state.ready = false;
+    state.error = String(error?.message || error || 'GUEST_BOOT_FAILED');
+    render('error', 100, 'Guest did not start', normalized, caps.provider, state.error);
+    window.dispatchEvent(new CustomEvent('mtp2026:runtime-error', { detail: { ...state } }));
+    return state;
   }
-  await new Promise(r => setTimeout(r, 300));
-  if (token !== bootToken) return state;
-
-  state.phase = 'services'; render('services', 72, nativeResult ? 'Native runtime services online' : 'Launcher services online', normalized, provider);
-  await new Promise(r => setTimeout(r, 260));
-  if (token !== bootToken) return state;
-
-  state.phase = 'desktop'; render('desktop', 90, `${MODES[normalized].name} workspace ready`, normalized, provider);
-  await new Promise(r => setTimeout(r, 300));
-  state.phase = 'ready'; state.ready = true;
-  hide(token);
-  window.dispatchEvent(new CustomEvent('mtp2026:runtime-ready', { detail: { ...state, nativeResult } }));
-  return state;
 }
 
 function stop() {
   bootToken += 1;
+  void window.MTP2026GuestBoot?.stopGuest?.().catch?.(() => {});
   state = { ...state, phase: 'stopped', ready: false };
   document.documentElement.dataset.mtpRuntime = '';
   document.getElementById('mtp2026-os-runtime')?.remove();
