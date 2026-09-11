@@ -30,12 +30,12 @@ function buildBootProgram() {
     movk(0, 0x3032, 1),
     movk(0, 0x5450, 2),
     movk(0, 0x4D54, 3),
-    // X1 = result address and store the boot contract marker there.
+    // X1 = result address; preserve both the boot marker and kernel result.
     movz(1, RESULT_ADDR, 0),
     0xF9000020,
     // X0 = 1 means the guest reached the MTP2026 virtual kernel entry point.
     movz(0, 1, 0),
-    0xF9000020,
+    0xF9000420,
   ];
   const bytes = new Uint8Array(words.length * 4);
   words.forEach((word, index) => write32LE(bytes, index * 4, word));
@@ -60,16 +60,19 @@ async function boot() {
     cpu.mem_map(RAM_BASE, RAM_SIZE, uc.PROT_ALL);
     cpu.mem_write(RAM_BASE, program);
     cpu.emu_start(RAM_BASE, RAM_BASE + program.byteLength, 0, 0);
-    const result = new Uint8Array(cpu.mem_read(RESULT_ADDR, 8));
-    const marker = read64LE(result);
+    const result = new Uint8Array(cpu.mem_read(RESULT_ADDR, 16));
+    const magic = read64LE(result);
+    const entry = read64LE(result.subarray(8, 16));
     cpu.close();
-    if (marker !== 1n) throw new Error(`Guest boot contract failed: result=${marker.toString()}`);
+    if (magic !== BOOT_MAGIC) throw new Error(`Guest boot magic failed: expected=0x${BOOT_MAGIC.toString(16)} actual=0x${magic.toString(16)}`);
+    if (entry !== 1n) throw new Error(`Guest kernel entry failed: result=${entry.toString()}`);
     postMessage({
       type: 'ready',
       architecture: 'AArch64',
       execution: 'WebAssembly CPU emulation',
       bootMagic: `0x${BOOT_MAGIC.toString(16)}`,
       kernelEntry: 'guest-virtual-kernel-entry',
+      contract: 'MTP2026-ARM64-BOOT-v1',
     });
   } catch (error) {
     postMessage({ type: 'error', message: error?.stack || error?.message || String(error) });
