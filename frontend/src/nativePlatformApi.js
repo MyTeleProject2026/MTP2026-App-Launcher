@@ -2,6 +2,8 @@
  * Keeps the existing React/VexaAccount session architecture intact and
  * exposes only capabilities supplied by the current native host. */
 
+import './startupOrchestrator.js';
+
 const hasTauri = () => Boolean(window.__TAURI_INTERNALS__);
 const hasIOSBridge = () => Boolean(window.webkit?.messageHandlers?.mtp2026);
 const cap = () => window.Capacitor || null;
@@ -98,11 +100,11 @@ if (startupMode && validModes.has(startupMode)) {
   void setNativeMode(startupMode).catch(() => {});
 }
 
-// On a first launch, show an MTP2026 startup mark before revealing the
-// system-OS selector. This is a real startup layer, not a React-only screen,
-// so it also runs inside the native Tauri/Android/iOS web host.
+// The startup orchestrator owns the first-launch gate. Keep this legacy startup
+// mark available for older hosts, but never let it reveal the OS picker before
+// the session/ARM64 readiness gate has completed.
 (function showStartupLogoBeforeOsPicker() {
-  if (startupMode && validModes.has(startupMode)) return;
+  if (window.MTP2026Startup || (startupMode && validModes.has(startupMode))) return;
   const picker = document.getElementById('mtp-os-picker');
   if (!picker || document.getElementById('mtp2026-startup-logo')) return;
 
