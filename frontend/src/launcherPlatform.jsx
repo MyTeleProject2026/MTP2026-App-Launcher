@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Check, Download, ImagePlus, Monitor, Smartphone, Gamepad2, Trash2, RotateCcw, Star, Pin, X, ExternalLink, Github, Cpu } from 'lucide-react';
+import { Check, Download, ImagePlus, Monitor, Smartphone, Gamepad2, Trash2, RotateCcw, Star, Pin, X, ExternalLink, Code2, Cpu } from 'lucide-react';
 import './device-mode.css';
 import { setNativeMode } from './nativePlatformApi.js';
 
@@ -42,7 +42,7 @@ export function DeviceModeSettings({ value, onChange }) {
         <small>Open the GitHub source/build area. A phone-specific boot image is required before a physical device can be flashed.</small>
       </div>
       <a className="mtp2026-arm64-boot-link" href={MTP2026_ARM64_BOOT_GITHUB_URL} target="_blank" rel="noopener noreferrer" aria-label="Open MTP2026 ARM64 boot GitHub source">
-        <Github/> <span>ARM64 GitHub</span> <ExternalLink/>
+        <Code2/> <span>ARM64 GitHub</span> <ExternalLink/>
       </a>
     </div>
   </div>;
