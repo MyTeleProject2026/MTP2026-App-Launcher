@@ -6,8 +6,6 @@ use core::panic::PanicInfo;
 mod arch;
 
 /// Platform-neutral information passed by an ARM64 boot loader.
-/// Device-specific boot code must populate this structure from firmware or DTB
-/// data before entering the MTP2026 kernel at EL1.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Arm64BootInfo {
@@ -48,18 +46,23 @@ extern "C" fn rust_entry(info: *const Arm64BootInfo) -> ! {
     let boot = unsafe { info.as_ref() };
     if let Some(boot) = boot {
         if boot.magic == BOOT_MAGIC && boot.version == 1 {
+            // Install the architectural EL1 vector table before any future
+            // interrupt controller work is allowed to unmask IRQs.
+            unsafe { arch::exceptions::init(); }
+
             if boot.uart_kind == UART_PL011 && boot.uart_base != 0 {
                 uart_line(boot.uart_base, b"MTP2026 ARM64 KERNEL\r\n");
                 uart_line(boot.uart_base, b"Architecture: AArch64 / EL1\r\n");
                 uart_line(boot.uart_base, b"Boot contract: valid\r\n");
+                if let Some(memory) = arch::memory::boot_memory(boot.memory_base, boot.memory_size) {
+                    uart_line(boot.uart_base, b"Memory: page-aligned\r\n");
+                    let _ = arch::memory::page_count(memory);
+                }
+                uart_line(boot.uart_base, b"Exception vectors: installed\r\n");
                 uart_line(boot.uart_base, b"Generic timer: available\r\n");
                 uart_line(boot.uart_base, b"GIC: platform supplied\r\n");
             }
 
-            // Only read the architectural timer after validating the boot
-            // contract. Device-specific interrupt-controller programming is
-            // deliberately deferred until the correct GIC version/base is
-            // known from the target's platform description.
             let _ = arch::timer::frequency();
             let _ = arch::timer::counter();
         }
