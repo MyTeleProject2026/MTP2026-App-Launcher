@@ -16,6 +16,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-none
+          components: llvm-tools-preview
       - name: Install backend dependencies
         run: npm install --no-audit --no-fund
       - name: Install frontend dependencies
@@ -29,8 +34,15 @@ jobs:
           node --check tools/generate-integration.mjs
           node --check tools/patch-generated-integration.mjs
           node --check tools/verify-generated-integration.mjs
+          node --check tools/build-arm64-kernel.mjs
           node --check frontend/src/auth.js
           node --check frontend/src/auth/vexaAuth.js
+      - name: Build ARM64 guest kernel image
+        run: npm run arm64:kernel:build
+      - name: Verify ARM64 guest kernel image
+        run: |
+          test -s frontend/public/arm64/mtp2026-arm64-kernel.bin
+          file frontend/public/arm64/mtp2026-arm64-kernel.bin
       - name: Run regression tests
         run: npm test
       - name: Generate integration fixture
