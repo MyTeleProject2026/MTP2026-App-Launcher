@@ -34,6 +34,7 @@ export async function storageCapabilities() {
 }
 
 export async function requestPersistentStorage() {
+  const native = nativeStorage();
   if (native?.requestPermission) return native.requestPermission();
   if (navigator.storage?.persist) return navigator.storage.persist();
   return false;
