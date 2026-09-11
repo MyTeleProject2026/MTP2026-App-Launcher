@@ -4,6 +4,7 @@
 
 import './startupOrchestrator.js';
 import './osRuntime.js';
+import './guestBootController.js';
 
 const hasTauri = () => Boolean(window.__TAURI_INTERNALS__);
 const hasIOSBridge = () => Boolean(window.webkit?.messageHandlers?.mtp2026);
@@ -40,6 +41,7 @@ export function nativeCapabilities() {
     externalApps: host !== 'web',
     gamepad: 'getGamepads' in navigator && host !== 'ios',
     windowManagement: host === 'windows',
+    guestRuntime: Boolean(window.MTP2026GuestBoot),
   });
 }
 
