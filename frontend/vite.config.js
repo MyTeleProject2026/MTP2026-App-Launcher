@@ -9,7 +9,7 @@ export default defineConfig({
     {
       name: 'mtp-build-info',
       transformIndexHtml(html) {
-        return html.replace('</head>', '<script type="module" src="/src/networkResilience.js"></script></head>');
+        return html.replace('</head>', '<script type="module" src="/src/networkResilience.js"></script><script type="module" src="/src/systemBootExperience.js"></script></head>');
       },
       generateBundle() {
         this.emitFile({
