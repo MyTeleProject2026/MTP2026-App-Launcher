@@ -90,12 +90,14 @@ export async function bootArm64Guest({ id, image, storage } = {}) {
 
   const worker = createWorker(id);
   const bootPromise = waitForBoot(worker, id);
-  worker.postMessage({ type: 'start', bytes: resolved.bytes }, [resolved.bytes.buffer]);
+  const byteLength = resolved.bytes.byteLength;
+  const transferable = resolved.bytes.buffer;
+  worker.postMessage({ type: 'start', bytes: transferable }, [transferable]);
   const result = await bootPromise;
   return {
     ...result,
     id,
-    image: { source: resolved.source, byteLength: resolved.bytes.byteLength },
+    image: { source: resolved.source, byteLength },
     storage: storage || null,
   };
 }
