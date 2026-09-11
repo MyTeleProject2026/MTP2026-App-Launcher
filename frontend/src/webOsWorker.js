@@ -4,10 +4,13 @@ let running = false;
 let guest = null;
 
 const RAM_BASE = 0x1000;
-const RAM_SIZE = 0x20000;
+const RAM_SIZE = 0x200000;
+const KERNEL_BASE = 0x10000;
 const RESULT_ADDR = 0x4000;
 const BOOT_INFO_ADDR = 0x5000;
+const KERNEL_READY_ADDR = 0x6000;
 const BOOT_MAGIC = 0x4D54503230323641n;
+const KERNEL_READY_MAGIC = 0x4D5450324B524E4Cn;
 const MACHINE_VERSION = 1;
 const MODES = new Set(['android', 'ios', 'windows', 'gaming']);
 
@@ -31,8 +34,30 @@ function buildBootProgram() {
   words.forEach((word, index) => write32LE(bytes, index * 4, word));
   return bytes;
 }
+function buildKernelEntryTrampoline() {
+  const words = [movz(0, BOOT_INFO_ADDR, 0), movz(1, KERNEL_BASE, 0), 0xD61F0020];
+  const bytes = new Uint8Array(words.length * 4);
+  words.forEach((word, index) => write32LE(bytes, index * 4, word));
+  return bytes;
+}
 async function loadEngine() { if (engine) return engine; const module = await import('@alexaltea/unicorn-js/aarch64'); engine = await module.default(); return engine; }
-function createGuest(mode) {
+async function loadKernelImage() {
+  try {
+    const response = await fetch('/arm64/mtp2026-arm64-kernel.bin', { cache: 'no-store' });
+    if (!response.ok) return null;
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (!bytes.length) return null;
+    return bytes;
+  } catch (_) { return null; }
+}
+async function loadRootfsManifest() {
+  try {
+    const response = await fetch('/arm64/rootfs.json', { cache: 'no-store' });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (_) { return null; }
+}
+function createGuest(mode, kernel = {}) {
   const profile = modeProfile(mode);
   return {
     version: MACHINE_VERSION,
@@ -40,6 +65,8 @@ function createGuest(mode) {
     profile,
     ram: RAM_SIZE,
     cpu: { architecture: 'AArch64', execution: 'WebAssembly', registers: 31, exceptionLevel: 'EL1' },
+    kernel: { source: kernel.source || 'browser-generated-contract', loaded: Boolean(kernel.loaded), size: Number(kernel.size) || 0, entry: kernel.entry || null, ready: false },
+    rootfs: { format: 'mtp2026-rootfs-v1', mounted: false, source: '/arm64/rootfs.json', init: '/sbin/init', services: [] },
     devices: {
       display: { width: profile.viewport[0], height: profile.viewport[1], orientation: profile.orientation, scale: 1, frame: 0, cursor: { x: 0, y: 0, visible: true } },
       input: { touch: profile.touch, keyboard: true, pointer: true, gamepad: profile.gamepad, lastEvent: null },
@@ -58,6 +85,8 @@ function publishGuest(extra = {}) {
   postMessage({ type: 'guest-state', guest: guest ? {
     ...guest,
     profile: { ...guest.profile },
+    kernel: { ...guest.kernel },
+    rootfs: { ...guest.rootfs, services: [...guest.rootfs.services] },
     devices: { ...guest.devices, display: { ...guest.devices.display }, input: { ...guest.devices.input }, network: { ...guest.devices.network } },
     apps: guest.apps.map(app => ({ ...app })),
   } : null, ...extra });
@@ -74,26 +103,61 @@ async function boot() {
   try {
     const uc = await loadEngine();
     const selectedMode = normalizeMode(guest?.mode || 'android');
-    guest = createGuest(selectedMode);
+    const kernelImage = await loadKernelImage();
+    const rootfs = await loadRootfsManifest();
+    guest = createGuest(selectedMode, kernelImage ? { loaded: true, source: '/arm64/mtp2026-arm64-kernel.bin', size: kernelImage.byteLength, entry: `0x${KERNEL_BASE.toString(16)}` } : {});
+    if (rootfs) {
+      guest.rootfs = { format: rootfs.format || 'mtp2026-rootfs-v1', mounted: true, source: '/arm64/rootfs.json', init: rootfs.init || '/sbin/init', services: Array.isArray(rootfs.services) ? rootfs.services.slice() : [] };
+    }
+
     cpu = new uc.Unicorn(uc.ARCH_ARM64, uc.MODE_ARM);
-    const program = buildBootProgram();
     cpu.mem_map(RAM_BASE, RAM_SIZE, uc.PROT_ALL);
-    cpu.mem_write(RAM_BASE, program);
-    const bootInfo = new Uint8Array(32);
+
+    const bootInfo = new Uint8Array(64);
     const bootView = new DataView(bootInfo.buffer);
-    bootView.setBigUint64(0, BOOT_MAGIC, true); bootView.setUint32(8, 1, true); bootView.setBigUint64(16, RAM_BASE, true); bootView.setBigUint64(24, BigInt(RAM_SIZE), true);
+    bootView.setBigUint64(0, BOOT_MAGIC, true);
+    bootView.setUint32(8, 1, true);
+    bootView.setBigUint64(16, 0n, true);
+    bootView.setUint32(24, 0, true);
+    bootView.setBigUint64(32, BigInt(RAM_BASE), true);
+    bootView.setBigUint64(40, BigInt(RAM_SIZE), true);
+    bootView.setBigUint64(48, 0n, true);
+    bootView.setBigUint64(56, 0n, true);
     cpu.mem_write(BOOT_INFO_ADDR, bootInfo);
-    cpu.emu_start(RAM_BASE, RAM_BASE + program.byteLength, 0, 0);
-    const result = new Uint8Array(cpu.mem_read(RESULT_ADDR, 16));
-    const magic = read64LE(result); const entry = read64LE(result, 8);
-    if (magic !== BOOT_MAGIC) throw new Error(`Guest boot magic failed: expected=0x${BOOT_MAGIC.toString(16)} actual=0x${magic.toString(16)}`);
-    if (entry !== 1n) throw new Error(`Guest kernel entry failed: result=${entry.toString()}`);
-    guest.bootedAt = Date.now(); guest.ticks = 1;
-    postMessage({ type: 'ready', architecture: 'AArch64', execution: 'WebAssembly CPU emulation', bootMagic: `0x${BOOT_MAGIC.toString(16)}`, kernelEntry: 'guest-virtual-kernel-entry', contract: 'MTP2026-ARM64-BOOT-v1', machineVersion: MACHINE_VERSION, mode: guest.mode, profile: guest.profile, devices: guest.devices, services: guest.services });
+
+    if (kernelImage) {
+      if (kernelImage.byteLength > RAM_SIZE - KERNEL_BASE) throw new Error(`ARM64 kernel image is too large: ${kernelImage.byteLength} bytes`);
+      cpu.mem_write(KERNEL_BASE, kernelImage);
+      cpu.mem_write(RAM_BASE, buildKernelEntryTrampoline());
+      cpu.emu_start(RAM_BASE, KERNEL_BASE + kernelImage.byteLength, 0, 250000);
+      const ready = read64LE(new Uint8Array(cpu.mem_read(KERNEL_READY_ADDR, 8)));
+      if (ready !== KERNEL_READY_MAGIC) throw new Error(`ARM64 kernel image did not reach rust_entry: marker=0x${ready.toString(16)}`);
+      guest.kernel.ready = true;
+      guest.ticks = 1;
+      postMessage({ type: 'ready', architecture: 'AArch64', execution: 'WebAssembly CPU emulation', bootMagic: `0x${BOOT_MAGIC.toString(16)}`, kernelEntry: `0x${KERNEL_BASE.toString(16)}`, kernelImage: { source: '/arm64/mtp2026-arm64-kernel.bin', bytes: kernelImage.byteLength }, rootfs: guest.rootfs, contract: 'MTP2026-ARM64-BOOT-v1', machineVersion: MACHINE_VERSION, mode: guest.mode, profile: guest.profile, devices: guest.devices, services: guest.services });
+    } else {
+      const program = buildBootProgram();
+      cpu.mem_write(RAM_BASE, program);
+      cpu.emu_start(RAM_BASE, RAM_BASE + program.byteLength, 0, 0);
+      const result = new Uint8Array(cpu.mem_read(RESULT_ADDR, 16));
+      const magic = read64LE(result); const entry = read64LE(result, 8);
+      if (magic !== BOOT_MAGIC) throw new Error(`Guest boot magic failed: expected=0x${BOOT_MAGIC.toString(16)} actual=0x${magic.toString(16)}`);
+      if (entry !== 1n) throw new Error(`Guest kernel entry failed: result=${entry.toString()}`);
+      guest.ticks = 1;
+      postMessage({ type: 'ready', architecture: 'AArch64', execution: 'WebAssembly CPU emulation', bootMagic: `0x${BOOT_MAGIC.toString(16)}`, kernelEntry: 'guest-virtual-kernel-entry', kernelImage: { source: 'fallback-contract', bytes: 0 }, rootfs: guest.rootfs, contract: 'MTP2026-ARM64-BOOT-v1', machineVersion: MACHINE_VERSION, mode: guest.mode, profile: guest.profile, devices: guest.devices, services: guest.services });
+    }
+
+    guest.bootedAt = Date.now();
     publishGuest();
     publishDisplay();
-  } catch (error) { postMessage({ type: 'error', message: error?.stack || error?.message || String(error) }); guest = null; }
-  finally { try { cpu?.close?.(); } catch (_) {} cpu = null; running = false; }
+  } catch (error) {
+    postMessage({ type: 'error', message: error?.stack || error?.message || String(error) });
+    guest = null;
+  } finally {
+    try { cpu?.close?.(); } catch (_) {}
+    cpu = null;
+    running = false;
+  }
 }
 function setMode(mode) {
   const next = normalizeMode(mode);
