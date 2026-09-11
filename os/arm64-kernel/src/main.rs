@@ -5,7 +5,6 @@ use core::panic::PanicInfo;
 
 mod arch;
 
-/// Platform-neutral information passed by an ARM64 boot loader.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Arm64BootInfo {
@@ -42,13 +41,13 @@ pub extern "C" fn _start() -> ! {
 #[unsafe(no_mangle)]
 extern "C" fn rust_entry(info: *const Arm64BootInfo) -> ! {
     arch::exceptions::mask_interrupts();
-
     let boot = unsafe { info.as_ref() };
+
     if let Some(boot) = boot {
         if boot.magic == BOOT_MAGIC && boot.version == 1 {
-            // Install the architectural EL1 vector table before any future
-            // interrupt controller work is allowed to unmask IRQs.
             unsafe { arch::exceptions::init(); }
+
+            let gic = arch::gic::from_boot_info(boot.gicd_base, boot.gicr_base);
 
             if boot.uart_kind == UART_PL011 && boot.uart_base != 0 {
                 uart_line(boot.uart_base, b"MTP2026 ARM64 KERNEL\r\n");
@@ -60,7 +59,12 @@ extern "C" fn rust_entry(info: *const Arm64BootInfo) -> ! {
                 }
                 uart_line(boot.uart_base, b"Exception vectors: installed\r\n");
                 uart_line(boot.uart_base, b"Generic timer: available\r\n");
-                uart_line(boot.uart_base, b"GIC: platform supplied\r\n");
+                if let Some(gic) = gic {
+                    let _ = gic.typer();
+                    uart_line(boot.uart_base, b"GICv3: platform contract available\r\n");
+                } else {
+                    uart_line(boot.uart_base, b"GIC: not supplied\r\n");
+                }
             }
 
             let _ = arch::timer::frequency();
