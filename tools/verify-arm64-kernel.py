@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Execute the generated MTP2026 ARM64 kernel with Unicorn and verify its boot marker."""
+"""Execute the generated MTP2026 ARM64 flat kernel image with Unicorn.
+
+The flat image intentionally contains the kernel's read-only boot strings (including
+its UART banner), so a string-prefix check is not a valid way to decide whether an
+image is a placeholder.  The authoritative verification is actual AArch64 execution:
+load the image at its linked address, provide a valid boot contract, run the entry
+point, and require the kernel-ready marker written by rust_entry after initialization.
+"""
 
 from pathlib import Path
 import struct
@@ -23,15 +30,30 @@ READY_MAGIC = 0x4D5450324B524E4C
 image = IMAGE.read_bytes()
 if not image:
     raise SystemExit("ARM64 image is empty")
-if image.startswith(b"MTP2026 ARM64 KERNEL"):
-    raise SystemExit("placeholder ARM64 image detected")
+
+# A real flat kernel image is expected to contain executable bytes and may also
+# legitimately begin with .rodata in future linker layouts.  Do not classify an
+# image by looking for human-readable strings; execution below is the real test.
+if len(image) < 64:
+    raise SystemExit(f"ARM64 image is unexpectedly small: {len(image)} bytes")
 
 boot = bytearray(72)
-struct.pack_into("<QIIQIIQQQQQ", boot, 0,
-                 BOOT_MAGIC, 1, 0,
-                 0, 0, 0,
-                 MEMORY_BASE, MEMORY_SIZE,
-                 0, 0, 0)
+struct.pack_into(
+    "<QIIQIIQQQQQ",
+    boot,
+    0,
+    BOOT_MAGIC,
+    1,
+    0,
+    0,
+    0,
+    0,
+    MEMORY_BASE,
+    MEMORY_SIZE,
+    0,
+    0,
+    0,
+)
 
 mu = Uc(UC_ARCH_ARM64, UC_MODE_ARM)
 mu.mem_map(RAM_BASE, RAM_SIZE, UC_PROT_ALL)
@@ -47,7 +69,9 @@ mu.emu_start(ENTRY, 0, 0, 250_000)
 ready = struct.unpack("<Q", bytes(mu.mem_read(READY_FLAG, 8)))[0]
 if ready != READY_MAGIC:
     pc = mu.reg_read(UC_ARM64_REG_PC)
-    raise SystemExit(f"ARM64 kernel did not reach ready marker: pc=0x{pc:x}, marker=0x{ready:x}")
+    raise SystemExit(
+        f"ARM64 kernel did not reach ready marker: pc=0x{pc:x}, marker=0x{ready:x}"
+    )
 
 print(f"MTP2026 ARM64 kernel boot verified at PC=0x{mu.reg_read(UC_ARM64_REG_PC):x}")
 print(f"Image bytes: {len(image)}")
