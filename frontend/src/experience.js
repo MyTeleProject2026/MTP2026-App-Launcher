@@ -2,6 +2,7 @@
   const API = (window.__MTP_API_BASE__ || 'https://mtp2026-app-launcher-backend.onrender.com/api').replace(/\/$/, '');
   let apps = [];
   let busy = false;
+  let orientationGuidanceEnabled = false;
   const api = async (path, options = {}) => { const response = await fetch(`${API}${path}`, { credentials: 'include', ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } }); const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`); return data; };
   const esc = (value) => String(value ?? '').replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
   const appForCard = (card) => { const id = card.dataset.mtpAppId; if (id) return apps.find(a => String(a.id) === String(id)); const title = card.querySelector('h3')?.textContent?.trim() || ''; const domain = card.querySelector('.domain')?.textContent?.trim() || ''; return apps.find(a => a.title === title && (() => { try { return new URL(a.url).hostname === domain; } catch { return false; } })()) || apps.find(a => a.title === title); };
@@ -15,32 +16,26 @@
     document.body.classList.toggle('mtp-windows-desktop', isWindows);
     document.body.classList.toggle('mtp-mobile-device', !isWindows);
     document.body.classList.toggle('mtp-gaming-device', mode === 'gaming');
-
     if (!userGesture) return;
     try {
       if (isWindows || mode === 'gaming') {
-        if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-          await document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
-        }
+        if (!document.fullscreenElement && document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
       }
       if (screen.orientation?.lock) {
         if (isWindows) await screen.orientation.lock('landscape').catch(() => {});
         else if (isPortrait) await screen.orientation.lock('portrait').catch(() => {});
       }
     } catch (_) {}
+    if (isWindows) orientationGuidanceEnabled = true;
     updateOrientationNotice(mode);
   }
 
   function updateOrientationNotice(mode) {
     let notice = document.querySelector('.mtp-orientation-notice');
-    const needsLandscape = mode === 'windows11';
+    const needsLandscape = mode === 'windows11' && orientationGuidanceEnabled;
     const portrait = window.matchMedia('(orientation: portrait)').matches;
     if (!needsLandscape || !portrait) { notice?.remove(); return; }
-    if (!notice) {
-      notice = document.createElement('div');
-      notice.className = 'mtp-orientation-notice';
-      document.body.appendChild(notice);
-    }
+    if (!notice) { notice = document.createElement('div'); notice.className = 'mtp-orientation-notice'; document.body.appendChild(notice); }
     notice.innerHTML = '<div class="mtp-orientation-card"><div class="mtp-rotate-device">↻</div><b>Rotate your device</b><span>Windows 11 mode uses the full landscape desktop workspace. Rotate your device horizontally to continue.</span><button type="button">I rotated my device</button></div>';
     notice.querySelector('button').onclick = () => { requestPlatformMode(mode, { userGesture: true }); };
   }
@@ -57,8 +52,10 @@
   function applyMode(mode, userGesture = false) {
     const allowed = ['android','ios','windows11','gaming'];
     const value = allowed.includes(mode) ? mode : 'android';
+    if (userGesture && value === 'windows11') orientationGuidanceEnabled = true;
     requestPlatformMode(value, { userGesture });
-    updateOrientationNotice(value);
+    if (userGesture) updateOrientationNotice(value);
+    else if (!orientationGuidanceEnabled) document.querySelector('.mtp-orientation-notice')?.remove();
   }
 
   function modal(title, body, actions = '') { document.querySelector('.mtp-experience-backdrop')?.remove(); const root = document.createElement('div'); root.className = 'mtp-experience-backdrop'; root.innerHTML = `<div class="mtp-experience-modal" role="dialog" aria-modal="true"><div class="mtp-experience-head"><div><div class="mtp-experience-kicker">MTP2026 DEVICE EXPERIENCE</div><h2>${esc(title)}</h2></div><button class="mtp-experience-close" aria-label="Close">×</button></div><div class="mtp-experience-body">${body}</div>${actions ? `<div class="mtp-experience-foot">${actions}</div>` : ''}</div>`; document.body.appendChild(root); root.querySelector('.mtp-experience-close').onclick = () => root.remove(); root.addEventListener('mousedown', e => { if (e.target === root) root.remove(); }); return root; }
@@ -91,10 +88,7 @@
       if (icon && (app.customIconData || app.userIconUrl)) icon.innerHTML = `<img src="${esc(app.customIconData || app.userIconUrl)}" alt=""/>`;
       if (!card.querySelector('.mtp-app-settings-button')) {
         const button = document.createElement('button');
-        button.className = 'mtp-app-settings-button';
-        button.type = 'button';
-        button.title = 'Application settings';
-        button.textContent = '⚙';
+        button.className = 'mtp-app-settings-button'; button.type = 'button'; button.title = 'Application settings'; button.textContent = '⚙';
         button.onclick = e => { e.stopPropagation(); openAppSettings(app); };
         card.querySelector('.card-top')?.appendChild(button);
       }
@@ -103,19 +97,12 @@
 
   function addSidebarButton() {
     if (document.querySelector('.mtp-device-settings-button')) return;
-    const sidebar = document.querySelector('.sidebar');
-    const nav = sidebar?.querySelector('.nav');
-    if (!nav) return;
-    const button = document.createElement('button');
-    button.className = 'mtp-device-settings-button';
-    button.type = 'button';
-    button.innerHTML = '<span class="mtp-device-settings-icon">◈</span><span>Device & OS Mode</span>';
-    button.onclick = openDeviceSettings;
-    nav.parentNode.insertBefore(button, nav.nextSibling);
+    const sidebar = document.querySelector('.sidebar'); const nav = sidebar?.querySelector('.nav'); if (!nav) return;
+    const button = document.createElement('button'); button.className = 'mtp-device-settings-button'; button.type = 'button'; button.innerHTML = '<span class="mtp-device-settings-icon">◈</span><span>Device & OS Mode</span>'; button.onclick = openDeviceSettings; nav.parentNode.insertBefore(button, nav.nextSibling);
   }
 
-  window.addEventListener('resize', () => updateOrientationNotice(document.documentElement.dataset.mtpDeviceMode || 'android'));
-  window.addEventListener('orientationchange', () => updateOrientationNotice(document.documentElement.dataset.mtpDeviceMode || 'android'));
+  window.addEventListener('resize', () => { if (orientationGuidanceEnabled) updateOrientationNotice(document.documentElement.dataset.mtpDeviceMode || 'android'); });
+  window.addEventListener('orientationchange', () => { if (orientationGuidanceEnabled) updateOrientationNotice(document.documentElement.dataset.mtpDeviceMode || 'android'); });
   document.addEventListener('fullscreenchange', () => { document.documentElement.classList.toggle('mtp-is-fullscreen', Boolean(document.fullscreenElement)); });
   const observer = new MutationObserver(() => { addSidebarButton(); decorateCards(); });
   observer.observe(document.documentElement, { childList: true, subtree: true });
