@@ -42,8 +42,10 @@ jobs:
           node --check frontend/src/nativeGuestStorage.js
           node --check frontend/src/osRuntime.js
           node --check frontend/src/guestSystemRegistry.js
+          node --check frontend/src/guestRuntimeManifest.js
           node --check frontend/src/guestStorage.js
           node --check frontend/src/guestImageStore.js
+          node --check frontend/src/guestImageManager.js
           node --check frontend/src/arm64GuestRuntime.js
           node --check frontend/src/arm64GuestWorker.js
           node --check frontend/src/guestBootController.js
@@ -52,6 +54,8 @@ jobs:
           node --check frontend/src/experience.js
           node --check frontend/src/webOsRuntime.js
           node --check frontend/src/webOsWorker.js
+      - name: Verify guest runtime manifest
+        run: node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync('frontend/public/arm64/guest-manifest.json','utf8')); for (const id of ['android','ios','windows11','gaming']) { if (!m.guests[id] || m.guests[id].architecture !== 'arm64' || !m.guests[id].imageRequired) throw new Error('Invalid guest contract: '+id); } if (m.controlKernel.realOs !== false) throw new Error('Control kernel must not be classified as a real OS'); console.log('Guest runtime manifest verified');"
       - name: Build ARM64 guest kernel image
         run: npm run arm64:kernel:build
       - name: Verify ARM64 guest kernel image
