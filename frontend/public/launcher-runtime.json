@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 2,
+  "runtime": "non-blocking",
+  "apiTimeoutMs": 4500,
+  "staleWhileRevalidate": true,
+  "independentResources": ["session", "settings", "applications", "recent", "notifications"],
+  "largeBlobPolicy": "exclude-custom-icons-from-list-payloads",
+  "nativeSso": "app-callback",
+  "osModes": ["android", "ios", "windows11", "gaming"]
+}
