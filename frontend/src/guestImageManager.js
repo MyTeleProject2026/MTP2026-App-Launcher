@@ -6,7 +6,7 @@
  */
 
 import { getGuestSystem } from './guestSystemRegistry.js';
-import { getGuestImageContract } from './guestRuntimeManifest.js';
+import { getGuestImageContract, validateGuestImageContract } from './guestRuntimeManifest.js';
 import { requestPersistentStorage, saveGuestMetadata, loadGuestMetadata } from './guestStorage.js';
 import { installGuestImage as persistGuestImage } from './guestBootController.js';
 
@@ -30,7 +30,14 @@ export async function installGuestImageFromBytes(id, bytes, metadata = {}) {
   const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   if (!data.byteLength) throw new Error('GUEST_IMAGE_EMPTY');
   const digest = await sha256(data.buffer);
-  const expected = String(metadata.sha256 || metadata.imageSha256 || '').toLowerCase();
+  const expected = String(metadata.sha256 || metadata.imageSha256 || contract.sha256 || contract.imageSha256 || '').toLowerCase();
+  await validateGuestImageContract(system.id, {
+    ...metadata,
+    guestId: system.id,
+    architecture: 'arm64',
+    sha256: digest,
+    imageSha256: digest,
+  });
   if (expected && expected !== digest) throw new Error('GUEST_IMAGE_SHA256_MISMATCH');
 
   await requestPersistentStorage();
@@ -51,8 +58,9 @@ export async function installGuestImageFromBytes(id, bytes, metadata = {}) {
     imageKind: contract.imageKind,
     bootProtocol: contract.bootProtocol,
     sha256: digest,
-    image: { stored: true, byteLength: data.byteLength },
+    image: { stored: true, byteLength: data.byteLength, sha256: digest },
     status: 'installed',
+    sourceName: metadata.sourceName || null,
   });
   emit(system.id, 'installed', { byteLength: data.byteLength, sha256: digest });
   return { ...result, sha256: digest, contract };
