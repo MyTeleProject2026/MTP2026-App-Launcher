@@ -3,9 +3,14 @@
  * profile is a separate guest-image contract. A profile is never considered
  * a real Android/iOS/Windows/Gaming guest merely because the control kernel
  * executed successfully.
+ *
+ * Guest image URLs are deliberately runtime-configurable. This lets the
+ * backend/native host point at an official or user-owned image without
+ * bundling proprietary operating-system media into the launcher repository.
  */
 
-const MANIFEST_URL = '/arm64/guest-manifest.json';
+const STATIC_MANIFEST_URL = '/arm64/guest-manifest.json';
+const API_BASE = (window.__MTP_API_BASE__ || 'https://mtp2026-app-launcher-backend.onrender.com/api').replace(/\/$/, '');
 let manifestPromise = null;
 
 export const GUEST_IMAGE_STATES = Object.freeze({
@@ -16,17 +21,45 @@ export const GUEST_IMAGE_STATES = Object.freeze({
   failed: 'failed',
 });
 
+async function readJson(url, options = {}) {
+  const response = await fetch(url, { cache: 'no-store', credentials: options.credentials || 'omit' });
+  if (!response.ok) throw new Error(`GUEST_MANIFEST_FETCH_${response.status}`);
+  return response.json();
+}
+
 async function loadManifest() {
   if (!manifestPromise) {
-    manifestPromise = fetch(MANIFEST_URL, { cache: 'no-store', credentials: 'same-origin' })
-      .then(response => {
-        if (!response.ok) throw new Error(`GUEST_MANIFEST_FETCH_${response.status}`);
-        return response.json();
-      })
-      .catch(error => {
-        manifestPromise = null;
-        throw error;
-      });
+    manifestPromise = (async () => {
+      let staticManifest;
+      try {
+        staticManifest = await readJson(STATIC_MANIFEST_URL, { credentials: 'same-origin' });
+      } catch (error) {
+        staticManifest = { schema: 'mtp2026-guest-runtime-v2', architecture: 'arm64', guests: {} };
+      }
+
+      // The backend is the source of runtime image configuration. It may be
+      // unavailable during static/offline startup, so the bundled manifest is
+      // always retained as a safe fallback.
+      try {
+        const runtime = await readJson(`${API_BASE}/guest-runtime-manifest`);
+        return {
+          ...staticManifest,
+          ...runtime,
+          controlKernel: { ...(staticManifest.controlKernel || {}), ...(runtime.controlKernel || {}) },
+          guests: Object.fromEntries(
+            Object.keys({ ...(staticManifest.guests || {}), ...(runtime.guests || {}) }).map(id => [
+              id,
+              { ...(staticManifest.guests?.[id] || {}), ...(runtime.guests?.[id] || {}) },
+            ]),
+          ),
+        };
+      } catch (_) {
+        return staticManifest;
+      }
+    })().catch(error => {
+      manifestPromise = null;
+      throw error;
+    });
   }
   return manifestPromise;
 }
@@ -40,6 +73,17 @@ export async function getGuestImageContract(id) {
   const profile = manifest?.guests?.[id];
   if (!profile) throw new Error(`GUEST_PROFILE_NOT_FOUND_${id}`);
   return profile;
+}
+
+export async function getGuestImageSource(id) {
+  const contract = await getGuestImageContract(id);
+  const source = contract?.imageSource || {};
+  const url = source.url || contract.imageUrl || null;
+  return {
+    ...source,
+    url: url ? String(url) : null,
+    configured: Boolean(url),
+  };
 }
 
 export async function validateGuestImageContract(id, metadata = {}) {
@@ -56,5 +100,6 @@ export async function validateGuestImageContract(id, metadata = {}) {
 window.MTP2026GuestRuntimeManifest = Object.freeze({
   getGuestRuntimeManifest,
   getGuestImageContract,
+  getGuestImageSource,
   validateGuestImageContract,
 });
