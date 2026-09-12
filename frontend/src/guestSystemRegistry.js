@@ -1,7 +1,8 @@
 /* MTP2026 guest-system registry.
- * Each selectable profile targets an ARM64 guest runtime. The profile itself
- * contains the guest identity and execution contract; the selected runtime
- * supplies the actual guest image/kernel and storage.
+ * Four selectable guest profiles are independent image/runtime contracts.
+ * The bundled ARM64 control kernel is NOT an Android/iOS/Windows kernel.
+ * A profile becomes a real OS guest only after its matching image is installed
+ * and an execution provider accepts that image.
  */
 
 export const GUEST_SYSTEMS = Object.freeze({
@@ -10,32 +11,44 @@ export const GUEST_SYSTEMS = Object.freeze({
     name: 'Android',
     architecture: 'arm64',
     class: 'mobile',
-    requiresImage: false,
-    runtimeImage: 'mtp2026-arm64-kernel',
+    imageKind: 'real-os-image',
+    requiresImage: true,
+    installSlot: 'android',
+    bootProtocol: 'linux-arm64-guest',
+    runtimeBackend: 'native-vm-or-wasm-emulator',
   }),
   ios: Object.freeze({
     id: 'ios',
     name: 'iOS',
     architecture: 'arm64',
     class: 'mobile',
-    requiresImage: false,
-    runtimeImage: 'mtp2026-arm64-kernel',
+    imageKind: 'real-os-image',
+    requiresImage: true,
+    installSlot: 'ios',
+    bootProtocol: 'apple-arm64-guest',
+    runtimeBackend: 'native-vm-or-wasm-emulator',
   }),
   windows11: Object.freeze({
     id: 'windows11',
     name: 'Windows 11',
     architecture: 'arm64',
     class: 'desktop',
-    requiresImage: false,
-    runtimeImage: 'mtp2026-arm64-kernel',
+    imageKind: 'real-os-image',
+    requiresImage: true,
+    installSlot: 'windows11',
+    bootProtocol: 'uefi-arm64-guest',
+    runtimeBackend: 'native-vm-or-wasm-emulator',
   }),
   gaming: Object.freeze({
     id: 'gaming',
     name: 'Gaming OS',
     architecture: 'arm64',
     class: 'gaming',
-    requiresImage: false,
-    runtimeImage: 'mtp2026-arm64-kernel',
+    imageKind: 'real-os-image',
+    requiresImage: true,
+    installSlot: 'gaming',
+    bootProtocol: 'uefi-or-linux-arm64-guest',
+    runtimeBackend: 'native-vm-or-wasm-emulator',
   }),
 });
 
@@ -57,9 +70,12 @@ export function getGuestRequirements(value) {
   return {
     id: system.id,
     architecture: system.architecture,
+    imageKind: system.imageKind,
     requiresImage: system.requiresImage,
     nativeExecutionRequired: true,
-    browserExecution: 'unicorn-js-wasm-worker',
-    runtimeImage: system.runtimeImage,
+    browserExecution: system.runtimeBackend,
+    installSlot: system.installSlot,
+    bootProtocol: system.bootProtocol,
+    runtimeBackend: system.runtimeBackend,
   };
 }
