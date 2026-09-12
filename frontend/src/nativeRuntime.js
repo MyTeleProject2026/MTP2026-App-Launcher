@@ -15,6 +15,8 @@ import {
 // Load the recovery listener in every host so a missing guest image can never
 // strand the user on a non-interactive error surface.
 import './guestRecovery.js';
+// Keep a live OS-switch control available on guest recovery/boot error surfaces.
+import './guestSystemSwitcher.js';
 
 export function getNativeCapabilities() {
   return nativeCapabilities();
