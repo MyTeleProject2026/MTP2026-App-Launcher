@@ -4,10 +4,10 @@
   "version": "1.0.0",
   "identifier": "com.myteleproject2026.mtp2026",
   "build": {
-    "beforeDevCommand": "npm --prefix ../frontend run dev",
+    "beforeDevCommand": "npm --prefix ../../frontend run dev",
     "devUrl": "http://localhost:5173",
-    "frontendDist": "../frontend/dist",
-    "beforeBuildCommand": "npm --prefix ../frontend run build"
+    "frontendDist": "../../frontend/dist",
+    "beforeBuildCommand": "npm --prefix ../../frontend run build"
   },
   "app": {
     "withGlobalTauri": false,
