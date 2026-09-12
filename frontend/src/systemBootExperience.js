@@ -1,10 +1,48 @@
 (() => {
   if (window.__MTP_SYSTEM_BOOT_EXPERIENCE__) return;
   window.__MTP_SYSTEM_BOOT_EXPERIENCE__ = true;
+  const API = (import.meta.env?.VITE_API_BASE_URL || 'https://mtp2026-app-launcher-backend.onrender.com/api').replace(/\/$/, '');
   const labels = {android:'Android',ios:'iOS',windows:'Windows 11',gaming:'Gaming'};
   let splash = null;
   let timer = null;
+  let selectedMode = null;
+  let authPollTimer = null;
+  let authPollStarted = false;
+
   function remove(){if(timer)clearTimeout(timer);timer=null;splash?.remove();splash=null;document.body.classList.remove('mtp-system-booting');}
+
+  async function isAuthenticated(){
+    try {
+      const response = await fetch(`${API}/auth/session`, { credentials:'include', headers:{Accept:'application/json'}, cache:'no-store' });
+      if (!response.ok) return false;
+      const data = await response.json().catch(() => null);
+      return Boolean(data?.authenticated && data?.profile?.sub);
+    } catch (_) { return false; }
+  }
+
+  function bootAuthenticatedMode(mode){
+    if (!mode) return;
+    selectedMode = mode;
+    if (authPollTimer) { clearInterval(authPollTimer); authPollTimer = null; }
+    authPollStarted = false;
+    show(mode);
+  }
+
+  function waitForAuthentication(mode){
+    selectedMode = mode;
+    remove();
+    if (authPollTimer || authPollStarted) return;
+    authPollStarted = true;
+    let attempts = 0;
+    const check = async () => {
+      attempts += 1;
+      if (await isAuthenticated()) { bootAuthenticatedMode(mode); return; }
+      if (attempts >= 120) { if (authPollTimer) clearInterval(authPollTimer); authPollTimer = null; authPollStarted = false; }
+    };
+    void check();
+    authPollTimer = window.setInterval(check, 1000);
+  }
+
   function show(mode){
     remove();
     const label=labels[mode] || 'MTP2026';
@@ -21,8 +59,9 @@
     try{runtime?.setMode?.(mode);runtime?.warmBoot?.(mode);}catch(_){ }
     timer=setTimeout(()=>{ if(splash && !splash.dataset.waiting) remove(); },1500);
   }
+
   function showRecovery(event, code){
-    const id=event?.detail?.id || event?.detail?.mode || 'guest';
+    const id=event?.detail?.id || event?.detail?.mode || selectedMode || 'guest';
     const label=labels[id] || id;
     if(!splash) show(id);
     if(!splash) return;
@@ -36,7 +75,14 @@
     error.querySelector('[data-boot-close]').onclick=remove;
     error.querySelector('[data-boot-retry]').onclick=()=>{remove();window.dispatchEvent(new CustomEvent('mtp2026:default-system-os',{detail:{mode:id}}));};
   }
-  window.addEventListener('mtp2026:default-system-os',event=>show(event.detail?.mode));
+
+  window.addEventListener('mtp2026:default-system-os',event=>{
+    const mode=event.detail?.mode;
+    if(!mode || !labels[mode]) return;
+    // OS selection must never cover the VexaAccount login screen. The real guest
+    // boot begins only after the backend-managed VexaAccount session exists.
+    waitForAuthentication(mode);
+  });
   window.addEventListener('mtp2026:system-boot-start',event=>{ if(event.detail?.mode && !splash) show(event.detail.mode); });
   window.addEventListener('mtp2026:guest-image-required',event=>showRecovery(event,event.detail?.code));
   window.addEventListener('mtp2026:guest-boot-error',event=>showRecovery(event,event.detail?.error));
