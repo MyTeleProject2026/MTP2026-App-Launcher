@@ -4,7 +4,7 @@
 
 use bootloader_api::{entry_point, BootInfo};
 use core::fmt::Write;
-use uart_16550::SerialPort;
+use uart_16550::{backend::PioBackend, Config, Uart16550Tty};
 use x86_64::instructions::{hlt, nop, port::Port};
 
 mod arch;
@@ -16,10 +16,10 @@ mod timer;
 #[repr(u32)]
 enum QemuExitCode { Success = 0x10, Failed = 0x11 }
 
+type SerialPort = Uart16550Tty<PioBackend>;
+
 fn serial() -> SerialPort {
-    let mut port = unsafe { SerialPort::new(0x3F8) };
-    port.init();
-    port
+    unsafe { SerialPort::new_port(0x3F8, Config::default()).expect("failed to initialize UART") }
 }
 
 fn exit_qemu(code: QemuExitCode) -> ! {
@@ -38,17 +38,17 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     writeln!(serial, "Architecture  : x86_64").ok();
     writeln!(serial, "Kernel mode   : no_std / no_main").ok();
     writeln!(serial, "Memory map    : {} regions", boot_info.memory_regions.len()).ok();
-    writeln!(serial, "Usable memory : {} MiB", arch::memory::total_usable_bytes(&boot_info.memory_regions) / (1024 * 1024)).ok();
+    writeln!(serial, "Usable memory : {} MiB", arch::x86_64::memory::total_usable_bytes(&boot_info.memory_regions) / (1024 * 1024)).ok();
     writeln!(serial, "Framebuffer   : {:?}", boot_info.framebuffer).ok();
 
-    arch::frame_allocator::init(&boot_info.memory_regions);
-    let first_frame = arch::frame_allocator::allocate_frame();
-    arch::interrupts::init();
+    arch::x86_64::frame_allocator::init(&boot_info.memory_regions);
+    let first_frame = arch::x86_64::frame_allocator::allocate_frame();
+    arch::x86_64::interrupts::init();
     let first_thread = scheduler::create_kernel_thread();
     scheduler::schedule(first_thread);
     timer::tick();
 
-    writeln!(serial, "Frame allocator: {} usable regions", arch::frame_allocator::region_count()).ok();
+    writeln!(serial, "Frame allocator: {} usable regions", arch::x86_64::frame_allocator::region_count()).ok();
     match first_frame {
         Some(frame) => writeln!(serial, "First free frame: {:#x}", frame).ok(),
         None => writeln!(serial, "First free frame: none").ok(),
