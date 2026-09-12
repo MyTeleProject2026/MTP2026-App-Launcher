@@ -1,13 +1,18 @@
 /* Cross-host guest storage layer.
- * Web: OPFS when available, otherwise IndexedDB.
+ * Web: IndexedDB.
  * Native: delegates to MTP2026NativeGuestStorage when supplied by the APK/desktop host.
  * No permission is requested merely to render the launcher; storage access happens
  * only when the user starts a guest installation/download.
+ *
+ * Keep the IndexedDB version in lock-step with guestImageStore.js. Both modules
+ * share the same database and object store; opening an older version after the
+ * image store has upgraded to v2 would otherwise throw VersionError and make
+ * an otherwise installed guest appear broken.
  */
 
 const DB_NAME = 'mtp2026-guest-storage';
 const STORE = 'guest-images';
-const VERSION = 1;
+const VERSION = 2;
 
 function nativeStorage() {
   return window.MTP2026NativeGuestStorage || null;
@@ -17,7 +22,9 @@ function openDb() {
   return new Promise((resolve, reject) => {
     if (!('indexedDB' in window)) return reject(new Error('INDEXEDDB_UNAVAILABLE'));
     const request = indexedDB.open(DB_NAME, VERSION);
-    request.onupgradeneeded = () => request.result.createObjectStore(STORE);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(STORE)) request.result.createObjectStore(STORE);
+    };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error || new Error('GUEST_STORAGE_OPEN_FAILED'));
   });
