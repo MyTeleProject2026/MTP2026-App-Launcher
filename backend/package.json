@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node scripts/init-db.js && node server.js",
+    "start": "node scripts/init-db.js && node --import ./src/runtime-hardening.js server.js",
     "dev": "node --watch server.js",
     "db:init": "node scripts/init-db.js"
   },
