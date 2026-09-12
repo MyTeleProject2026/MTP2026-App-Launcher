@@ -14,6 +14,18 @@ jobs:
         with:
           node-version: 20
       - uses: dtolnay/rust-toolchain@stable
+      - name: Verify required Tauri Windows resources
+        shell: pwsh
+        run: |
+          $icon = Join-Path $env:GITHUB_WORKSPACE 'native/windows-tauri/icons/icon.ico'
+          if (-not (Test-Path -LiteralPath $icon -PathType Leaf)) {
+            throw "Required Tauri Windows icon is missing: $icon"
+          }
+          $size = (Get-Item -LiteralPath $icon).Length
+          if ($size -lt 64) {
+            throw "Required Tauri Windows icon is invalid or empty: $icon ($size bytes)"
+          }
+          Write-Host "Verified Tauri Windows icon: $icon ($size bytes)"
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm install
