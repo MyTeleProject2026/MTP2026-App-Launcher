@@ -1,12 +1,16 @@
 /* MTP2026 guest boot coordinator.
  *
- * Boot is real only when an execution provider successfully starts a guest.
- * Native APK/desktop hosts can supply a VM/emulator provider. Web/PWA hosts use
- * the ARM64 WASM execution provider in a Worker so guest execution never blocks
- * the launcher UI thread.
+ * The launcher has two distinct boot targets:
+ *  1. controlKernel=true: the bundled MTP2026 ARM64 control guest used to
+ *     validate the host/emulator pipeline.
+ *  2. real guest mode: an independently installed ARM64 OS image is mandatory.
+ *
+ * This prevents the launcher from incorrectly reporting the same 5 KB control
+ * kernel as Android, iOS, Windows 11, or Gaming OS.
  */
 
 import { getGuestSystem, normalizeGuestSystem } from './guestSystemRegistry.js';
+import { getGuestImageContract } from './guestRuntimeManifest.js';
 import { loadGuestMetadata, saveGuestMetadata } from './guestStorage.js';
 import { bootArm64Guest, stopArm64Guest } from './arm64GuestRuntime.js';
 
@@ -36,11 +40,12 @@ function resolveImageOption(options, metadata) {
 export async function installGuestImage(mode, image, metadata = {}) {
   const id = normalizeGuestSystem(mode);
   const { installGuestImage: install } = await import('./arm64GuestRuntime.js');
-  const result = await install(id, image, { ...metadata, guestId: id });
+  const result = await install(id, image, { ...metadata, guestId: id, architecture: 'arm64' });
   await saveGuestMetadata(id, {
     ...(await loadGuestMetadata(id).catch(() => null)),
     image: { stored: true, byteLength: result.byteLength },
     architecture: 'arm64',
+    sha256: metadata.sha256 || metadata.imageSha256 || null,
     status: 'installed',
   });
   return result;
@@ -49,6 +54,7 @@ export async function installGuestImage(mode, image, metadata = {}) {
 export async function bootGuest(mode, options = {}) {
   const id = normalizeGuestSystem(mode);
   const system = getGuestSystem(id);
+  const controlKernel = options.controlKernel === true;
   const token = `${id}:${Date.now()}`;
   const native = nativeProvider();
 
@@ -59,29 +65,46 @@ export async function bootGuest(mode, options = {}) {
     provider: native?.bootGuest ? 'native-vm' : 'arm64-wasm',
     error: null,
     token,
+    guestKind: controlKernel ? 'mtp2026-control-guest' : 'real-os-guest',
   });
 
   try {
     const metadata = await loadGuestMetadata(id).catch(() => null);
-    publish({ phase: 'prepare', metadata });
+    const contract = await getGuestImageContract(id);
 
+    if (!controlKernel) {
+      if (!system.requiresImage || contract.imageKind !== 'real-os-image') {
+        throw new Error(`REAL_GUEST_IMAGE_CONTRACT_MISSING_${id}`);
+      }
+      if (metadata?.status !== 'installed' || !(metadata?.sha256 || metadata?.image?.sha256)) {
+        throw new Error(`REAL_GUEST_IMAGE_NOT_INSTALLED_${id}`);
+      }
+    }
+
+    publish({ phase: 'prepare', metadata, contract, controlKernel });
     publish({ phase: 'booting', progress: 35 });
+
     const result = await bootArm64Guest({
       id,
       image: resolveImageOption(options, metadata),
       storage: options.storage || metadata?.storage || null,
+      controlKernel,
+      guestContract: contract,
     });
 
+    const provider = result?.provider || 'arm64-wasm';
     await saveGuestMetadata(id, {
       ...metadata,
       image: result?.image || metadata?.image || null,
-      provider: result?.provider || 'arm64-wasm',
+      provider,
       architecture: system.architecture,
+      guestKind: controlKernel ? 'mtp2026-control-guest' : 'real-os-guest',
+      bootProtocol: contract.bootProtocol,
       status: 'ready',
       runningAt: new Date().toISOString(),
     });
 
-    publish({ phase: 'ready', running: true, provider: result?.provider || 'arm64-wasm', result, error: null, progress: 100 });
+    publish({ phase: 'ready', running: true, provider, result, contract, guestKind: controlKernel ? 'mtp2026-control-guest' : 'real-os-guest', error: null, progress: 100 });
     return getGuestState();
   } catch (error) {
     const message = String(error?.message || error || 'GUEST_BOOT_FAILED');
