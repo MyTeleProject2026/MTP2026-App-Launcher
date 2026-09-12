@@ -16,7 +16,9 @@
       "imageRequired": true,
       "runtimeBackend": "native-vm-or-wasm-emulator",
       "bootProtocol": "linux-arm64-guest",
-      "installSlot": "android"
+      "installSlot": "android",
+      "imageSource": { "type": "configured-url", "url": null },
+      "documentationUrl": "https://developer.android.com/topic/generic-system-image"
     },
     "ios": {
       "id": "ios",
@@ -26,7 +28,9 @@
       "imageRequired": true,
       "runtimeBackend": "native-vm-or-wasm-emulator",
       "bootProtocol": "apple-arm64-guest",
-      "installSlot": "ios"
+      "installSlot": "ios",
+      "imageSource": { "type": "configured-url", "url": null },
+      "documentationUrl": "https://developer.apple.com/documentation/virtualization"
     },
     "windows11": {
       "id": "windows11",
@@ -36,7 +40,9 @@
       "imageRequired": true,
       "runtimeBackend": "native-vm-or-wasm-emulator",
       "bootProtocol": "uefi-arm64-guest",
-      "installSlot": "windows11"
+      "installSlot": "windows11",
+      "imageSource": { "type": "configured-url", "url": null },
+      "documentationUrl": "https://www.microsoft.com/software-download/windows11arm64"
     },
     "gaming": {
       "id": "gaming",
@@ -46,7 +52,9 @@
       "imageRequired": true,
       "runtimeBackend": "native-vm-or-wasm-emulator",
       "bootProtocol": "uefi-or-linux-arm64-guest",
-      "installSlot": "gaming"
+      "installSlot": "gaming",
+      "imageSource": { "type": "configured-url", "url": null },
+      "documentationUrl": null
     }
   }
 }
