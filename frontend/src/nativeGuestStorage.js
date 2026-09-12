@@ -1,14 +1,27 @@
 /* MTP2026 native guest storage bridge.
- * Capacitor APK mode stores guest data in the app's private Data directory.
- * Web/PWA continues to use guestImageStore's IndexedDB fallback.
+ * Capacitor APK hosts may store guest data in the app's private Data directory.
+ * Web/PWA must never load or await the Capacitor Filesystem plugin; guestStorage
+ * owns the browser path (OPFS/IndexedDB).
  */
 
 let filesystemPromise;
 const root = 'mtp2026/guests';
 
+function isNativeHost() {
+  try {
+    const capacitor = globalThis.Capacitor;
+    if (!capacitor) return false;
+    if (typeof capacitor.isNativePlatform === 'function') return capacitor.isNativePlatform();
+    if (typeof capacitor.getPlatform === 'function') return capacitor.getPlatform() !== 'web';
+  } catch (_) {}
+  return false;
+}
+
 async function filesystem() {
-  filesystemPromise ||= import('@capacitor/filesystem').then(module => module.Filesystem);
-  return filesystemPromise;
+  if (!isNativeHost()) throw new Error('NATIVE_FILESYSTEM_UNAVAILABLE_ON_WEB');
+  filesystemPromise ||= import('@capacitor/filesystem').then(module => ({ Filesystem: module.Filesystem }));
+  const bridge = await filesystemPromise;
+  return bridge.Filesystem;
 }
 
 function pathFor(id, name) {
@@ -51,6 +64,7 @@ async function removeFile(id, name) {
 }
 
 export async function createNativeGuestStorage() {
+  if (!isNativeHost()) return null;
   try {
     await filesystem();
   } catch (_) {
@@ -97,7 +111,6 @@ export async function createNativeGuestStorage() {
       return removeFile(id, 'guest.json');
     },
     async requestPermission() {
-      // Capacitor's app-private Data directory does not require broad shared-storage permission.
       return true;
     },
   });
