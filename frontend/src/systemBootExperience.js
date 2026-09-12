@@ -31,12 +31,8 @@
     const small=splash.querySelector('small');
     if(small) small.textContent='Guest image required · launcher remains interactive';
     let error=splash.querySelector('.mtp-system-boot-error');
-    if(!error){
-      error=document.createElement('div');
-      error.className='mtp-system-boot-error';
-      splash.appendChild(error);
-    }
-    error.innerHTML=`<b>${label} guest image is not installed</b><br>${String(code || 'REAL_GUEST_IMAGE_NOT_INSTALLED').replace(/[<>]/g,'')}</div><div class="mtp-system-boot-actions"><button type="button" data-boot-close>Return to launcher</button><button type="button" class="secondary" data-boot-retry>Check again</button></div>`;
+    if(!error){error=document.createElement('div');error.className='mtp-system-boot-error';splash.appendChild(error);}
+    error.innerHTML=`<b>${label} guest image is not installed</b><br>${String(code || 'REAL_GUEST_IMAGE_NOT_INSTALLED').replace(/[<>]/g,'')}<div class="mtp-system-boot-actions"><button type="button" data-boot-close>Return to launcher</button><button type="button" class="secondary" data-boot-retry>Check again</button></div>`;
     error.querySelector('[data-boot-close]').onclick=remove;
     error.querySelector('[data-boot-retry]').onclick=()=>{remove();window.dispatchEvent(new CustomEvent('mtp2026:default-system-os',{detail:{mode:id}}));};
   }
