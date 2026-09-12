@@ -11,10 +11,10 @@
   const esc = value => String(value ?? '').replace(/[&<>\"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '\"':'&quot;', "'":'&#39;' }[c]));
   const modeOf = value => Object.prototype.hasOwnProperty.call(labels, value) ? value : 'android';
 
-  function close() {
+  function close(clearMode = true) {
     overlay?.remove();
     overlay = null;
-    current = null;
+    if (clearMode) current = null;
     document.body.classList.remove('mtp2026-guest-recovery-open');
   }
 
@@ -25,7 +25,8 @@
   }
 
   async function installFile(file) {
-    if (!file || busy || !current) return;
+    const mode = current;
+    if (!file || busy || !mode) return;
     busy = true;
     const status = overlay?.querySelector('[data-recovery-status]');
     const input = overlay?.querySelector('[data-recovery-file]');
@@ -33,11 +34,11 @@
     try {
       const manager = await import('./guestImageManager.js');
       const bytes = await file.arrayBuffer();
-      await manager.installGuestImageFromBytes(current, bytes, { sourceName: file.name });
+      await manager.installGuestImageFromBytes(mode, bytes, { sourceName: file.name });
       if (status) status.textContent = 'Guest image installed. Starting guest…';
       window.setTimeout(() => {
         close();
-        window.dispatchEvent(new CustomEvent('mtp2026:default-system-os', { detail: { mode: current } }));
+        window.dispatchEvent(new CustomEvent('mtp2026:default-system-os', { detail: { mode } }));
       }, 250);
     } catch (error) {
       if (status) status.textContent = `Installation failed: ${error?.message || error}`;
@@ -48,10 +49,10 @@
   }
 
   function render(event, code) {
-    current = modeOf(event?.detail?.id || event?.detail?.mode || current);
+    const mode = modeOf(event?.detail?.id || event?.detail?.mode || current);
+    close(false);
+    current = mode;
     const label = labels[current];
-    close();
-    current = modeOf(event?.detail?.id || event?.detail?.mode || 'android');
     overlay = document.createElement('section');
     overlay.className = 'mtp2026-guest-recovery';
     overlay.setAttribute('role', 'dialog');
