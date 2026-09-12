@@ -14,18 +14,28 @@ jobs:
         with:
           node-version: 20
       - uses: dtolnay/rust-toolchain@stable
-      - name: Verify Tauri Windows icon fallback source
+      - name: Ensure Tauri Windows icon exists
         shell: pwsh
         run: |
-          $buildScript = Join-Path $env:GITHUB_WORKSPACE 'native/windows-tauri/build.rs'
-          if (-not (Test-Path -LiteralPath $buildScript -PathType Leaf)) {
-            throw "Tauri build script is missing: $buildScript"
+          $iconDir = Join-Path $env:GITHUB_WORKSPACE 'native/windows-tauri/icons'
+          $iconPath = Join-Path $iconDir 'icon.ico'
+          New-Item -ItemType Directory -Force -Path $iconDir | Out-Null
+          $valid = $false
+          if (Test-Path -LiteralPath $iconPath -PathType Leaf) {
+            $bytes = [System.IO.File]::ReadAllBytes($iconPath)
+            if ($bytes.Length -ge 64 -and $bytes[0] -eq 0 -and $bytes[1] -eq 0 -and $bytes[2] -eq 1 -and $bytes[3] -eq 0) {
+              $valid = $true
+            }
           }
-          $content = Get-Content -LiteralPath $buildScript -Raw
-          if ($content -notmatch 'ensure_windows_icon') {
-            throw "Tauri build script does not provide the required Windows icon fallback"
+          if (-not $valid) {
+            $bytes = [byte[]](0,0,1,0,1,0,1,1,0,0,1,0,32,0,54,0,0,0,22,0,0,0,40,0,0,0,1,0,0,0,2,0,0,0,1,0,32,0,0,0,0,0,8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,255,255,255,255,0,0,0,0)
+            [System.IO.File]::WriteAllBytes($iconPath, $bytes)
           }
-          Write-Host "Verified Tauri build will provision a Windows icon when icon.ico is absent."
+          $final = [System.IO.File]::ReadAllBytes($iconPath)
+          if ($final.Length -lt 64 -or $final[0] -ne 0 -or $final[1] -ne 0 -or $final[2] -ne 1 -or $final[3] -ne 0) {
+            throw "Generated Windows icon is not a valid ICO: $iconPath"
+          }
+          Write-Host "Validated Windows ICO: $iconPath ($($final.Length) bytes)"
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm install
