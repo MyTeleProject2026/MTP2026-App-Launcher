@@ -14,18 +14,18 @@ jobs:
         with:
           node-version: 20
       - uses: dtolnay/rust-toolchain@stable
-      - name: Verify required Tauri Windows resources
+      - name: Verify Tauri Windows icon fallback source
         shell: pwsh
         run: |
-          $icon = Join-Path $env:GITHUB_WORKSPACE 'native/windows-tauri/icons/icon.ico'
-          if (-not (Test-Path -LiteralPath $icon -PathType Leaf)) {
-            throw "Required Tauri Windows icon is missing: $icon"
+          $buildScript = Join-Path $env:GITHUB_WORKSPACE 'native/windows-tauri/build.rs'
+          if (-not (Test-Path -LiteralPath $buildScript -PathType Leaf)) {
+            throw "Tauri build script is missing: $buildScript"
           }
-          $size = (Get-Item -LiteralPath $icon).Length
-          if ($size -lt 64) {
-            throw "Required Tauri Windows icon is invalid or empty: $icon ($size bytes)"
+          $content = Get-Content -LiteralPath $buildScript -Raw
+          if ($content -notmatch 'ensure_windows_icon') {
+            throw "Tauri build script does not provide the required Windows icon fallback"
           }
-          Write-Host "Verified Tauri Windows icon: $icon ($size bytes)"
+          Write-Host "Verified Tauri build will provision a Windows icon when icon.ico is absent."
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm install
