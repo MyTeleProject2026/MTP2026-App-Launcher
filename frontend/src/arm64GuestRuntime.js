@@ -1,7 +1,11 @@
 /* MTP2026 ARM64 guest execution provider.
  * Native APK/desktop hosts may provide a native VM/emulator through
  * window.MTP2026NativeGuestRuntime. Web/PWA uses Unicorn.js AArch64 in a
- * dedicated Worker and boots the repository's generated ARM64 kernel image.
+ * dedicated Worker for the bundled MTP2026 control kernel only.
+ *
+ * A real Android/iOS/Windows/Gaming image must never be passed directly to
+ * the browser Unicorn worker as though it were the MTP2026 control kernel.
+ * Real OS images require a provider that understands their actual boot format.
  */
 
 import { loadGuestImage, saveGuestImage } from './guestImageStore.js';
@@ -30,10 +34,8 @@ async function fetchDefaultKernel() {
   if (!response.ok) throw new Error(`ARM64_KERNEL_FETCH_${response.status}`);
   const bytes = new Uint8Array(await response.arrayBuffer());
   if (!bytes.byteLength) throw new Error('ARM64_KERNEL_EMPTY');
-  // The flat kernel legitimately contains its UART banner in .rodata. Never
-  // classify a real image as a placeholder by inspecting human-readable bytes.
   if (bytes.byteLength < 64) throw new Error('ARM64_KERNEL_TOO_SMALL');
-  return { bytes, source: 'bundled-arm64-kernel' };
+  return { bytes, source: 'bundled-arm64-control-kernel' };
 }
 
 async function resolveImage(id, supplied) {
@@ -90,16 +92,32 @@ export async function installGuestImage(id, image, metadata = {}) {
   return { id, architecture: 'arm64', byteLength: bytes.byteLength, stored: true };
 }
 
-export async function bootArm64Guest({ id, image, storage } = {}) {
+export async function bootArm64Guest({ id, image, storage, controlKernel = false, guestContract = null } = {}) {
   const native = nativeRuntime();
+
+  // A real OS image is not an MTP2026 kernel image. The browser Unicorn
+  // provider only understands the bundled control kernel, so real OS guests
+  // must be handed to a native VM/emulator provider.
+  if (!controlKernel && guestContract?.imageKind === 'real-os-image' && !native?.bootGuest) {
+    throw new Error(`REAL_GUEST_NATIVE_PROVIDER_REQUIRED_${id}`);
+  }
+
   if (native?.bootGuest) {
-    const result = await native.bootGuest({ id, architecture: 'arm64', image, storage });
+    const result = await native.bootGuest({
+      id,
+      architecture: 'arm64',
+      class: guestContract?.class || null,
+      image,
+      storage,
+      guestContract,
+      controlKernel,
+    });
     return { ...result, provider: result?.provider || 'native-vm' };
   }
 
   if (!isBrowserRuntimeAvailable()) throw new Error('ARM64_WEB_RUNTIME_UNAVAILABLE');
 
-  const resolved = await resolveImage(id, image);
+  const resolved = controlKernel ? await fetchDefaultKernel() : await resolveImage(id, image);
   const previous = workers.get(id);
   if (previous) {
     try { previous.postMessage({ type: 'stop' }); } catch (_) {}
@@ -134,12 +152,14 @@ export async function stopArm64Guest(id) {
 }
 
 export function arm64RuntimeCapabilities() {
+  const native = nativeRuntime();
   return {
-    native: Boolean(nativeRuntime()?.bootGuest),
+    native: Boolean(native?.bootGuest),
     webWorker: isBrowserRuntimeAvailable(),
     cpu: 'aarch64',
     bundledKernel: DEFAULT_KERNEL_URL,
-    backend: nativeRuntime()?.bootGuest ? 'native-vm-or-emulator' : 'unicorn-js-wasm',
+    backend: native?.bootGuest ? 'native-vm-or-emulator' : 'unicorn-js-wasm-control-kernel',
+    realGuestExecution: Boolean(native?.bootGuest),
   };
 }
 
