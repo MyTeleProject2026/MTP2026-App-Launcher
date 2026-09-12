@@ -1,0 +1,52 @@
+{
+  "schema": "mtp2026-guest-runtime-v2",
+  "architecture": "arm64",
+  "controlKernel": {
+    "id": "mtp2026-control-kernel",
+    "url": "/arm64/mtp2026-arm64-kernel.bin",
+    "role": "launcher-control-plane",
+    "realOs": false
+  },
+  "guests": {
+    "android": {
+      "id": "android",
+      "name": "Android",
+      "architecture": "arm64",
+      "imageKind": "real-os-image",
+      "imageRequired": true,
+      "runtimeBackend": "native-vm-or-wasm-emulator",
+      "bootProtocol": "linux-arm64-guest",
+      "installSlot": "android"
+    },
+    "ios": {
+      "id": "ios",
+      "name": "iOS",
+      "architecture": "arm64",
+      "imageKind": "real-os-image",
+      "imageRequired": true,
+      "runtimeBackend": "native-vm-or-wasm-emulator",
+      "bootProtocol": "apple-arm64-guest",
+      "installSlot": "ios"
+    },
+    "windows11": {
+      "id": "windows11",
+      "name": "Windows 11",
+      "architecture": "arm64",
+      "imageKind": "real-os-image",
+      "imageRequired": true,
+      "runtimeBackend": "native-vm-or-wasm-emulator",
+      "bootProtocol": "uefi-arm64-guest",
+      "installSlot": "windows11"
+    },
+    "gaming": {
+      "id": "gaming",
+      "name": "Gaming OS",
+      "architecture": "arm64",
+      "imageKind": "real-os-image",
+      "imageRequired": true,
+      "runtimeBackend": "native-vm-or-wasm-emulator",
+      "bootProtocol": "uefi-or-linux-arm64-guest",
+      "installSlot": "gaming"
+    }
+  }
+}
