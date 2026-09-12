@@ -1,17 +1,19 @@
 /* MTP2026 guest boot coordinator.
  *
- * The launcher has two distinct boot targets:
- *  1. controlKernel=true: the bundled MTP2026 ARM64 control guest used to
- *     validate the host/emulator pipeline.
- *  2. real guest mode: an independently installed ARM64 OS image is mandatory.
+ * Real guest mode requires an independently installed ARM64 guest image.
+ * The bundled MTP2026 kernel is only the control/runtime kernel and must
+ * never be silently presented as Android, iOS, Windows 11 or Gaming OS.
  *
- * This prevents the launcher from incorrectly reporting the same 5 KB control
- * kernel as Android, iOS, Windows 11, or Gaming OS.
+ * Missing guest images are handled as a recoverable state instead of an
+ * uncaught boot exception. This is important for the launcher UI: selecting
+ * iOS (or another uninstalled profile) must never leave the guest surface
+ * with an input-blocking/frozen error screen.
  */
 
 import { getGuestSystem, normalizeGuestSystem } from './guestSystemRegistry.js';
 import { getGuestImageContract } from './guestRuntimeManifest.js';
 import { loadGuestMetadata, saveGuestMetadata } from './guestStorage.js';
+import { inspectGuestImage } from './guestImageStore.js';
 import { bootArm64Guest, stopArm64Guest } from './arm64GuestRuntime.js';
 
 const listeners = new Set();
@@ -43,12 +45,35 @@ export async function installGuestImage(mode, image, metadata = {}) {
   const result = await install(id, image, { ...metadata, guestId: id, architecture: 'arm64' });
   await saveGuestMetadata(id, {
     ...(await loadGuestMetadata(id).catch(() => null)),
-    image: { stored: true, byteLength: result.byteLength },
+    image: { stored: true, byteLength: result.byteLength, sha256: metadata.sha256 || metadata.imageSha256 || null },
     architecture: 'arm64',
     sha256: metadata.sha256 || metadata.imageSha256 || null,
     status: 'installed',
+    installError: null,
   });
+  publish({ id, phase: 'installed', running: false, error: null, guestKind: 'real-os-guest' });
+  window.dispatchEvent(new CustomEvent('mtp2026:guest-image-installed', { detail: { id, result } }));
   return result;
+}
+
+async function missingImageState(id, contract, reason = `REAL_GUEST_IMAGE_NOT_INSTALLED_${id}`) {
+  const message = reason;
+  const next = publish({
+    id,
+    phase: 'needs-install',
+    running: false,
+    provider: nativeProvider()?.bootGuest ? 'native-vm' : 'arm64-wasm',
+    guestKind: 'real-os-guest',
+    error: message,
+    recoverable: true,
+    requiresGuestImage: true,
+    contract,
+    progress: 0,
+  });
+  window.dispatchEvent(new CustomEvent('mtp2026:guest-image-required', {
+    detail: { id, contract, code: message, recoverable: true },
+  }));
+  return next;
 }
 
 export async function bootGuest(mode, options = {}) {
@@ -66,6 +91,8 @@ export async function bootGuest(mode, options = {}) {
     error: null,
     token,
     guestKind: controlKernel ? 'mtp2026-control-guest' : 'real-os-guest',
+    recoverable: false,
+    requiresGuestImage: false,
   });
 
   try {
@@ -74,15 +101,21 @@ export async function bootGuest(mode, options = {}) {
 
     if (!controlKernel) {
       if (!system.requiresImage || contract.imageKind !== 'real-os-image') {
-        throw new Error(`REAL_GUEST_IMAGE_CONTRACT_MISSING_${id}`);
+        return missingImageState(id, contract, `REAL_GUEST_IMAGE_CONTRACT_MISSING_${id}`);
       }
-      if (metadata?.status !== 'installed' || !(metadata?.sha256 || metadata?.image?.sha256)) {
-        throw new Error(`REAL_GUEST_IMAGE_NOT_INSTALLED_${id}`);
+
+      const storedImage = await inspectGuestImage(id).catch(() => null);
+      const metadataSha = String(metadata?.sha256 || metadata?.image?.sha256 || '').toLowerCase();
+      const storedSha = String(storedImage?.metadata?.sha256 || storedImage?.metadata?.imageSha256 || '').toLowerCase();
+      const hasInstalledImage = metadata?.status === 'installed' && Boolean(storedImage?.byteLength) && Boolean(metadataSha || storedSha);
+
+      if (!hasInstalledImage) {
+        return missingImageState(id, contract);
       }
     }
 
-    publish({ phase: 'prepare', metadata, contract, controlKernel });
-    publish({ phase: 'booting', progress: 35 });
+    publish({ phase: 'prepare', metadata, contract, controlKernel, recoverable: false });
+    publish({ phase: 'booting', progress: 35, recoverable: false });
 
     const result = await bootArm64Guest({
       id,
@@ -101,15 +134,17 @@ export async function bootGuest(mode, options = {}) {
       guestKind: controlKernel ? 'mtp2026-control-guest' : 'real-os-guest',
       bootProtocol: contract.bootProtocol,
       status: 'ready',
+      installError: null,
       runningAt: new Date().toISOString(),
     });
 
-    publish({ phase: 'ready', running: true, provider, result, contract, guestKind: controlKernel ? 'mtp2026-control-guest' : 'real-os-guest', error: null, progress: 100 });
+    publish({ phase: 'ready', running: true, provider, result, contract, guestKind: controlKernel ? 'mtp2026-control-guest' : 'real-os-guest', error: null, recoverable: false, progress: 100 });
     return getGuestState();
   } catch (error) {
     const message = String(error?.message || error || 'GUEST_BOOT_FAILED');
-    publish({ phase: 'error', running: false, error: message, progress: 0 });
-    throw error;
+    publish({ phase: 'error', running: false, error: message, recoverable: true, progress: 0 });
+    window.dispatchEvent(new CustomEvent('mtp2026:guest-boot-error', { detail: { id, error: message, recoverable: true } }));
+    return getGuestState();
   }
 }
 
@@ -120,7 +155,7 @@ export async function stopGuest() {
     if (native?.stopGuest) await native.stopGuest(id);
     else if (id) await stopArm64Guest(id);
   } finally {
-    publish({ phase: 'stopped', running: false });
+    publish({ phase: 'stopped', running: false, error: null, recoverable: false });
   }
 }
 
