@@ -1,4 +1,4 @@
-const CACHE = 'mtp2026-shell-v2';
+const CACHE = 'mtp2026-shell-v3';
 const STATIC_ASSETS = ['/', '/manifest.webmanifest', '/icon.svg'];
 
 self.addEventListener('install', event => {
@@ -6,7 +6,11 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim()));
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
+      .then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('fetch', event => {
@@ -16,15 +20,16 @@ self.addEventListener('fetch', event => {
   if (url.origin !== self.location.origin) return;
 
   // Never cache authentication, account state, API responses, or callback URLs.
-  // These endpoints must always reflect the current VexaAccount session.
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) return;
 
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request, { cache: 'no-store' }).then(response => {
-      const copy = response.clone();
-      caches.open(CACHE).then(cache => cache.put('/', copy)).catch(() => {});
-      return response;
-    }).catch(() => caches.match('/')));
+    event.respondWith(
+      fetch(request, { cache: 'no-store' }).then(response => {
+        const copy = response.clone();
+        caches.open(CACHE).then(cache => cache.put('/', copy)).catch(() => {});
+        return response;
+      }).catch(() => caches.match('/'))
+    );
     return;
   }
 
