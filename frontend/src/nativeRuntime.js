@@ -17,6 +17,8 @@ import {
 import './guestRecovery.js';
 // Keep a live OS-switch control available on guest recovery/boot error surfaces.
 import './guestSystemSwitcher.js';
+// Apply the MTP2026 brand identity to the Device OS shell.
+import './mtp2026Branding.js';
 
 export function getNativeCapabilities() {
   return nativeCapabilities();
