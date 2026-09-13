@@ -52,6 +52,7 @@ jobs:
           node --check frontend/src/startupOrchestrator.js
           node --check frontend/src/systemBootExperience.js
           node --check frontend/src/experience.js
+          node --check frontend/src/mtp2026DeviceOS.js
           node --check frontend/src/webOsRuntime.js
           node --check frontend/src/webOsWorker.js
       - name: Verify guest runtime manifest
