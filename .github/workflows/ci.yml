@@ -53,8 +53,15 @@ jobs:
           node --check frontend/src/systemBootExperience.js
           node --check frontend/src/experience.js
           node --check frontend/src/mtp2026DeviceOS.js
+          node --check frontend/src/mtp2026Branding.js
           node --check frontend/src/webOsRuntime.js
           node --check frontend/src/webOsWorker.js
+      - name: Verify MTP2026 OS source contract
+        run: |
+          test -x os/mtp2026-linux-arm64/build.sh
+          test -s os/mtp2026-linux-arm64/rootfs/init
+          grep -q 'NAME="MTP2026 Device OS"' os/mtp2026-linux-arm64/rootfs/os-release
+          grep -q 'MTP2026 DEVICE OS' os/mtp2026-linux-arm64/rootfs/motd
       - name: Verify guest runtime manifest
         run: node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync('frontend/public/arm64/guest-manifest.json','utf8')); for (const id of ['android','ios','windows11','gaming']) { if (!m.guests[id] || m.guests[id].architecture !== 'arm64' || !m.guests[id].imageRequired) throw new Error('Invalid guest contract: '+id); } if (m.controlKernel.realOs !== false) throw new Error('Control kernel must not be classified as a real OS'); console.log('Guest runtime manifest verified');"
       - name: Build ARM64 guest kernel image
