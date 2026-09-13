@@ -1,11 +1,37 @@
 {
-  "schema": "mtp2026-guest-runtime-v2",
+  "schema": "mtp2026-guest-runtime-v3",
   "architecture": "arm64",
   "controlKernel": {
     "id": "mtp2026-control-kernel",
     "url": "/arm64/mtp2026-arm64-kernel.bin",
     "role": "launcher-control-plane",
     "realOs": false
+  },
+  "runtimeSources": {
+    "qemuWasmAarch64": {
+      "type": "github-source",
+      "repository": "ktock/qemu-wasm",
+      "url": "https://github.com/ktock/qemu-wasm",
+      "role": "browser-aarch64-system-emulator"
+    },
+    "androidLineageQemu": {
+      "type": "github-source",
+      "repository": "jqssun/android-lineage-qemu",
+      "url": "https://github.com/jqssun/android-lineage-qemu",
+      "role": "android-arm64-guest-images-and-qemu-integration"
+    },
+    "androidQemuArm64": {
+      "type": "github-source",
+      "repository": "Ccccccccvvm/qemu-android-arm64",
+      "url": "https://github.com/Ccccccccvvm/qemu-android-arm64",
+      "role": "android-arm64-qemu-cuttlefish-integration"
+    },
+    "androidQemuFork": {
+      "type": "github-source",
+      "repository": "aarch64-android-emulator/aarch64-qemu",
+      "url": "https://github.com/aarch64-android-emulator/aarch64-qemu",
+      "role": "android-aarch64-qemu-engine"
+    }
   },
   "guests": {
     "android": {
@@ -14,10 +40,12 @@
       "architecture": "arm64",
       "imageKind": "real-os-image",
       "imageRequired": true,
-      "runtimeBackend": "native-vm-or-wasm-emulator",
+      "runtimeBackend": "published-qemu-or-cuttlefish",
       "bootProtocol": "linux-arm64-guest",
       "installSlot": "android",
-      "imageSource": { "type": "configured-url", "url": null },
+      "runtimeSource": "androidLineageQemu",
+      "runtimeSourceUrl": "https://github.com/jqssun/android-lineage-qemu",
+      "imageSource": { "type": "authorized-image-url", "url": null },
       "documentationUrl": "https://developer.android.com/topic/generic-system-image"
     },
     "ios": {
@@ -26,10 +54,12 @@
       "architecture": "arm64",
       "imageKind": "real-os-image",
       "imageRequired": true,
-      "runtimeBackend": "native-vm-or-wasm-emulator",
+      "runtimeBackend": "authorized-native-virtualization",
       "bootProtocol": "apple-arm64-guest",
       "installSlot": "ios",
-      "imageSource": { "type": "configured-url", "url": null },
+      "runtimeSource": null,
+      "runtimeSourceUrl": null,
+      "imageSource": { "type": "authorized-image-url", "url": null },
       "documentationUrl": "https://developer.apple.com/documentation/virtualization"
     },
     "windows11": {
@@ -38,10 +68,12 @@
       "architecture": "arm64",
       "imageKind": "real-os-image",
       "imageRequired": true,
-      "runtimeBackend": "native-vm-or-wasm-emulator",
+      "runtimeBackend": "authorized-native-virtualization",
       "bootProtocol": "uefi-arm64-guest",
       "installSlot": "windows11",
-      "imageSource": { "type": "configured-url", "url": null },
+      "runtimeSource": null,
+      "runtimeSourceUrl": null,
+      "imageSource": { "type": "authorized-image-url", "url": null },
       "documentationUrl": "https://www.microsoft.com/software-download/windows11arm64"
     },
     "gaming": {
@@ -50,11 +82,13 @@
       "architecture": "arm64",
       "imageKind": "real-os-image",
       "imageRequired": true,
-      "runtimeBackend": "native-vm-or-wasm-emulator",
+      "runtimeBackend": "published-qemu-wasm-or-native-qemu",
       "bootProtocol": "uefi-or-linux-arm64-guest",
       "installSlot": "gaming",
-      "imageSource": { "type": "configured-url", "url": null },
-      "documentationUrl": null
+      "runtimeSource": "qemuWasmAarch64",
+      "runtimeSourceUrl": "https://github.com/ktock/qemu-wasm",
+      "imageSource": { "type": "authorized-image-url", "url": null },
+      "documentationUrl": "https://github.com/ktock/qemu-wasm"
     }
   }
 }
