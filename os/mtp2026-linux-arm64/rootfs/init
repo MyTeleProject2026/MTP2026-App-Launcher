@@ -1,0 +1,51 @@
+#!/bin/sh
+set -eu
+
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev 2>/dev/null || true
+mount -t tmpfs tmpfs /run 2>/dev/null || true
+
+clear || true
+cat /etc/motd
+
+export HOME=/home
+export PATH=/usr/bin:/bin:/sbin
+
+# MTP2026 OS userspace control loop.
+# The first production milestone is intentionally text-first: it gives us a
+# real ARM64 Linux kernel + initramfs + PID 1 boundary before the graphical
+# compositor is introduced.
+while true; do
+  printf '\nMTP2026> '
+  if ! IFS= read -r command; then
+    exit 0
+  fi
+  case "$command" in
+    ""|help)
+      echo "Commands: help, about, memory, storage, apps, reboot, poweroff"
+      ;;
+    about)
+      cat /etc/os-release
+      uname -a
+      ;;
+    memory)
+      cat /proc/meminfo | head -n 8
+      ;;
+    storage)
+      df -h
+      ;;
+    apps)
+      echo "MTP2026 application layer: VexaStore / VexaAccount / future VexaApps"
+      ;;
+    reboot)
+      reboot -f
+      ;;
+    poweroff)
+      poweroff -f
+      ;;
+    *)
+      echo "Unknown command: $command"
+      ;;
+  esac
+done
