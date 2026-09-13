@@ -1,11 +1,11 @@
 {
-  "name":"MTP2026 App Launcher",
+  "name":"MTP2026 Device OS",
   "short_name":"MTP2026",
-  "description":"MYTELEPROJECT2026 web application launcher",
+  "description":"MTP2026 Device OS and MYTELEPROJECT2026 application workspace",
   "start_url":"/",
   "scope":"/",
   "display":"standalone",
-  "background_color":"#080c17",
+  "background_color":"#02050c",
   "theme_color":"#0b1020",
   "icons":[
     {"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
