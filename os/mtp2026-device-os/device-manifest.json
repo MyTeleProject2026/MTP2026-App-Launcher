@@ -1,0 +1,50 @@
+{
+  "id": "mtp2026-device-os",
+  "name": "MTP2026 Device OS",
+  "version": "0.1.0-foundation",
+  "architecture": ["arm64"],
+  "identity": {
+    "provider": "VexaAccount",
+    "accountRole": "device-and-user-identity",
+    "store": "VexaStore",
+    "storeUrl": "https://www.vexastore.2bd.net/",
+    "accountManagementUrl": "https://vexaaccount-management.onrender.com"
+  },
+  "branding": {
+    "icon": "/icon.svg",
+    "brandGuide": "/branding/README.md"
+  },
+  "storage": {
+    "model": "logical-partitions",
+    "hostBackends": ["OPFS", "IndexedDB", "native-filesystem-bridge"],
+    "partitions": [
+      {"id":"system","purpose":"OS shell, configuration and signed system resources"},
+      {"id":"user","purpose":"documents, media and imported user files"},
+      {"id":"applications","purpose":"installed MTP2026 apps, manifests and package metadata"},
+      {"id":"cache","purpose":"temporary runtime and web cache data"}
+    ]
+  },
+  "runtime": {
+    "controlPlane": "MTP2026 App Launcher",
+    "guestExecution": "native-arm64-or-compatible-emulator",
+    "browserShell": true,
+    "bareMetalKernel": "../arm64-kernel"
+  },
+  "security": {
+    "identity": "VexaAccount",
+    "applicationIsolation": "per-app-storage-and-origin",
+    "packageTrust": "VexaStore-signature-policy",
+    "proprietaryOsImages": "never-bundled-without-authorized-distribution"
+  },
+  "systemApps": [
+    "VexaStore",
+    "VexaAccount",
+    "Settings",
+    "Files",
+    "VexaBrowser",
+    "VexaEmail",
+    "VexaTube",
+    "VexaCloud",
+    "Vexa Passwords"
+  ]
+}
