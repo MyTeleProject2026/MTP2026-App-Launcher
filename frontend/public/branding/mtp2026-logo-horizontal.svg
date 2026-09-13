@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 240" role="img" aria-labelledby="title desc">
+  <title>MTP2026</title><desc>MYTELEPROJECT2026 system builder brand.</desc>
+  <rect width="1000" height="240" rx="28" fill="#03070d"/>
+  <image href="/branding/mtp2026-mark.svg" x="25" y="25" width="190" height="190"/>
+  <text x="240" y="112" fill="#ffd34a" font-family="Arial,sans-serif" font-weight="900" font-size="64" letter-spacing="2">MYTELEPROJECT</text>
+  <text x="840" y="112" fill="#12c8ff" font-family="Arial,sans-serif" font-weight="900" font-size="64">2026</text>
+  <text x="244" y="158" fill="#eaf4ff" font-family="Arial,sans-serif" font-size="24" letter-spacing="6">SYSTEM BUILDER • CODE CREATOR • VISION MAKER</text>
+  <path d="M242 188H945" stroke="#12c8ff" stroke-width="3" opacity=".75"/>
+</svg>
