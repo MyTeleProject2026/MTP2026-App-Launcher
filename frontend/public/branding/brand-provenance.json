@@ -1,0 +1,23 @@
+{
+  "brand": "MYTELEPROJECT2026",
+  "product": "MTP2026 Device OS",
+  "source": "user-provided MTP2026 logo sheet uploaded to this ChatGPT conversation",
+  "sourceSha256": "2b57f5b4df9ab361d81779a13239179e1e28bb96caa2e77afd76cd7763904138",
+  "sourceDimensions": "1536x1024",
+  "variants": [
+    "icon-square",
+    "icon-round",
+    "logo-horizontal",
+    "cover-banner",
+    "logo-vertical",
+    "logo-mark",
+    "watermark",
+    "social-cover"
+  ],
+  "integration": {
+    "pwaIcon": "/icon.svg",
+    "deviceOsName": "MTP2026 Device OS",
+    "accountProvider": "VexaAccount",
+    "applicationStore": "VexaStore"
+  }
+}
