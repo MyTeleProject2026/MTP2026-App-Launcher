@@ -1,0 +1,56 @@
+name: MTP2026 Device OS ARM64
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'os/mtp2026-linux-arm64/**'
+      - '.github/workflows/mtp2026-device-os-arm64.yml'
+      - 'package.json'
+
+jobs:
+  build-and-boot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ARM64 OS build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential bc bison flex libssl-dev libelf-dev \
+            cpio curl gzip rsync \
+            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+            qemu-system-arm
+
+      - name: Build MTP2026 ARM64 OS
+        run: npm run os:arm64:build
+
+      - name: Boot MTP2026 ARM64 OS under QEMU
+        shell: bash
+        run: |
+          set +e
+          timeout 90s qemu-system-aarch64 \
+            -M virt \
+            -cpu cortex-a72 \
+            -m 1024 \
+            -nographic \
+            -kernel os/mtp2026-linux-arm64/out/artifacts/mtp2026-arm64-linux.Image \
+            -initrd os/mtp2026-linux-arm64/out/artifacts/mtp2026-initramfs.cpio.gz \
+            -append 'console=ttyAMA0 rdinit=/init' \
+            > /tmp/mtp2026-qemu.log 2>&1
+          code=$?
+          cat /tmp/mtp2026-qemu.log
+          grep -q 'MTP2026 DEVICE OS' /tmp/mtp2026-qemu.log
+          grep -q 'MTP2026>' /tmp/mtp2026-qemu.log
+          if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then exit "$code"; fi
+
+      - name: Upload bootable ARM64 OS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mtp2026-device-os-arm64
+          path: |
+            os/mtp2026-linux-arm64/out/artifacts/mtp2026-arm64-linux.Image
+            os/mtp2026-linux-arm64/out/artifacts/mtp2026-initramfs.cpio.gz
