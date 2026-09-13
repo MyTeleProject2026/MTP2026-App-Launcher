@@ -1,52 +1,74 @@
 # MTP2026 OS
 
-This directory is the real low-level operating-system foundation for MTP2026. It is intentionally separate from the existing React/Vite launcher and native app shells so the launcher remains intact while the operating system grows underneath it.
+MTP2026 now has two complementary real operating-system tracks:
 
-## Current boot milestone
+1. **`os/kernel`** — the experimental MTP2026-owned bare-metal kernel track. This is where MTP2026 can eventually own its own kernel, scheduler, memory manager, drivers and native system ABI.
+2. **`os/mtp2026-linux-arm64`** — the production-oriented ARM64 operating-system track. It boots a real upstream ARM64 Linux kernel with a MTP2026-owned userspace/initramfs and is the recommended path toward a usable daily-driver MTP2026 Device OS.
 
-The first milestone targets **x86_64 PCs and QEMU** and now provides:
+The existing React/Vite launcher and native shells remain the control-plane/application-development layer. They are not falsely classified as an operating-system kernel.
 
-- Rust `no_std` / `no_main` kernel code.
-- A real bootloader-compatible kernel entry point.
-- BIOS boot image generation.
-- UEFI boot image generation.
-- Kernel access to the bootloader-provided memory map and framebuffer metadata.
-- Early serial-console output.
-- A QEMU debug-exit path for automated boot smoke tests.
-- A pinned nightly Rust toolchain compatible with the bootloader release.
+## ARM64 production OS track
 
-The kernel currently initializes and halts after reporting its boot state. That is deliberate: it establishes a real bootable kernel boundary before adding higher-level subsystems.
+`os/mtp2026-linux-arm64` builds:
 
-## Build
+- a real AArch64 Linux kernel image;
+- a static BusyBox userspace;
+- a real PID 1 `/init` process owned by MTP2026;
+- `/proc`, `/sys`, `/dev` and `/run` initialization;
+- MTP2026 OS identity and boot banner;
+- memory/storage inspection commands;
+- a first MTP2026 application-layer command interface;
+- QEMU `virt` boot verification in GitHub Actions.
 
-From the repository root:
+Build it with:
 
 ```bash
-cd os
-cargo build
+npm run os:arm64:build
 ```
 
-The build script creates both `mtp2026-bios.img` and `mtp2026-uefi.img` under Cargo's generated build output directory.
+The resulting artifacts are under:
 
-## Run the BIOS image with QEMU
+```text
+os/mtp2026-linux-arm64/out/artifacts/
+```
 
-Install `qemu-system-x86` and run the generated BIOS image with a serial console. The kernel exits QEMU with the success debug-exit code after completing its initialization smoke test.
+The ARM64 OS builder uses the public upstream Linux and BusyBox GitHub repositories rather than copying proprietary operating-system firmware into MTP2026.
 
-## Architecture roadmap
+## Experimental MTP2026-owned kernel track
 
-The next OS layers will be implemented in this order:
+The Rust kernel under `os/kernel` remains the long-term research path toward a MTP2026-owned kernel. The current milestone provides:
 
-1. Physical-frame allocator and kernel heap.
-2. Page-table / virtual-memory manager.
-3. GDT, IDT, exceptions, APIC and timer interrupts.
-4. Kernel scheduler and task/thread model.
-5. Syscall and userspace boundary.
-6. PCI/device discovery and core input/display/storage drivers.
-7. VFS and a persistent filesystem.
-8. Networking stack and system services.
-9. Security model, users, permissions and process isolation.
-10. Userspace init/service manager.
-11. Graphics compositor, window manager and system shell.
-12. MTP2026 launcher integration as the native desktop/application shell.
+- Rust `no_std` / `no_main` kernel code;
+- bootloader-compatible kernel entry;
+- BIOS and UEFI image generation;
+- bootloader memory-map/framebuffer access;
+- serial output;
+- physical frame allocation;
+- interrupt setup;
+- scheduler/thread primitives;
+- timer and syscall ABI foundations;
+- QEMU debug-exit verification.
 
-Android, iOS, Windows and gaming device support will be separate hardware/platform ports. They are not implemented by pretending that a web launcher is itself a replacement kernel.
+The ARM64 kernel under `os/arm64-kernel` is the low-level AArch64 boot-contract track. It currently validates exception vectors, timer, GIC contract and ARM64 boot information.
+
+## Full MTP2026 Device OS roadmap
+
+The production ARM64 Linux track will grow into the complete MTP2026 Device OS in layers:
+
+1. Persistent disk image and first-boot installer.
+2. Secure boot/recovery architecture.
+3. MTP2026 system service manager.
+4. VexaAccount identity service.
+5. VexaStore package and application service.
+6. Sandboxed MTP2026 application runtime.
+7. Network manager and TLS trust store.
+8. Wayland compositor and MTP2026 graphical shell.
+9. Touch, keyboard, mouse, audio, camera and display services.
+10. Native Settings / Files / Control Center / recovery UI.
+11. Native storage partitions and permissions.
+12. VexaEmail, VexaTube, VexaBrowser, VexaCloud and Vexa Passwords.
+13. ARM64 hardware board profiles.
+14. Signed release images and OTA update infrastructure.
+15. Gradual replacement of Linux userspace components with MTP2026-owned services where that improves control, security or performance.
+
+This architecture lets MTP2026 become a genuine operating system while avoiding the false claim that a browser application is itself an iOS/Windows/Android firmware replacement.
