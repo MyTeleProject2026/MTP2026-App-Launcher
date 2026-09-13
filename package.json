@@ -11,6 +11,7 @@
     "frontend:dev": "npm --prefix frontend run dev",
     "frontend:build": "npm --prefix frontend run build",
     "arm64:kernel:build": "node tools/build-arm64-kernel.mjs",
+    "os:arm64:build": "bash os/mtp2026-linux-arm64/build.sh",
     "integration:generate": "node tools/generate-integration.mjs",
     "integration:verify": "node tools/verify-generated-integration.mjs",
     "native:install": "npm --prefix native install",
