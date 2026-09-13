@@ -17,6 +17,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -31,8 +33,10 @@ import java.util.Set;
 
 public final class MainActivity extends Activity {
     private static final int NOTIFICATION_PERMISSION_REQUEST = 2026;
+    private static final int FILE_CHOOSER_REQUEST = 2027;
     private static final String NOTIFICATION_CHANNEL_ID = "mtp2026_general";
     private WebView webView;
+    private ValueCallback<Uri[]> fileChooserCallback;
     private final Set<String> allowedHosts = new HashSet<>();
 
     private static final int IMMERSIVE_FLAGS =
@@ -76,12 +80,44 @@ public final class MainActivity extends Activity {
         CookieManager.getInstance().setAcceptCookie(true); CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
         webView.addJavascriptInterface(new NativeBridge(), "MTP2026Native");
 
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
+                if (fileChooserCallback != null) fileChooserCallback.onReceiveValue(null);
+                fileChooserCallback = callback;
+                Intent intent;
+                try {
+                    intent = params.createIntent();
+                } catch (Exception error) {
+                    intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                    intent.addCategory(Intent.CATEGORY_OPENABLE);
+                    intent.setType("*/*");
+                }
+                try {
+                    startActivityForResult(intent, FILE_CHOOSER_REQUEST);
+                } catch (Exception error) {
+                    fileChooserCallback = null;
+                    callback.onReceiveValue(null);
+                }
+                return true;
+            }
+        });
+
         webView.setWebViewClient(new WebViewClient() {
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) { return route(request.getUrl()); }
             @Override public boolean shouldOverrideUrlLoading(WebView view, String url) { return route(Uri.parse(url)); }
             @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) { super.onReceivedError(view, request, error); }
         });
         webView.loadUrl(BuildConfig.WEB_APP_URL);
+    }
+
+    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != FILE_CHOOSER_REQUEST) return;
+        ValueCallback<Uri[]> callback = fileChooserCallback;
+        fileChooserCallback = null;
+        if (callback == null) return;
+        Uri[] result = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+        callback.onReceiveValue(result);
     }
 
     private void applyImmersive(boolean enabled) {
@@ -136,7 +172,7 @@ public final class MainActivity extends Activity {
         }
 
         @JavascriptInterface public String getCapabilities() {
-            return "{\"native\":true,\"orientation\":true,\"fullscreen\":true,\"filesystem\":false,\"notifications\":true,\"clipboard\":true,\"externalApps\":true,\"gamepad\":true}";
+            return "{\"native\":true,\"orientation\":true,\"fullscreen\":true,\"filesystem\":false,\"notifications\":true,\"clipboard\":true,\"externalApps\":true,\"gamepad\":true,\"filePicker\":true}";
         }
 
         @JavascriptInterface public String getArm64BootStatus() {
@@ -176,5 +212,5 @@ public final class MainActivity extends Activity {
         return true;
     }
     @Override public void onBackPressed() { if (webView != null && webView.canGoBack()) webView.goBack(); else super.onBackPressed(); }
-    @Override protected void onDestroy() { if (webView != null) { webView.loadUrl("about:blank"); webView.stopLoading(); webView.destroy(); webView = null; } super.onDestroy(); }
+    @Override protected void onDestroy() { if (fileChooserCallback != null) { fileChooserCallback.onReceiveValue(null); fileChooserCallback = null; } if (webView != null) { webView.loadUrl("about:blank"); webView.stopLoading(); webView.destroy(); webView = null; } super.onDestroy(); }
 }
