@@ -1,3 +1,5 @@
+import './mtp2026DeviceOS.js';
+
 (() => {
   const API = (window.__MTP_API_BASE__ || 'https://mtp2026-app-launcher-backend.onrender.com/api').replace(/\/$/, '');
   const REQUEST_TIMEOUT_MS = 15000;
