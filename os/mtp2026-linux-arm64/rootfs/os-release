@@ -1,0 +1,10 @@
+NAME="MTP2026 Device OS"
+ID=mtp2026
+ID_LIKE=linux
+PRETTY_NAME="MTP2026 Device OS ARM64"
+VERSION="0.1.0"
+VERSION_ID="0.1"
+HOME_URL="https://github.com/MyTeleProject2026/MTP2026-App-Launcher"
+SUPPORT_URL="https://github.com/MyTeleProject2026/MTP2026-App-Launcher/issues"
+VARIANT="MTP2026 Linux ARM64"
+ARCH="aarch64"
