@@ -19,6 +19,8 @@ import './guestRecovery.js';
 import './guestSystemSwitcher.js';
 // Apply the MTP2026 brand identity to the Device OS shell.
 import './mtp2026Branding.js';
+// Load the VexaStore install bridge for MTP2026 web-app/native-package flows.
+import './vexaStoreInstaller.js';
 
 export function getNativeCapabilities() {
   return nativeCapabilities();
