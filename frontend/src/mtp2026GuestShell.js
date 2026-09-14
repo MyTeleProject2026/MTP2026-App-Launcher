@@ -1,5 +1,5 @@
 import { applyMTP2026GuestProfile, getMTP2026GuestProfile } from './mtp2026GuestProfiles.js';
-import { getInstalledVexaApps } from './vexaStoreInstaller.js';
+import { getInstalledVexaApps, syncInstalledVexaApps } from './vexaStoreInstaller.js';
 
 const ROOT_ID = 'mtp2026-guest-shell';
 const STORE_URL = 'https://www.vexastore.2bd.net/';
@@ -33,6 +33,11 @@ function render() {
   root.querySelectorAll('[data-action="home"]').forEach(b => b.onclick = () => window.dispatchEvent(new CustomEvent('mtp2026:guest-home')));
 }
 
+async function refreshLibraryAndRender() {
+  await syncInstalledVexaApps();
+  render();
+}
+
 function setVisible(visible) {
   const root = document.getElementById(ROOT_ID);
   if (root) root.hidden = !visible;
@@ -40,12 +45,13 @@ function setVisible(visible) {
 
 window.addEventListener('mtp2026:guest-state', event => {
   const state = event.detail || {};
-  if (state.phase === 'ready' && state.running) { render(); setVisible(true); }
+  if (state.phase === 'ready' && state.running) { render(); setVisible(true); refreshLibraryAndRender().catch(() => {}); }
   if (['stopped','error','needs-install'].includes(state.phase)) setVisible(false);
 });
-window.addEventListener('mtp2026:device-mode', render);
-window.addEventListener('mtp2026:default-system-os', render);
-window.addEventListener('mtp2026:vexastore-installed', render);
+window.addEventListener('mtp2026:device-mode', () => refreshLibraryAndRender().catch(() => render()));
+window.addEventListener('mtp2026:default-system-os', () => refreshLibraryAndRender().catch(() => render()));
+window.addEventListener('mtp2026:vexastore-installed', () => refreshLibraryAndRender().catch(() => render()));
+window.addEventListener('mtp2026:vexastore-library-synced', render);
 
 new MutationObserver(() => {
   const root = document.getElementById(ROOT_ID);
@@ -53,3 +59,4 @@ new MutationObserver(() => {
 }).observe(document.documentElement, { childList:true, subtree:true });
 
 render();
+refreshLibraryAndRender().catch(() => {});
