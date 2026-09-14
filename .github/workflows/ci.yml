@@ -51,6 +51,7 @@ jobs:
           node --check frontend/src/guestBootController.js
           node --check frontend/src/mtp2026GuestProfiles.js
           node --check frontend/src/mtp2026GuestShell.js
+          node --check frontend/src/mtp2026VexaStoreRuntime.js
           node --check frontend/src/startupOrchestrator.js
           node --check frontend/src/systemBootExperience.js
           node --check frontend/src/experience.js
@@ -60,6 +61,8 @@ jobs:
           node --check frontend/src/mtp2026VexaStoreUI.js
           node --check frontend/src/webOsRuntime.js
           node --check frontend/src/webOsWorker.js
+      - name: Verify MTP2026 OS branding contract
+        run: node -e "const fs=require('fs'); const b=JSON.parse(fs.readFileSync('frontend/public/branding/mtp2026-os-branding.json','utf8')); if(b.name!=='MTP2026'||b.deviceName!=='MTP2026 Device'||b.osName!=='MTP2026 Device OS'||b.identity.provider!=='VexaAccount'||b.store.provider!=='VexaStore') throw new Error('Invalid MTP2026 branding contract'); console.log('Branding contract verified');"
       - name: Verify MTP2026 OS source contract
         run: |
           test -x os/mtp2026-linux-arm64/build.sh
