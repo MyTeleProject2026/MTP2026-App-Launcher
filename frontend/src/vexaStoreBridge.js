@@ -26,7 +26,9 @@
   function openStore() {
     const url = new URL(STORE_URL);
     url.searchParams.set('mtp2026Install', '1');
-    window.open(url.toString(), '_blank', 'noopener,noreferrer');
+    // Keep window.opener available so VexaStore can securely post the selected
+    // WebApp back to this authenticated MTP2026 launcher tab.
+    window.open(url.toString(), '_blank');
   }
 
   async function installWebApp(app) {
