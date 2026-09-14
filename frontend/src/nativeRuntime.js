@@ -12,17 +12,14 @@ import {
   notifyNative,
 } from './nativePlatformApi.js';
 
-// Load the recovery listener in every host so a missing guest image can never
-// strand the user on a non-interactive error surface.
 import './guestRecovery.js';
-// Keep a live OS-switch control available on guest recovery/boot error surfaces.
 import './guestSystemSwitcher.js';
-// Apply the MTP2026 brand identity to the Device OS shell.
 import './mtp2026Branding.js';
-// Load the VexaStore install bridge for MTP2026 web-app/native-package flows.
 import './vexaStoreInstaller.js';
-// Surface installed VexaStore applications inside the MTP2026 Device OS shell.
 import './mtp2026VexaStoreUI.js';
+import './mtp2026GuestProfiles.js';
+import './mtp2026GuestShell.js';
+import './mtp2026GuestShell.css';
 
 export function getNativeCapabilities() {
   return nativeCapabilities();
