@@ -4,6 +4,17 @@ The MTP2026 Device OS uses the MYTELEPROJECT2026 visual identity supplied by the
 
 The supplied artwork contains square and round app icons, horizontal and vertical logos, a cover/banner, a watermark and a social-media cover. The PWA icon has been converted into a native MTP2026 crown/`M` vector mark while the source artwork provenance is preserved in `brand-provenance.json`.
 
+## Brand assets
+
+- `icon-square.png` — 1024×1024 square app icon
+- `icon-round.png` — 1024×1024 round app icon
+- `logo-horizontal.png` — horizontal product logo
+- `cover-banner.png` — cover/banner artwork
+- `logo-vertical.png` — vertical/stacked logo
+- `logo-mark.png` — standalone MTP2026 mark
+- `watermark.png` — watermark variant
+- `social-cover.png` — social-media cover
+
 ## Brand direction
 
 - Black/deep navy technology background
