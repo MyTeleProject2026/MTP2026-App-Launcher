@@ -21,6 +21,8 @@ import './guestSystemSwitcher.js';
 import './mtp2026Branding.js';
 // Load the VexaStore install bridge for MTP2026 web-app/native-package flows.
 import './vexaStoreInstaller.js';
+// Surface installed VexaStore applications inside the MTP2026 Device OS shell.
+import './mtp2026VexaStoreUI.js';
 
 export function getNativeCapabilities() {
   return nativeCapabilities();
