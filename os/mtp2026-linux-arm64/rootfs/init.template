@@ -1,0 +1,59 @@
+#!/bin/sh
+set -eu
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev 2>/dev/null || true
+mount -t tmpfs tmpfs /run 2>/dev/null || true
+
+clear || true
+cat /etc/motd
+printf '\nProfile: %s\n' "@PROFILE_NAME@"
+printf 'Architecture: arm64\n'
+printf 'Identity: VexaAccount\n'
+printf 'Application store: VexaStore\n'
+printf 'Browser: MTP2026 Browser\n'
+printf '\n'
+
+export HOME=/home
+export PATH=/usr/bin:/bin:/sbin
+
+while true; do
+  printf '\nMTP2026[%s]> ' "@PROFILE@"
+  if ! IFS= read -r command; then exit 0; fi
+  case "$command" in
+    ""|help)
+      echo "Commands: help, about, memory, storage, apps, account, store, browser, reboot, poweroff"
+      ;;
+    about)
+      cat /etc/os-release
+      uname -a
+      ;;
+    memory)
+      cat /proc/meminfo | head -n 8
+      ;;
+    storage)
+      df -h
+      ;;
+    apps)
+      echo "MTP2026 application layer: VexaStore / VexaAccount / VexaApps"
+      ;;
+    account)
+      echo "VexaAccount is the identity authority for this MTP2026 guest."
+      ;;
+    store)
+      echo "VexaStore application catalog: https://www.vexastore.2bd.net/"
+      ;;
+    browser)
+      echo "MTP2026 Browser is the default guest web application."
+      ;;
+    reboot)
+      reboot -f
+      ;;
+    poweroff)
+      poweroff -f
+      ;;
+    *)
+      echo "Unknown command: $command"
+      ;;
+  esac
+done
