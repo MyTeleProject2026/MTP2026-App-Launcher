@@ -54,7 +54,7 @@ make -C "$KERNEL" scripts -j"$JOBS"
 make -C "$KERNEL" olddefconfig
 
 rm -rf "$ROOTFS"
-mkdir -p "$ROOTFS"/{bin,sbin,etc,proc,sys,dev,tmp,run,mnt,home,usr/bin,var/lib/mtp2026}
+mkdir -p "$ROOTFS"/{bin,sbin,etc,proc,sys,dev,tmp,run,mnt,home,usr/bin,var/lib/mtp2026/apps}
 
 make -C "$BUSYBOX" defconfig
 sed -i 's/^# CONFIG_STATIC is not set/CONFIG_STATIC=y/' "$BUSYBOX/.config"
@@ -64,6 +64,8 @@ make -C "$BUSYBOX" CONFIG_PREFIX="$ROOTFS" install
 
 sed -e "s/@PROFILE@/${PROFILE}/g" -e "s/@PROFILE_NAME@/${PROFILE_NAME}/g" \
   "$ROOT/rootfs/init.template" > "$ROOTFS/init"
+cp "$ROOT/rootfs/mtp2026-app-install" "$ROOTFS/usr/bin/mtp2026-app-install"
+chmod +x "$ROOTFS/usr/bin/mtp2026-app-install"
 cat > "$ROOTFS/etc/os-release" <<EOF
 NAME="${PROFILE_NAME}"
 ID=mtp2026-${PROFILE}
@@ -79,7 +81,7 @@ EOF
 # Microsoft, Google, or ASUS firmware.
 cat > "$ROOTFS/etc/mtp2026/profile.json" <<EOF
 {
-  "schema": "mtp2026-guest-os-profile-v1",
+  "schema": "mtp2026-guest-os-profile-v2",
   "id": "${PROFILE}",
   "name": "${PROFILE_NAME}",
   "family": "${PROFILE_FAMILY}",
@@ -90,6 +92,7 @@ cat > "$ROOTFS/etc/mtp2026/profile.json" <<EOF
   "accountProvider": "VexaAccount",
   "applicationStore": "VexaStore",
   "applicationProtocol": "vexastore-install-manifest-v2",
+  "applicationInstallRoot": "/var/lib/mtp2026/apps",
   "webApps": true,
   "nativePackageHandoff": true,
   "proprietaryFirmware": false
@@ -134,4 +137,4 @@ if [ "$PROFILE" = "mtp2026" ]; then
   cp "$ARTIFACTS/mtp2026-${PROFILE}-arm64-linux.Image" "$OUT/artifacts/mtp2026-arm64-linux.Image"
 fi
 
-printf '%s\n' "Built MTP2026 ARM64 profile: $PROFILE" "Kernel: $ARTIFACTS/mtp2026-${PROFILE}-arm64-linux.Image" "Initramfs: $ARTIFACTS/mtp2026-${PROFILE}-initramfs.cpio.gz" "Profile: $ROOTFS/etc/mtp2026/profile.json"
+printf '%s\n' "Built MTP2026 ARM64 profile: $PROFILE" "Kernel: $ARTIFACTS/mtp2026-${PROFILE}-arm64-linux.Image" "Initramfs: $ARTIFACTS/mtp2026-${PROFILE}-initramfs.cpio.gz" "Profile: $ROOTFS/etc/mtp2026/profile.json" "VexaStore installer: $ROOTFS/usr/bin/mtp2026-app-install"
