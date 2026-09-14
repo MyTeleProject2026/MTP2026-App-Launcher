@@ -130,6 +130,19 @@ function interceptInstalledAppClicks(event) {
   if (openWindow(app)) event.stopImmediatePropagation();
 }
 
+function installExternalOpenInterceptor() {
+  const platform = window.MTP2026NativePlatform;
+  if (!platform || platform.__mtpVexaWrapped) return;
+  const original = platform.nativeOpenExternal;
+  if (typeof original !== 'function') return;
+  platform.nativeOpenExternal = async function(url) {
+    const installed = findInstalled(String(url || ''));
+    if (installed && openWindow(installed)) return { success: true, status: 'in_app_webapp', app: installed };
+    return original(url);
+  };
+  platform.__mtpVexaWrapped = true;
+}
+
 function addStyles() {
   if (document.getElementById('mtp2026-app-window-style')) return;
   const style = document.createElement('style');
@@ -147,6 +160,7 @@ function addStyles() {
 
 export function bootMTP2026VexaStoreRuntime() {
   addStyles();
+  installExternalOpenInterceptor();
   window.addEventListener('message', handleInstallMessage);
   window.addEventListener('message', handleOpenMessage);
   document.addEventListener('click', interceptInstalledAppClicks, true);
