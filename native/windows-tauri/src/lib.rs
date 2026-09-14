@@ -2,8 +2,8 @@
 
 use serde::Serialize;
 use tauri::{Emitter, WindowEvent};
+use tauri::plugin::shell::ShellExt;
 use tauri_plugin_notification::NotificationExt;
-use tauri_plugin_shell::ShellExt;
 
 mod native_capabilities;
 
@@ -31,8 +31,6 @@ fn native_capabilities() -> NativeCapabilities {
         fullscreen: c["fullscreen"],
         filesystem: c["filesystem"],
         notifications: c["notifications"],
-        // Clipboard is supplied by the WebView/browser API rather than a
-        // dedicated native bridge command in this shell.
         clipboard: false,
         external_apps: c["external_apps"],
         gamepad: c["gamepad"],
@@ -67,6 +65,27 @@ async fn open_external(app: tauri::AppHandle, url: String) -> Result<(), String>
 }
 
 #[tauri::command]
+async fn install_package(app: tauri::AppHandle, url: String, package_type: String) -> Result<serde_json::Value, String> {
+    let trimmed = url.trim();
+    if !trimmed.starts_with("https://") {
+        return Err("NATIVE_PACKAGE_HTTPS_REQUIRED".into());
+    }
+
+    // Windows does not allow a WebView to silently install arbitrary binaries.
+    // Hand the verified HTTPS release to the OS/browser shell so normal Windows
+    // SmartScreen/UAC/package-manager policy remains in control.
+    app.shell().open(trimmed.to_string(), None).map_err(|e| e.to_string())?;
+    Ok(serde_json::json!({
+        "success": true,
+        "status": "external_install_handoff",
+        "host": "windows",
+        "packageType": package_type,
+        "requiresUserApproval": true,
+        "url": trimmed
+    }))
+}
+
+#[tauri::command]
 async fn notify_native(
     app: tauri::AppHandle,
     title: String,
@@ -98,6 +117,7 @@ pub fn run() {
             enter_fullscreen,
             exit_fullscreen,
             open_external,
+            install_package,
             notify_native
         ])
         .on_window_event(|window, event| {
