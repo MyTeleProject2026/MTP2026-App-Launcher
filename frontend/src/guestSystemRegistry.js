@@ -1,26 +1,29 @@
 /* MTP2026 guest-system registry.
  * Four selectable guest profiles are independent image/runtime contracts.
  * The bundled ARM64 control kernel is NOT an Android/iOS/Windows kernel.
- * The ios slot is now the original MTP2026 Device OS profile.
+ * The ios slot is the MTP2026 Device OS profile and is not Apple firmware.
  */
 
 export const GUEST_SYSTEMS = Object.freeze({
   android: Object.freeze({
-    id: 'android', name: 'Android', architecture: 'arm64', class: 'mobile', imageKind: 'real-os-image', requiresImage: true,
-    installSlot: 'android', bootProtocol: 'linux-arm64-guest', runtimeBackend: 'native-vm-or-wasm-emulator', profileBrand: 'Android'
-  }),
-  ios: Object.freeze({
-    id: 'ios', name: 'MTP2026 Device OS', architecture: 'arm64', class: 'mobile', imageKind: 'real-os-image', requiresImage: true,
-    installSlot: 'ios', bootProtocol: 'mtp2026-arm64-guest', runtimeBackend: 'native-vm-or-wasm-emulator', profileBrand: 'MTP2026 Device OS',
+    id: 'android', name: 'MTP2026 Android OS', architecture: 'arm64', class: 'mobile', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: true,
+    installSlot: 'android', bootProtocol: 'linux-arm64-guest', runtimeBackend: 'native-vm-or-wasm-emulator', profileBrand: 'MTP2026 Android OS',
     identityProvider: 'VexaAccount', applicationStore: 'VexaStore'
   }),
+  ios: Object.freeze({
+    id: 'ios', name: 'MTP2026 Device OS', architecture: 'arm64', class: 'mobile', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: true,
+    installSlot: 'ios', bootProtocol: 'mtp2026-arm64-guest', runtimeBackend: 'native-vm-or-wasm-emulator', profileBrand: 'MTP2026 Device OS',
+    identityProvider: 'VexaAccount', applicationStore: 'VexaStore', notAppleFirmware: true
+  }),
   windows11: Object.freeze({
-    id: 'windows11', name: 'Windows 11', architecture: 'arm64', class: 'desktop', imageKind: 'real-os-image', requiresImage: true,
-    installSlot: 'windows11', bootProtocol: 'uefi-arm64-guest', runtimeBackend: 'native-vm-or-wasm-emulator', profileBrand: 'Windows 11'
+    id: 'windows11', name: 'MTP2026 Desktop OS', architecture: 'arm64', class: 'desktop', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: true,
+    installSlot: 'windows11', bootProtocol: 'mtp2026-desktop-arm64-guest', runtimeBackend: 'native-vm-or-wasm-emulator', profileBrand: 'MTP2026 Desktop OS',
+    identityProvider: 'VexaAccount', applicationStore: 'VexaStore', inspiredBy: 'Windows-style desktop UX', notMicrosoftFirmware: true
   }),
   gaming: Object.freeze({
-    id: 'gaming', name: 'Gaming OS', architecture: 'arm64', class: 'gaming', imageKind: 'real-os-image', requiresImage: true,
-    installSlot: 'gaming', bootProtocol: 'uefi-or-linux-arm64-guest', runtimeBackend: 'native-vm-or-wasm-emulator', profileBrand: 'Gaming OS'
+    id: 'gaming', name: 'MTP2026 Gaming OS', architecture: 'arm64', class: 'gaming', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: true,
+    installSlot: 'gaming', bootProtocol: 'mtp2026-gaming-arm64-guest', runtimeBackend: 'native-vm-or-wasm-emulator', profileBrand: 'MTP2026 Gaming OS',
+    identityProvider: 'VexaAccount', applicationStore: 'VexaStore', inspiredBy: 'gaming-console UX'
   }),
 });
 
@@ -39,5 +42,6 @@ export function getGuestRequirements(value) {
     nativeExecutionRequired: true, browserExecution: system.runtimeBackend, installSlot: system.installSlot,
     bootProtocol: system.bootProtocol, runtimeBackend: system.runtimeBackend, profileBrand: system.profileBrand,
     identityProvider: system.identityProvider || null, applicationStore: system.applicationStore || null,
+    notAppleFirmware: Boolean(system.notAppleFirmware), notMicrosoftFirmware: Boolean(system.notMicrosoftFirmware),
   };
 }
