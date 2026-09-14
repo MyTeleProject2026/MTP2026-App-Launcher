@@ -1,6 +1,7 @@
 {
-  "schema": "mtp2026-guest-runtime-v3",
+  "schema": "mtp2026-guest-runtime-v4",
   "architecture": "arm64",
+  "machine": "qemu-aarch64-virt",
   "controlKernel": {
     "id": "mtp2026-control-kernel",
     "url": "/arm64/mtp2026-arm64-kernel.bin",
@@ -8,6 +9,12 @@
     "realOs": false
   },
   "runtimeSources": {
+    "mtp2026Arm64": {
+      "type": "repository-artifact",
+      "repository": "MyTeleProject2026/MTP2026-App-Launcher",
+      "url": "https://github.com/MyTeleProject2026/MTP2026-App-Launcher",
+      "role": "MTP2026-owned-AArch64-Linux-guest-foundation"
+    },
     "qemuWasmAarch64": {
       "type": "github-source",
       "repository": "ktock/qemu-wasm",
@@ -18,77 +25,88 @@
       "type": "github-source",
       "repository": "jqssun/android-lineage-qemu",
       "url": "https://github.com/jqssun/android-lineage-qemu",
-      "role": "android-arm64-guest-images-and-qemu-integration"
-    },
-    "androidQemuArm64": {
-      "type": "github-source",
-      "repository": "Ccccccccvvm/qemu-android-arm64",
-      "url": "https://github.com/Ccccccccvvm/qemu-android-arm64",
-      "role": "android-arm64-qemu-cuttlefish-integration"
-    },
-    "androidQemuFork": {
-      "type": "github-source",
-      "repository": "aarch64-android-emulator/aarch64-qemu",
-      "url": "https://github.com/aarch64-android-emulator/aarch64-qemu",
-      "role": "android-aarch64-qemu-engine"
+      "role": "open-source-Android-arm64-guest-source"
     }
   },
   "guests": {
+    "mtp2026": {
+      "id": "mtp2026",
+      "name": "MTP2026 Device OS",
+      "architecture": "arm64",
+      "imageKind": "mtp2026-owned-arm64-linux",
+      "imageRequired": true,
+      "runtimeBackend": "qemu-aarch64-virt-or-native-qemu",
+      "bootProtocol": "linux-arm64-guest",
+      "installSlot": "mtp2026",
+      "runtimeSource": "mtp2026Arm64",
+      "profileManifest": "/arm64/mtp2026-guest-profiles.json",
+      "accountProvider": "VexaAccount",
+      "appStore": "VexaStore",
+      "browser": "MTP2026 Browser"
+    },
     "android": {
       "id": "android",
-      "name": "Android",
+      "name": "MTP2026 Android OS",
       "architecture": "arm64",
-      "imageKind": "real-os-image",
+      "imageKind": "mtp2026-owned-arm64-linux-profile",
       "imageRequired": true,
-      "runtimeBackend": "published-qemu-or-cuttlefish",
+      "runtimeBackend": "qemu-aarch64-virt-or-native-qemu",
       "bootProtocol": "linux-arm64-guest",
       "installSlot": "android",
-      "runtimeSource": "androidLineageQemu",
-      "runtimeSourceUrl": "https://github.com/jqssun/android-lineage-qemu",
-      "imageSource": { "type": "authorized-image-url", "url": null },
-      "documentationUrl": "https://developer.android.com/topic/generic-system-image"
+      "runtimeSource": "mtp2026Arm64",
+      "externalOsReference": "jqssun/android-lineage-qemu",
+      "externalOsReferenceUrl": "https://github.com/jqssun/android-lineage-qemu",
+      "accountProvider": "VexaAccount",
+      "appStore": "VexaStore",
+      "browser": "MTP2026 Browser"
     },
     "ios": {
       "id": "ios",
-      "name": "iOS",
+      "name": "MTP2026 Device OS",
       "architecture": "arm64",
-      "imageKind": "real-os-image",
+      "imageKind": "mtp2026-owned-arm64-linux-profile",
       "imageRequired": true,
-      "runtimeBackend": "authorized-native-virtualization",
-      "bootProtocol": "apple-arm64-guest",
+      "runtimeBackend": "qemu-aarch64-virt-or-native-qemu",
+      "bootProtocol": "linux-arm64-guest",
       "installSlot": "ios",
-      "runtimeSource": null,
-      "runtimeSourceUrl": null,
-      "imageSource": { "type": "authorized-image-url", "url": null },
-      "documentationUrl": "https://developer.apple.com/documentation/virtualization"
+      "runtimeSource": "mtp2026Arm64",
+      "accountProvider": "VexaAccount",
+      "appStore": "VexaStore",
+      "browser": "MTP2026 Browser",
+      "notAppleFirmware": true
     },
     "windows11": {
       "id": "windows11",
-      "name": "Windows 11",
+      "name": "MTP2026 Desktop OS",
       "architecture": "arm64",
-      "imageKind": "real-os-image",
+      "imageKind": "mtp2026-owned-arm64-linux-profile",
       "imageRequired": true,
-      "runtimeBackend": "authorized-native-virtualization",
-      "bootProtocol": "uefi-arm64-guest",
+      "runtimeBackend": "qemu-aarch64-virt-or-native-qemu",
+      "bootProtocol": "linux-arm64-guest",
       "installSlot": "windows11",
-      "runtimeSource": null,
-      "runtimeSourceUrl": null,
-      "imageSource": { "type": "authorized-image-url", "url": null },
-      "documentationUrl": "https://www.microsoft.com/software-download/windows11arm64"
+      "runtimeSource": "mtp2026Arm64",
+      "externalOsReference": "Microsoft Windows 11 ARM64",
+      "externalOsReferenceUrl": "https://www.microsoft.com/software-download/windows11arm64",
+      "accountProvider": "VexaAccount",
+      "appStore": "VexaStore",
+      "browser": "MTP2026 Browser",
+      "notMicrosoftFirmware": true
     },
     "gaming": {
       "id": "gaming",
-      "name": "Gaming OS",
+      "name": "MTP2026 Gaming OS",
       "architecture": "arm64",
-      "imageKind": "real-os-image",
+      "imageKind": "mtp2026-owned-arm64-linux-profile",
       "imageRequired": true,
-      "runtimeBackend": "published-qemu-wasm-or-native-qemu",
-      "bootProtocol": "uefi-or-linux-arm64-guest",
+      "runtimeBackend": "qemu-aarch64-virt-or-native-qemu",
+      "bootProtocol": "linux-arm64-guest",
       "installSlot": "gaming",
-      "runtimeSource": "qemuWasmAarch64",
-      "runtimeSourceUrl": "https://github.com/ktock/qemu-wasm",
-      "imageSource": { "type": "authorized-image-url", "url": null },
-      "documentationUrl": "https://github.com/ktock/qemu-wasm"
+      "runtimeSource": "mtp2026Arm64",
+      "externalRuntimeReference": "ktock/qemu-wasm",
+      "externalRuntimeReferenceUrl": "https://github.com/ktock/qemu-wasm",
+      "accountProvider": "VexaAccount",
+      "appStore": "VexaStore",
+      "browser": "MTP2026 Browser"
     }
   }
 }
