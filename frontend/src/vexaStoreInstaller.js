@@ -1,13 +1,15 @@
 /* MTP2026 <-> VexaStore installer bridge.
  * WebApps are registered in the authenticated MTP2026 application library and
- * mirrored locally for offline/guest-shell startup. Native packages are handed
- * to the native platform installer; a browser never claims silent APK/IPA/EXE
- * installation because the host OS owns that security boundary.
+ * mirrored locally for all four MTP2026-owned guest profiles. Native packages
+ * are delegated to the host platform installer; browser code never bypasses
+ * Android/iOS/Windows security controls.
  */
 
 const VEXASTORE_API = 'https://api-vexastore.onrender.com/api';
+const VEXASTORE_ORIGIN = 'https://www.vexastore.2bd.net';
 const MTP_API = (window.__MTP_API_BASE__ || 'https://mtp2026-app-launcher-backend.onrender.com/api').replace(/\/$/, '');
-const REGISTRY_KEY = 'mtp2026-installed-vexastore-apps-v2';
+const REGISTRY_KEY = 'mtp2026-installed-vexastore-apps-v3';
+const VALID_MODES = new Set(['mtp2026', 'ios', 'android', 'windows11', 'gaming']);
 
 function getRegistry() {
   try { return JSON.parse(localStorage.getItem(REGISTRY_KEY) || '{}'); } catch (_) { return {}; }
@@ -15,7 +17,12 @@ function getRegistry() {
 function saveRegistry(registry) { localStorage.setItem(REGISTRY_KEY, JSON.stringify(registry)); }
 function currentMode() {
   const value = document.documentElement.dataset.mtpDeviceMode || localStorage.getItem('mtp2026-default-system-os') || 'android';
-  return value === 'windows' ? 'windows11' : value;
+  return value === 'windows' ? 'windows11' : VALID_MODES.has(value) ? value : 'android';
+}
+function assertTrustedUrl(value) {
+  const url = new URL(String(value || ''));
+  if (url.protocol !== 'https:') throw new Error('VEXASTORE_URL_MUST_BE_HTTPS');
+  return url.toString();
 }
 
 export function getInstalledVexaApps() { return Object.values(getRegistry()); }
@@ -41,6 +48,7 @@ export async function syncInstalledVexaApps() {
         version: app.version || null,
         source: 'VexaStore',
         installedAt: app.installedAt || app.lastOpenedAt || new Date().toISOString(),
+        guestModes: ['mtp2026', 'ios', 'android', 'windows11', 'gaming'],
         guestMode: currentMode(),
       };
     }
@@ -61,23 +69,46 @@ export async function fetchVexaStoreManifest(slug) {
 }
 
 async function registerWebAppInMtp2026(app) {
+  const url = assertTrustedUrl(app.url);
   const response = await fetch(`${MTP_API}/apps`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url: app.url }),
+    body: JSON.stringify({ url }),
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || `MTP2026_INSTALL_FAILED_${response.status}`);
   return body.app || body.data || body;
 }
 
+async function installNativePackage(native, mode) {
+  if (!native?.url) throw new Error(`VEXASTORE_NATIVE_PACKAGE_UNAVAILABLE_${mode}`);
+  const url = assertTrustedUrl(native.url);
+  const bridge = window.MTP2026NativePlatform;
+  if (typeof bridge?.nativeInstallPackage === 'function') {
+    return bridge.nativeInstallPackage(url, native.version, {
+      mode,
+      packageName: native.packageName || null,
+      sha256: native.sha256 || null,
+      versionCode: native.versionCode || null,
+    });
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
+  return { success: true, mode, type: 'native-handoff', requiresUserApproval: true, url };
+}
+
 export async function installVexaStoreApp(manifest) {
   if (!manifest?.app?.slug) throw new Error('VEXASTORE_INVALID_APP');
   const mode = currentMode();
-  const webUrl = manifest.webApp?.url;
 
-  if (webUrl && ['mtp2026', 'ios', 'android', 'windows11', 'gaming'].includes(mode)) {
+  // Android has a native package path when VexaStore publishes an APK. Prefer it
+  // when the native bridge is present; otherwise keep the WebApp registry usable.
+  if (mode === 'android' && manifest.nativePackages?.android?.url && typeof window.MTP2026NativePlatform?.nativeInstallPackage === 'function') {
+    return installNativePackage(manifest.nativePackages.android, mode);
+  }
+
+  const webUrl = manifest.webApp?.url;
+  if (webUrl && VALID_MODES.has(mode)) {
     let registered = null;
     try {
       registered = await registerWebAppInMtp2026({ url: webUrl });
@@ -98,23 +129,16 @@ export async function installVexaStoreApp(manifest) {
       version: manifest.webApp.version || registered?.version || null,
       installMode: 'mtp2026-webapp',
       guestMode: mode,
+      guestModes: ['mtp2026', 'ios', 'android', 'windows11', 'gaming'],
       source: 'VexaStore',
+      manifestUrl: manifest.installIntent?.manifestUrl || `${VEXASTORE_ORIGIN}/api/platform/apps/${encodeURIComponent(manifest.app.slug)}/install-manifest`,
     };
     saveRegistry(registry);
     window.dispatchEvent(new CustomEvent('mtp2026:vexastore-installed', { detail: registry[key] }));
     return { success: true, mode, type: 'webapp', cloudRegistered: Boolean(registered), app: registry[key] };
   }
 
-  const native = manifest.nativePackages?.[mode] || manifest.nativePackages?.android;
-  if (!native?.url) throw new Error(`VEXASTORE_NATIVE_PACKAGE_UNAVAILABLE_${mode}`);
-
-  const bridge = window.MTP2026NativePlatform;
-  if (typeof bridge?.nativeInstallPackage === 'function') {
-    return bridge.nativeInstallPackage(native.url, native.version);
-  }
-
-  window.open(native.url, '_blank', 'noopener,noreferrer');
-  return { success: true, mode, type: 'native-handoff', requiresUserApproval: true, url: native.url };
+  return installNativePackage(manifest.nativePackages?.[mode], mode);
 }
 
 export async function installVexaStoreSlug(slug) {
