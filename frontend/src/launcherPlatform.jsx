@@ -4,10 +4,10 @@ import './device-mode.css';
 import { setNativeMode } from './nativePlatformApi.js';
 
 export const DEVICE_MODES = {
-  android: { label: 'Android device', icon: Smartphone, orientation: 'portrait' },
-  ios: { label: 'iOS device', icon: Smartphone, orientation: 'portrait' },
-  windows: { label: 'Windows 11', icon: Monitor, orientation: 'landscape' },
-  gaming: { label: 'Gaming system', icon: Gamepad2, orientation: 'responsive' }
+  android: { label: 'MTP2026 Android OS', icon: Smartphone, orientation: 'portrait' },
+  ios: { label: 'MTP2026 Device OS', icon: Smartphone, orientation: 'portrait' },
+  windows: { label: 'MTP2026 Desktop OS', icon: Monitor, orientation: 'landscape' },
+  gaming: { label: 'MTP2026 Gaming OS', icon: Gamepad2, orientation: 'responsive' }
 };
 
 export const MTP2026_ARM64_BOOT_GITHUB_URL = 'https://github.com/MyTeleProject2026/MTP2026-App-Launcher/tree/main/os/arm64-kernel';
@@ -20,6 +20,7 @@ export function applyNativeDeviceMode(mode) {
   const normalized = getDeviceMode(mode);
   void setNativeMode(normalized).catch(() => {});
   try { window.MTP2026WebOS?.setMode?.(normalized); } catch (_) {}
+  window.dispatchEvent(new CustomEvent('mtp2026:device-mode', { detail: { mode: normalized } }));
   return normalized;
 }
 
@@ -30,7 +31,7 @@ export function DeviceModeSettings({ value, onChange }) {
       const Icon = item.icon;
       return <button key={id} type="button" className={`device-mode-card ${current === id ? 'active' : ''}`} onClick={() => { onChange(id); applyNativeDeviceMode(id); }}>
         <span className="device-mode-icon"><Icon/></span>
-        <span><b>{item.label}</b><small>{item.orientation === 'portrait' ? 'Portable portrait' : item.orientation === 'landscape' ? 'Landscape only' : 'Portrait + landscape'}</small></span>
+        <span><b>{item.label}</b><small>{item.orientation === 'portrait' ? 'Portable portrait' : item.orientation === 'landscape' ? 'Desktop landscape' : 'Portrait + landscape'}</small></span>
         {current === id && <Check className="device-mode-check"/>}
       </button>;
     })}</div>
@@ -39,8 +40,8 @@ export function DeviceModeSettings({ value, onChange }) {
       <div className="mtp2026-arm64-boot-icon"><Cpu/></div>
       <div className="mtp2026-arm64-boot-copy">
         <strong>MTP2026 ARM64 OS</strong>
-        <span>Real ARM64 kernel source and boot foundation</span>
-        <small>Open the GitHub source/build area. A phone-specific boot image is required before a physical device can be flashed.</small>
+        <span>ARM64 guest boot foundation shared by all four MTP2026 OS experiences</span>
+        <small>Each mode has its own MTP2026 shell and application behavior. Physical guest boot still requires a compatible native/emulator backend and an appropriate guest image.</small>
       </div>
       <a className="mtp2026-arm64-boot-link" href={MTP2026_ARM64_BOOT_GITHUB_URL} target="_blank" rel="noopener noreferrer" aria-label="Open MTP2026 ARM64 boot GitHub source">
         <Code2/> <span>ARM64 GitHub</span> <ExternalLink/>
@@ -91,4 +92,4 @@ export function ApplicationSettingsModal({ app, onClose, onPatch, onRemove, onOp
       <p className="app-settings-note">Uninstall removes the application from this VexaAccount launcher library. It does not delete the external website or service.</p>
     </div>
   </div></div>;
-}
+} 
