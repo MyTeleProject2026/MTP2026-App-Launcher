@@ -2,8 +2,8 @@
 
 use serde::Serialize;
 use tauri::{Emitter, WindowEvent};
-use tauri::plugin::shell::ShellExt;
 use tauri_plugin_notification::NotificationExt;
+use tauri_plugin_shell::ShellExt;
 
 mod native_capabilities;
 
@@ -70,10 +70,6 @@ async fn install_package(app: tauri::AppHandle, url: String, package_type: Strin
     if !trimmed.starts_with("https://") {
         return Err("NATIVE_PACKAGE_HTTPS_REQUIRED".into());
     }
-
-    // Windows does not allow a WebView to silently install arbitrary binaries.
-    // Hand the verified HTTPS release to the OS/browser shell so normal Windows
-    // SmartScreen/UAC/package-manager policy remains in control.
     app.shell().open(trimmed.to_string(), None).map_err(|e| e.to_string())?;
     Ok(serde_json::json!({
         "success": true,
