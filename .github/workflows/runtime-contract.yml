@@ -1,0 +1,30 @@
+name: MTP2026 runtime contract
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  runtime-contract:
+    runs-on: ubuntu-latest
+    env:
+      FRONTEND_URL: ${{ vars.MTP_FRONTEND_URL || 'https://mtp2026-app-launcher.onrender.com' }}
+      BACKEND_URL: ${{ vars.MTP_BACKEND_URL || 'https://mtp2026-app-launcher-backend.onrender.com' }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate runtime contract
+        run: node -e "const j=require('./frontend/public/launcher-runtime.json'); if(j.runtime!=='non-blocking'||j.apiTimeoutMs>5000||!j.staleWhileRevalidate) process.exit(1); console.log(j)"
+      - name: Verify backend health latency budget
+        shell: bash
+        run: |
+          set -euo pipefail
+          start=$(date +%s%3N)
+          curl --fail --silent --show-error --location --max-time 8 "$BACKEND_URL/api/health" >/tmp/health.json
+          end=$(date +%s%3N)
+          elapsed=$((end-start))
+          cat /tmp/health.json
+          echo "health request: ${elapsed}ms"
+          if [ "$elapsed" -gt 8000 ]; then exit 1; fi
+      - name: Verify public frontend shell
+        run: |
+          curl --fail --silent --show-error --location --max-time 15 "$FRONTEND_URL/" | grep -q 'MTP2026'
