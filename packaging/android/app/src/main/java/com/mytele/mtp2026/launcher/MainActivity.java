@@ -53,6 +53,7 @@ public final class MainActivity extends Activity {
             "mtp2026-app-launcher-backend.onrender.com",
             "www.vexastore.2bd.net",
             "vexastore.2bd.net",
+            "api-vexastore.onrender.com",
             "vexaaccount-management.onrender.com"
     ));
     private BroadcastReceiver installReceiver;
