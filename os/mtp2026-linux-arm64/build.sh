@@ -2,14 +2,25 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+PROFILE="${MTP2026_PROFILE:-mtp2026}"
 OUT="${ROOT}/out"
 SRC="${OUT}/src"
 ROOTFS="${OUT}/rootfs"
-mkdir -p "$SRC" "$ROOTFS" "${OUT}/artifacts"
-
+ARTIFACTS="${OUT}/artifacts/${PROFILE}"
+JOBS="${JOBS:-$(nproc)}"
 LINUX_VERSION="6.16"
 BUSYBOX_VERSION="1_37_0"
-JOBS="${JOBS:-$(nproc)}"
+
+case "$PROFILE" in
+  mtp2026) PROFILE_NAME="MTP2026 Device OS" ;;
+  android) PROFILE_NAME="MTP2026 Android OS" ;;
+  ios) PROFILE_NAME="MTP2026 Device OS" ;;
+  windows11) PROFILE_NAME="MTP2026 Desktop OS" ;;
+  gaming) PROFILE_NAME="MTP2026 Gaming OS" ;;
+  *) echo "Unsupported MTP2026 guest profile: $PROFILE" >&2; exit 2 ;;
+esac
+
+mkdir -p "$SRC" "$ROOTFS" "$ARTIFACTS"
 
 fetch() {
   local url="$1" dest="$2"
@@ -21,16 +32,11 @@ fetch() {
 fetch "https://github.com/torvalds/linux/archive/refs/tags/v${LINUX_VERSION}.tar.gz" "${SRC}/linux.tar.gz"
 fetch "https://github.com/mirror/busybox/archive/refs/tags/${BUSYBOX_VERSION}.tar.gz" "${SRC}/busybox.tar.gz"
 
-if [ ! -d "${SRC}/linux-${LINUX_VERSION}" ]; then
-  tar -xzf "${SRC}/linux.tar.gz" -C "$SRC"
-fi
-if [ ! -d "${SRC}/busybox-${BUSYBOX_VERSION}" ]; then
-  tar -xzf "${SRC}/busybox.tar.gz" -C "$SRC"
-fi
+if [ ! -d "${SRC}/linux-${LINUX_VERSION}" ]; then tar -xzf "${SRC}/linux.tar.gz" -C "$SRC"; fi
+if [ ! -d "${SRC}/busybox-${BUSYBOX_VERSION}" ]; then tar -xzf "${SRC}/busybox.tar.gz" -C "$SRC"; fi
 
 export ARCH=arm64
 export CROSS_COMPILE=aarch64-linux-gnu-
-
 KERNEL="${SRC}/linux-${LINUX_VERSION}"
 BUSYBOX="${SRC}/busybox-${BUSYBOX_VERSION}"
 
@@ -56,19 +62,41 @@ make -C "$BUSYBOX" olddefconfig
 make -C "$BUSYBOX" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE"
 make -C "$BUSYBOX" CONFIG_PREFIX="$ROOTFS" install
 
-cp "$ROOT/rootfs/init" "$ROOTFS/init"
-cp "$ROOT/rootfs/os-release" "$ROOTFS/etc/os-release"
-cp "$ROOT/rootfs/motd" "$ROOTFS/etc/motd"
+sed -e "s/@PROFILE@/${PROFILE}/g" -e "s/@PROFILE_NAME@/${PROFILE_NAME}/g" \
+  "$ROOT/rootfs/init.template" > "$ROOTFS/init"
+cat > "$ROOTFS/etc/os-release" <<EOF
+NAME="${PROFILE_NAME}"
+ID=mtp2026-${PROFILE}
+VERSION="2026.1"
+VERSION_ID="2026.1"
+PRETTY_NAME="${PROFILE_NAME} ARM64"
+HOME_URL="https://github.com/MyTeleProject2026/MTP2026-App-Launcher"
+VARIANT="MTP2026 guest profile"
+EOF
+cat > "$ROOTFS/etc/motd" <<EOF
+========================================
+       MTP2026 GUEST SYSTEM
+========================================
+${PROFILE_NAME}
+Real AArch64 Linux kernel + BusyBox userspace
+VexaAccount identity • VexaStore applications
+========================================
+EOF
 chmod +x "$ROOTFS/init"
 ln -sf /bin/busybox "$ROOTFS/sbin/init"
 
 (
   cd "$ROOTFS"
   find . -print0 | cpio --null -ov --format=newc | gzip -9
-) > "$OUT/artifacts/mtp2026-initramfs.cpio.gz"
+) > "$ARTIFACTS/mtp2026-${PROFILE}-initramfs.cpio.gz"
 
 make -C "$KERNEL" -j"$JOBS" Image
-cp "$KERNEL/arch/arm64/boot/Image" "$OUT/artifacts/mtp2026-arm64-linux.Image"
+cp "$KERNEL/arch/arm64/boot/Image" "$ARTIFACTS/mtp2026-${PROFILE}-arm64-linux.Image"
 
-echo "MTP2026 ARM64 Linux image: $OUT/artifacts/mtp2026-arm64-linux.Image"
-echo "MTP2026 initramfs:      $OUT/artifacts/mtp2026-initramfs.cpio.gz"
+# Keep the historical default artifact paths intact for existing consumers.
+if [ "$PROFILE" = "mtp2026" ]; then
+  cp "$ARTIFACTS/mtp2026-${PROFILE}-initramfs.cpio.gz" "$OUT/artifacts/mtp2026-initramfs.cpio.gz"
+  cp "$ARTIFACTS/mtp2026-${PROFILE}-arm64-linux.Image" "$OUT/artifacts/mtp2026-arm64-linux.Image"
+fi
+
+printf '%s\n' "Built MTP2026 ARM64 profile: $PROFILE" "Kernel: $ARTIFACTS/mtp2026-${PROFILE}-arm64-linux.Image" "Initramfs: $ARTIFACTS/mtp2026-${PROFILE}-initramfs.cpio.gz"
