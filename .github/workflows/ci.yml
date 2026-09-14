@@ -54,6 +54,7 @@ jobs:
           node --check frontend/src/experience.js
           node --check frontend/src/mtp2026DeviceOS.js
           node --check frontend/src/mtp2026Branding.js
+          node --check frontend/src/vexaStoreInstaller.js
           node --check frontend/src/webOsRuntime.js
           node --check frontend/src/webOsWorker.js
       - name: Verify MTP2026 OS source contract
