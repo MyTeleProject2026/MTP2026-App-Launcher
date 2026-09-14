@@ -5,13 +5,14 @@ on:
   push:
     paths:
       - 'os/mtp2026-linux-arm64/**'
+      - 'os/mtp2026-guest-profiles/**'
       - '.github/workflows/mtp2026-device-os-arm64.yml'
       - 'package.json'
 
 jobs:
   build-and-boot:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,32 +26,47 @@ jobs:
             gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
             qemu-system-arm
 
-      - name: Build MTP2026 ARM64 OS
-        run: npm run os:arm64:build
+      - name: Build all MTP2026 ARM64 guest profiles
+        run: bash os/mtp2026-guest-profiles/build-all.sh
 
-      - name: Boot MTP2026 ARM64 OS under QEMU
+      - name: Boot every MTP2026 profile under QEMU
         shell: bash
         run: |
-          set +e
-          timeout 90s qemu-system-aarch64 \
-            -M virt \
-            -cpu cortex-a72 \
-            -m 1024 \
-            -nographic \
-            -kernel os/mtp2026-linux-arm64/out/artifacts/mtp2026-arm64-linux.Image \
-            -initrd os/mtp2026-linux-arm64/out/artifacts/mtp2026-initramfs.cpio.gz \
-            -append 'console=ttyAMA0 rdinit=/init' \
-            > /tmp/mtp2026-qemu.log 2>&1
-          code=$?
-          cat /tmp/mtp2026-qemu.log
-          grep -q 'MTP2026 DEVICE OS' /tmp/mtp2026-qemu.log
-          grep -q 'MTP2026>' /tmp/mtp2026-qemu.log
-          if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then exit "$code"; fi
+          set -euo pipefail
+          for profile in mtp2026 android ios windows11 gaming; do
+            image="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-arm64-linux.Image"
+            initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
+            log="/tmp/mtp2026-${profile}.log"
+            echo "=== Booting ${profile} ==="
+            set +e
+            timeout 35s qemu-system-aarch64 \
+              -M virt \
+              -cpu cortex-a72 \
+              -m 1024 \
+              -nographic \
+              -kernel "$image" \
+              -initrd "$initrd" \
+              -append 'console=ttyAMA0 rdinit=/init' \
+              > "$log" 2>&1
+            code=$?
+            set -e
+            cat "$log"
+            grep -q 'MTP2026 GUEST SYSTEM' "$log"
+            grep -q "MTP2026\\[${profile}\\]>" "$log"
+            if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then exit "$code"; fi
+          done
+
+      - name: Publish build manifest
+        run: |
+          cp os/mtp2026-linux-arm64/out/artifacts/mtp2026-arm64-guest-manifest.json os/mtp2026-linux-arm64/out/artifacts/guest-manifest.json
+          sha256sum os/mtp2026-linux-arm64/out/artifacts/*/* 2>/dev/null | sort > os/mtp2026-linux-arm64/out/artifacts/SHA256SUMS.txt || true
 
       - name: Upload bootable ARM64 OS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: mtp2026-device-os-arm64
+          name: mtp2026-four-arm64-guest-profiles
           path: |
-            os/mtp2026-linux-arm64/out/artifacts/mtp2026-arm64-linux.Image
-            os/mtp2026-linux-arm64/out/artifacts/mtp2026-initramfs.cpio.gz
+            os/mtp2026-linux-arm64/out/artifacts/**/*.Image
+            os/mtp2026-linux-arm64/out/artifacts/**/*.cpio.gz
+            os/mtp2026-linux-arm64/out/artifacts/guest-manifest.json
+            os/mtp2026-linux-arm64/out/artifacts/SHA256SUMS.txt
