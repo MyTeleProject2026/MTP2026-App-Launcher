@@ -1,0 +1,54 @@
+{
+  "schema": "mtp2026-guest-profile-v1",
+  "architecture": "arm64",
+  "hostModel": "qemu-aarch64-virt",
+  "profiles": {
+    "mtp2026": {
+      "id": "mtp2026",
+      "name": "MTP2026 Device OS",
+      "uiFamily": "mtp2026-mobile",
+      "account": "VexaAccount",
+      "store": "VexaStore",
+      "browser": "MTP2026 Browser",
+      "source": "MTP2026-App-Launcher"
+    },
+    "android": {
+      "id": "android",
+      "name": "MTP2026 Android OS",
+      "uiFamily": "android-mobile",
+      "account": "VexaAccount",
+      "store": "VexaStore",
+      "browser": "MTP2026 Browser",
+      "source": "MTP2026-App-Launcher"
+    },
+    "ios": {
+      "id": "ios",
+      "name": "MTP2026 Device OS",
+      "uiFamily": "mtp2026-mobile",
+      "account": "VexaAccount",
+      "store": "VexaStore",
+      "browser": "MTP2026 Browser",
+      "source": "MTP2026-App-Launcher",
+      "proprietaryBase": false
+    },
+    "windows11": {
+      "id": "windows11",
+      "name": "MTP2026 Desktop OS",
+      "uiFamily": "windows-desktop",
+      "account": "VexaAccount",
+      "store": "VexaStore",
+      "browser": "MTP2026 Browser",
+      "source": "MTP2026-App-Launcher",
+      "proprietaryBase": false
+    },
+    "gaming": {
+      "id": "gaming",
+      "name": "MTP2026 Gaming OS",
+      "uiFamily": "gaming-desktop",
+      "account": "VexaAccount",
+      "store": "VexaStore",
+      "browser": "MTP2026 Browser",
+      "source": "MTP2026-App-Launcher"
+    }
+  }
+}
