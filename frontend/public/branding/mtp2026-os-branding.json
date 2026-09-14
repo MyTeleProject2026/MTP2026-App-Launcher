@@ -7,8 +7,7 @@
   "architecture": "arm64",
   "logo": {
     "mark": "/branding/mtp2026-mark.svg",
-    "horizontal": "/branding/mtp2026-logo-horizontal.svg",
-    "sheet": "/branding/mtp2026-brand-sheet.png"
+    "horizontal": "/branding/mtp2026-logo-horizontal.svg"
   },
   "identity": {
     "provider": "VexaAccount",
