@@ -1,0 +1,34 @@
+{
+  "schema": "mtp2026-os-branding-v1",
+  "name": "MTP2026",
+  "deviceName": "MTP2026 Device",
+  "osName": "MTP2026 Device OS",
+  "tagline": "SYSTEM BUILDER • CODE CREATOR • VISION MAKER",
+  "architecture": "arm64",
+  "logo": {
+    "mark": "/branding/mtp2026-mark.svg",
+    "horizontal": "/branding/mtp2026-logo-horizontal.svg",
+    "sheet": "/branding/mtp2026-brand-sheet.png"
+  },
+  "identity": {
+    "provider": "VexaAccount",
+    "role": "device-and-application-identity"
+  },
+  "store": {
+    "provider": "VexaStore",
+    "url": "https://www.vexastore.2bd.net/",
+    "installMessage": "MTP2026_VEXASTORE_INSTALL"
+  },
+  "guestProfiles": [
+    { "id": "mtp2026", "label": "MTP2026 Device OS", "layout": "mobile" },
+    { "id": "android", "label": "MTP2026 Android OS", "layout": "mobile" },
+    { "id": "windows11", "label": "MTP2026 Desktop OS", "layout": "desktop" },
+    { "id": "gaming", "label": "MTP2026 Gaming OS", "layout": "gaming" }
+  ],
+  "applicationContract": {
+    "webApps": "run-in-mtp2026-app-window",
+    "androidPackages": "host-android-package-installer",
+    "windowsPackages": "host-windows-installer",
+    "iosPackages": "apple-authorized-install-path-only"
+  }
+}
