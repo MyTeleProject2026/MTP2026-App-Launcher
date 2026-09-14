@@ -21,6 +21,7 @@ import './mtp2026VexaStoreRuntime.js';
 import './mtp2026GuestProfiles.js';
 import './mtp2026GuestShell.js';
 import './mtp2026GuestShell.css';
+import './mtp2026UniversalOS.js';
 
 export function getNativeCapabilities() {
   return nativeCapabilities();
