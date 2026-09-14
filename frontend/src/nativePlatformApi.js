@@ -44,6 +44,7 @@ export function nativeCapabilities() {
     gamepad: 'getGamepads' in navigator && host !== 'ios',
     windowManagement: host === 'windows',
     guestRuntime: Boolean(window.MTP2026GuestBoot),
+    packageInstaller: host === 'android' || host === 'windows',
   });
 }
 
@@ -69,6 +70,37 @@ export async function setNativeMode(mode) {
     void window.MTP2026Runtime?.boot?.(normalized, { nativeResult });
   } catch (_) {}
   return nativeResult;
+}
+
+/**
+ * Hand off a verified VexaStore native package to the host installer.
+ * Browser/MTP2026 WebApp mode never claims that an APK/EXE/IPA is installed.
+ * Android uses the existing PackageInstaller JavascriptInterface; Windows uses
+ * the Tauri shell command; iOS deliberately requires an Apple-authorized path.
+ */
+export async function nativeInstallPackage(url, version = '', metadata = {}) {
+  const safeUrl = String(url || '').trim();
+  if (!/^https:\/\//i.test(safeUrl)) throw new Error('NATIVE_PACKAGE_HTTPS_REQUIRED');
+
+  const host = nativeHost();
+  if (host === 'android' && typeof window.MTP2026Native?.installApkFromUrl === 'function') {
+    window.MTP2026Native.installApkFromUrl(safeUrl, metadata.packageName || '');
+    return { success: true, status: 'installer_started', host, version, requiresUserApproval: true };
+  }
+
+  if (host === 'windows' && hasTauri()) {
+    return invoke('install_package', { url: safeUrl, packageType: metadata.packageType || 'windows' });
+  }
+
+  if (host === 'ios') {
+    // iOS WebViews cannot silently sideload arbitrary IPA files. Keep the
+    // operation explicit instead of reporting a false installation result.
+    await nativeOpenExternal(safeUrl);
+    return { success: true, status: 'external_install_handoff', host, version, requiresUserApproval: true };
+  }
+
+  await nativeOpenExternal(safeUrl);
+  return { success: true, status: 'external_install_handoff', host, version, requiresUserApproval: true };
 }
 
 export async function nativeFullscreen(enter, element) {
@@ -105,7 +137,7 @@ export async function notifyNative(title, body) {
   return false;
 }
 
-window.MTP2026NativePlatform = { nativeHost, nativeCapabilities, setNativeMode, nativeFullscreen, nativeOpenExternal, notifyNative };
+window.MTP2026NativePlatform = { nativeHost, nativeCapabilities, setNativeMode, nativeInstallPackage, nativeFullscreen, nativeOpenExternal, notifyNative };
 
 const startupMode = window.localStorage?.getItem('mtp2026-default-system-os');
 if (startupMode && validModes.has(startupMode)) {
