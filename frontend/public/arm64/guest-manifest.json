@@ -1,5 +1,5 @@
 {
-  "schema": "mtp2026-guest-runtime-v4",
+  "schema": "mtp2026-guest-runtime-v5",
   "architecture": "arm64",
   "machine": "qemu-aarch64-virt",
   "controlKernel": {
@@ -9,104 +9,15 @@
     "realOs": false
   },
   "runtimeSources": {
-    "mtp2026Arm64": {
-      "type": "repository-artifact",
-      "repository": "MyTeleProject2026/MTP2026-App-Launcher",
-      "url": "https://github.com/MyTeleProject2026/MTP2026-App-Launcher",
-      "role": "MTP2026-owned-AArch64-Linux-guest-foundation"
-    },
-    "qemuWasmAarch64": {
-      "type": "github-source",
-      "repository": "ktock/qemu-wasm",
-      "url": "https://github.com/ktock/qemu-wasm",
-      "role": "browser-aarch64-system-emulator"
-    },
-    "androidLineageQemu": {
-      "type": "github-source",
-      "repository": "jqssun/android-lineage-qemu",
-      "url": "https://github.com/jqssun/android-lineage-qemu",
-      "role": "open-source-Android-arm64-guest-source"
-    }
+    "mtp2026Arm64": {"type":"repository-artifact","repository":"MyTeleProject2026/MTP2026-App-Launcher","url":"https://github.com/MyTeleProject2026/MTP2026-App-Launcher","role":"MTP2026-owned-AArch64-Linux-guest-foundation"},
+    "qemuWasmAarch64": {"type":"github-source","repository":"ktock/qemu-wasm","url":"https://github.com/ktock/qemu-wasm","role":"browser-aarch64-system-emulator"},
+    "androidGsiReference": {"type":"official-source-reference","url":"https://developer.android.com/topic/generic-system-image/releases","role":"official-Android-ARM64-reference-media"}
   },
   "guests": {
-    "mtp2026": {
-      "id": "mtp2026",
-      "name": "MTP2026 Device OS",
-      "architecture": "arm64",
-      "imageKind": "mtp2026-owned-arm64-linux",
-      "imageRequired": true,
-      "runtimeBackend": "qemu-aarch64-virt-or-native-qemu",
-      "bootProtocol": "linux-arm64-guest",
-      "installSlot": "mtp2026",
-      "runtimeSource": "mtp2026Arm64",
-      "profileManifest": "/arm64/mtp2026-guest-profiles.json",
-      "accountProvider": "VexaAccount",
-      "appStore": "VexaStore",
-      "browser": "MTP2026 Browser"
-    },
-    "android": {
-      "id": "android",
-      "name": "MTP2026 Android OS",
-      "architecture": "arm64",
-      "imageKind": "mtp2026-owned-arm64-linux-profile",
-      "imageRequired": true,
-      "runtimeBackend": "qemu-aarch64-virt-or-native-qemu",
-      "bootProtocol": "linux-arm64-guest",
-      "installSlot": "android",
-      "runtimeSource": "mtp2026Arm64",
-      "externalOsReference": "jqssun/android-lineage-qemu",
-      "externalOsReferenceUrl": "https://github.com/jqssun/android-lineage-qemu",
-      "accountProvider": "VexaAccount",
-      "appStore": "VexaStore",
-      "browser": "MTP2026 Browser"
-    },
-    "ios": {
-      "id": "ios",
-      "name": "MTP2026 Device OS",
-      "architecture": "arm64",
-      "imageKind": "mtp2026-owned-arm64-linux-profile",
-      "imageRequired": true,
-      "runtimeBackend": "qemu-aarch64-virt-or-native-qemu",
-      "bootProtocol": "linux-arm64-guest",
-      "installSlot": "ios",
-      "runtimeSource": "mtp2026Arm64",
-      "accountProvider": "VexaAccount",
-      "appStore": "VexaStore",
-      "browser": "MTP2026 Browser",
-      "notAppleFirmware": true
-    },
-    "windows11": {
-      "id": "windows11",
-      "name": "MTP2026 Desktop OS",
-      "architecture": "arm64",
-      "imageKind": "mtp2026-owned-arm64-linux-profile",
-      "imageRequired": true,
-      "runtimeBackend": "qemu-aarch64-virt-or-native-qemu",
-      "bootProtocol": "linux-arm64-guest",
-      "installSlot": "windows11",
-      "runtimeSource": "mtp2026Arm64",
-      "externalOsReference": "Microsoft Windows 11 ARM64",
-      "externalOsReferenceUrl": "https://www.microsoft.com/software-download/windows11arm64",
-      "accountProvider": "VexaAccount",
-      "appStore": "VexaStore",
-      "browser": "MTP2026 Browser",
-      "notMicrosoftFirmware": true
-    },
-    "gaming": {
-      "id": "gaming",
-      "name": "MTP2026 Gaming OS",
-      "architecture": "arm64",
-      "imageKind": "mtp2026-owned-arm64-linux-profile",
-      "imageRequired": true,
-      "runtimeBackend": "qemu-aarch64-virt-or-native-qemu",
-      "bootProtocol": "linux-arm64-guest",
-      "installSlot": "gaming",
-      "runtimeSource": "mtp2026Arm64",
-      "externalRuntimeReference": "ktock/qemu-wasm",
-      "externalRuntimeReferenceUrl": "https://github.com/ktock/qemu-wasm",
-      "accountProvider": "VexaAccount",
-      "appStore": "VexaStore",
-      "browser": "MTP2026 Browser"
-    }
+    "mtp2026": {"id":"mtp2026","name":"MTP2026 Device OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":true,"runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"linux-arm64-guest","installSlot":"mtp2026","runtimeSource":"mtp2026Arm64","profileFamily":"MTP2026","profileLayout":"mobile","accountProvider":"VexaAccount","appStore":"VexaStore","browser":"MTP2026 Browser"},
+    "android": {"id":"android","name":"MTP2026 Android OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":true,"runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"linux-arm64-guest","installSlot":"android","runtimeSource":"mtp2026Arm64","externalOsReference":"Android ARM64 GSI","externalOsReferenceUrl":"https://developer.android.com/topic/generic-system-image/releases","profileFamily":"Android-style","profileLayout":"mobile","accountProvider":"VexaAccount","appStore":"VexaStore","browser":"MTP2026 Browser"},
+    "ios": {"id":"ios","name":"MTP2026 Device OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":true,"runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"linux-arm64-guest","installSlot":"ios","runtimeSource":"mtp2026Arm64","profileFamily":"MTP2026","profileLayout":"mobile","accountProvider":"VexaAccount","appStore":"VexaStore","browser":"MTP2026 Browser","notAppleFirmware":true},
+    "windows11": {"id":"windows11","name":"MTP2026 Desktop OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":true,"runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"linux-arm64-guest","installSlot":"windows11","runtimeSource":"mtp2026Arm64","externalOsReference":"Microsoft Windows 11 ARM64","externalOsReferenceUrl":"https://www.microsoft.com/software-download/windows11arm64","profileFamily":"Desktop-style","profileLayout":"desktop","accountProvider":"VexaAccount","appStore":"VexaStore","browser":"MTP2026 Browser","notMicrosoftFirmware":true},
+    "gaming": {"id":"gaming","name":"MTP2026 Gaming OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":true,"runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"linux-arm64-guest","installSlot":"gaming","runtimeSource":"mtp2026Arm64","profileFamily":"Gaming-style","profileLayout":"gaming","accountProvider":"VexaAccount","appStore":"VexaStore","browser":"MTP2026 Browser"}
   }
 }
