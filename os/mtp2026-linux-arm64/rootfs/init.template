@@ -11,7 +11,7 @@ printf '\nProfile: %s\n' "@PROFILE_NAME@"
 printf 'Architecture: arm64\n'
 printf 'Identity: VexaAccount\n'
 printf 'Application store: VexaStore\n'
-printf 'Browser: MTP2026 Browser\n'
+printf 'Application root: /var/lib/mtp2026/apps\n'
 printf '\n'
 
 export HOME=/home
@@ -22,7 +22,7 @@ while true; do
   if ! IFS= read -r command; then exit 0; fi
   case "$command" in
     ""|help)
-      echo "Commands: help, about, memory, storage, apps, account, store, browser, reboot, poweroff"
+      echo "Commands: help, about, memory, storage, apps, account, store, browser, install <manifest-url>, reboot, poweroff"
       ;;
     about)
       cat /etc/os-release
@@ -35,16 +35,24 @@ while true; do
       df -h
       ;;
     apps)
-      echo "MTP2026 application layer: VexaStore / VexaAccount / VexaApps"
+      echo "Installed MTP2026 applications:"
+      if [ -d /var/lib/mtp2026/apps ]; then
+        find /var/lib/mtp2026/apps -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null || true
+      fi
       ;;
     account)
       echo "VexaAccount is the identity authority for this MTP2026 guest."
       ;;
     store)
       echo "VexaStore application catalog: https://www.vexastore.2bd.net/"
+      echo "Install protocol: VexaStore manifest -> verified package -> /var/lib/mtp2026/apps"
       ;;
     browser)
       echo "MTP2026 Browser is the default guest web application."
+      ;;
+    install\ *)
+      URL="${command#install }"
+      /usr/bin/mtp2026-app-install "$URL"
       ;;
     reboot)
       reboot -f
