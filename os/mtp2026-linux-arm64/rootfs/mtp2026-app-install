@@ -1,0 +1,44 @@
+#!/bin/sh
+set -eu
+
+MANIFEST="${1:-}"
+INSTALL_ROOT="/var/lib/mtp2026/apps"
+
+if [ -z "$MANIFEST" ]; then
+  echo "Usage: mtp2026-app-install <VexaStore manifest URL>" >&2
+  exit 2
+fi
+
+mkdir -p "$INSTALL_ROOT"
+TMP="/tmp/mtp2026-app.$$.json"
+trap 'rm -f "$TMP"' EXIT
+
+wget -q -O "$TMP" "$MANIFEST"
+
+APP_ID="$(sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TMP" | head -n 1)"
+APP_NAME="$(sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TMP" | head -n 1)"
+APP_URL="$(sed -n 's/.*"url"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TMP" | head -n 1)"
+APP_SHA="$(sed -n 's/.*"sha256"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TMP" | head -n 1)"
+
+[ -n "$APP_ID" ] || { echo "Invalid VexaStore manifest: missing id" >&2; exit 3; }
+[ -n "$APP_URL" ] || { echo "Invalid VexaStore manifest: missing url" >&2; exit 3; }
+
+DEST="$INSTALL_ROOT/$APP_ID"
+mkdir -p "$DEST"
+wget -q -O "$DEST/app" "$APP_URL"
+
+if [ -n "$APP_SHA" ] && command -v sha256sum >/dev/null 2>&1; then
+  ACTUAL="$(sha256sum "$DEST/app" | awk '{print $1}')"
+  [ "$ACTUAL" = "$APP_SHA" ] || { rm -rf "$DEST"; echo "VexaStore package checksum verification failed" >&2; exit 4; }
+fi
+
+cat > "$DEST/manifest.json" <<EOF
+{
+  "id": "${APP_ID}",
+  "name": "${APP_NAME}",
+  "url": "${APP_URL}",
+  "installedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+
+printf 'Installed VexaStore application: %s (%s)\n' "${APP_NAME:-$APP_ID}" "$APP_ID"
