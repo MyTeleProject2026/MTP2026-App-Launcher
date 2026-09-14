@@ -5,7 +5,7 @@ MANIFEST="${1:-}"
 INSTALL_ROOT="/var/lib/mtp2026/apps"
 
 if [ -z "$MANIFEST" ]; then
-  echo "Usage: mtp2026-app-install <VexaStore manifest URL>" >&2
+  echo "Usage: mtp2026-app-install <VexaStore install-manifest URL>" >&2
   exit 2
 fi
 
@@ -15,30 +15,29 @@ trap 'rm -f "$TMP"' EXIT
 
 wget -q -O "$TMP" "$MANIFEST"
 
-APP_ID="$(sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TMP" | head -n 1)"
+# VexaStore v3 publishes the application identity under app and the web
+# application launch URL under webApp. Keep the guest installer dependency-
+# light so the same initramfs works on every ARM64 MTP2026 profile.
+APP_ID="$(sed -n 's/.*"id"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$TMP" | head -n 1)"
 APP_NAME="$(sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TMP" | head -n 1)"
-APP_URL="$(sed -n 's/.*"url"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TMP" | head -n 1)"
-APP_SHA="$(sed -n 's/.*"sha256"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TMP" | head -n 1)"
+APP_URL="$(sed -n '/"webApp"[[:space:]]*:/,/"nativePackages"/ s/.*"url"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TMP" | head -n 1)"
+APP_SHA="$(sed -n '/"webApp"[[:space:]]*:/,/"nativePackages"/ s/.*"sha256"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TMP" | head -n 1)"
 
-[ -n "$APP_ID" ] || { echo "Invalid VexaStore manifest: missing id" >&2; exit 3; }
-[ -n "$APP_URL" ] || { echo "Invalid VexaStore manifest: missing url" >&2; exit 3; }
+[ -n "$APP_ID" ] || { echo "Invalid VexaStore manifest: missing app.id" >&2; exit 3; }
+[ -n "$APP_URL" ] || { echo "Invalid VexaStore manifest: missing webApp.url" >&2; exit 3; }
 
 DEST="$INSTALL_ROOT/$APP_ID"
 mkdir -p "$DEST"
-wget -q -O "$DEST/app" "$APP_URL"
+cp "$TMP" "$DEST/manifest.json"
+printf '%s\n' "$APP_URL" > "$DEST/launch.url"
+printf '%s\n' "webapp" > "$DEST/type"
 
-if [ -n "$APP_SHA" ] && command -v sha256sum >/dev/null 2>&1; then
-  ACTUAL="$(sha256sum "$DEST/app" | awk '{print $1}')"
-  [ "$ACTUAL" = "$APP_SHA" ] || { rm -rf "$DEST"; echo "VexaStore package checksum verification failed" >&2; exit 4; }
+# Native packages remain host-controlled security boundaries. Android uses
+# PackageInstaller, iOS uses Apple-authorized distribution, and Windows uses
+# the host installer/UAC. MTP2026 does not silently bypass those controls.
+if [ -n "$APP_SHA" ]; then
+  printf '%s\n' "$APP_SHA" > "$DEST/sha256"
 fi
 
-cat > "$DEST/manifest.json" <<EOF
-{
-  "id": "${APP_ID}",
-  "name": "${APP_NAME}",
-  "url": "${APP_URL}",
-  "installedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-}
-EOF
-
-printf 'Installed VexaStore application: %s (%s)\n' "${APP_NAME:-$APP_ID}" "$APP_ID"
+printf 'Installed VexaStore WebApp: %s (%s)\n' "${APP_NAME:-$APP_ID}" "$APP_ID"
+printf 'Launch URL: %s\n' "$APP_URL"
