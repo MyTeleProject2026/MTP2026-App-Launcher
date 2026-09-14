@@ -1,7 +1,7 @@
 {
   "id": "mtp2026-device-os",
   "name": "MTP2026 Device OS",
-  "version": "0.1.0-foundation",
+  "version": "0.2.0-real-runtime-foundation",
   "architecture": ["arm64"],
   "identity": {
     "provider": "VexaAccount",
@@ -12,7 +12,8 @@
   },
   "branding": {
     "icon": "/icon.svg",
-    "brandGuide": "/branding/README.md"
+    "brandGuide": "/branding/README.md",
+    "provenance": "/branding/brand-provenance.json"
   },
   "storage": {
     "model": "logical-partitions",
@@ -23,6 +24,15 @@
       {"id":"applications","purpose":"installed MTP2026 apps, manifests and package metadata"},
       {"id":"cache","purpose":"temporary runtime and web cache data"}
     ]
+  },
+  "packageManager": {
+    "id": "vexastore-package-manager",
+    "store": "VexaStore",
+    "artifact": "apk",
+    "verification": ["HTTPS", "publisher-signature", "package-name", "platform-package-installer"],
+    "nativeAndroid": "PackageInstaller",
+    "browser": "web-app-only",
+    "automaticInstall": "requires-native-installer-privilege-or-platform-user-approval"
   },
   "runtime": {
     "controlPlane": "MTP2026 App Launcher",
