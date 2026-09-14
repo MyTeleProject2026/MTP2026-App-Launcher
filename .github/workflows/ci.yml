@@ -51,6 +51,7 @@ jobs:
           node --check frontend/src/guestBootController.js
           node --check frontend/src/mtp2026GuestProfiles.js
           node --check frontend/src/mtp2026GuestShell.js
+          node --check frontend/src/mtp2026UniversalOS.js
           node --check frontend/src/mtp2026VexaStoreRuntime.js
           node --check frontend/src/startupOrchestrator.js
           node --check frontend/src/systemBootExperience.js
