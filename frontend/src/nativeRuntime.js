@@ -22,6 +22,7 @@ import './mtp2026OsPackageRuntime.js';
 import './mtp2026GuestProfiles.js';
 import './mtp2026GuestShell.js';
 import './mtp2026GuestShell.css';
+import './mtp2026GuestShellEnhancements.js';
 import './mtp2026UniversalOS.js';
 import './mtp2026UniversalOS.css';
 import './mtp2026VexaAccountSSO.js';
