@@ -1,14 +1,14 @@
 /* MTP2026 <-> VexaStore installer bridge.
  * WebApps are registered in the authenticated MTP2026 application library and
- * mirrored locally for all four MTP2026-owned guest profiles. Native APK/EXE/IPA
- * packages are delegated to the real host installer; browser code never bypasses
+ * mirrored locally for all four MTP2026-owned guest profiles. Native packages
+ * are delegated to the real host installer; browser code never bypasses
  * Android/iOS/Windows security controls.
  */
 
 const VEXASTORE_API = 'https://api-vexastore.onrender.com/api';
 const VEXASTORE_ORIGIN = 'https://www.vexastore.2bd.net';
 const MTP_API = (window.__MTP_API_BASE__ || 'https://mtp2026-app-launcher-backend.onrender.com/api').replace(/\/$/, '');
-const REGISTRY_KEY = 'mtp2026-installed-vexastore-apps-v4';
+const REGISTRY_KEY = 'mtp2026-installed-vexastore-apps-v5';
 const VALID_MODES = new Set(['mtp2026', 'ios', 'android', 'windows', 'windows11', 'gaming']);
 const GUEST_MODES = ['mtp2026', 'android', 'windows11', 'gaming'];
 
@@ -29,9 +29,30 @@ function activateMode(mode) {
   window.dispatchEvent(new CustomEvent('mtp2026:default-system-os', { detail: { mode: normalized } }));
   return normalized;
 }
-function assertTrustedUrl(value) { const url = new URL(String(value || '')); if (url.protocol !== 'https:') throw new Error('VEXASTORE_URL_MUST_BE_HTTPS'); return url.toString(); }
+function emitInstallStatus(status, detail = {}) {
+  window.dispatchEvent(new CustomEvent('mtp2026:vexastore-install-status', { detail: { status, mode: currentMode(), ...detail } }));
+}
+function assertTrustedUrl(value) {
+  const url = new URL(String(value || ''));
+  if (url.protocol !== 'https:') throw new Error('VEXASTORE_URL_MUST_BE_HTTPS');
+  if (url.username || url.password) throw new Error('VEXASTORE_URL_INVALID');
+  return url.toString();
+}
 
 export function getInstalledVexaApps() { return Object.values(getRegistry()); }
+export function isVexaAppInstalled(slug) {
+  const target = String(slug || '').toLowerCase();
+  return getInstalledVexaApps().some(app => String(app.slug || '').toLowerCase() === target);
+}
+export function uninstallVexaStoreApp(slug) {
+  const registry = getRegistry();
+  const key = Object.keys(registry).find(id => String(registry[id]?.slug || '').toLowerCase() === String(slug || '').toLowerCase());
+  if (!key) return false;
+  delete registry[key];
+  saveRegistry(registry);
+  window.dispatchEvent(new CustomEvent('mtp2026:vexastore-uninstalled', { detail: { slug } }));
+  return true;
+}
 
 export async function syncInstalledVexaApps() {
   try {
@@ -42,7 +63,8 @@ export async function syncInstalledVexaApps() {
     const registry = getRegistry();
     for (const app of apps) {
       if (!app?.url) continue;
-      const key = String(app.id || app.url); const existing = registry[key] || {};
+      const key = String(app.id || app.url);
+      const existing = registry[key] || {};
       registry[key] = { ...existing, id: app.id, slug: app.slug || app.id, name: app.title || app.name || 'VexaApp', title: app.title || app.name || 'VexaApp', description: app.description || '', url: app.url, iconUrl: app.userIconUrl || app.iconUrl || null, version: app.version || null, source: 'VexaStore', installedAt: existing.installedAt || app.installedAt || app.lastOpenedAt || new Date().toISOString(), guestModes: GUEST_MODES, installedProfiles: existing.installedProfiles || GUEST_MODES, guestMode: currentMode() };
     }
     saveRegistry(registry);
@@ -52,10 +74,13 @@ export async function syncInstalledVexaApps() {
 }
 
 export async function fetchVexaStoreManifest(slug) {
-  const response = await fetch(`${VEXASTORE_API}/platform/apps/${encodeURIComponent(slug)}/install-manifest`, { credentials: 'omit', cache: 'no-store' });
+  const safeSlug = encodeURIComponent(String(slug || '').trim());
+  if (!safeSlug) throw new Error('VEXASTORE_SLUG_REQUIRED');
+  emitInstallStatus('manifest-loading', { slug });
+  const response = await fetch(`${VEXASTORE_API}/platform/apps/${safeSlug}/install-manifest`, { credentials: 'omit', cache: 'no-store' });
   if (!response.ok) throw new Error(`VEXASTORE_MANIFEST_${response.status}`);
   const payload = await response.json();
-  if (!payload.success || !payload.data) throw new Error('VEXASTORE_INVALID_INSTALL_MANIFEST');
+  if (!payload.success || !payload.data?.app?.slug) throw new Error('VEXASTORE_INVALID_INSTALL_MANIFEST');
   return payload.data;
 }
 
@@ -69,8 +94,13 @@ async function registerWebAppInMtp2026(app, guestMode) {
 
 async function installNativePackage(native, mode) {
   if (!native?.url) throw new Error(`VEXASTORE_NATIVE_PACKAGE_UNAVAILABLE_${mode}`);
-  const url = assertTrustedUrl(native.url); const bridge = window.MTP2026NativePlatform;
-  if (typeof bridge?.nativeInstallPackage === 'function') return bridge.nativeInstallPackage(url, native.version, { mode, packageName: native.packageName || null, sha256: native.sha256 || null, versionCode: native.versionCode || null });
+  const url = assertTrustedUrl(native.url);
+  const bridge = window.MTP2026NativePlatform;
+  if (typeof bridge?.nativeInstallPackage === 'function') {
+    emitInstallStatus('native-handoff', { mode, url, version: native.version || null });
+    const result = await bridge.nativeInstallPackage(url, native.version, { mode, packageName: native.packageName || null, sha256: native.sha256 || null, versionCode: native.versionCode || null });
+    return { ...result, url };
+  }
   window.open(url, '_blank', 'noopener,noreferrer');
   return { success: true, mode, type: 'native-handoff', requiresUserApproval: true, url };
 }
@@ -78,19 +108,47 @@ async function installNativePackage(native, mode) {
 export async function installVexaStoreApp(manifest, requestedMode = null) {
   if (!manifest?.app?.slug) throw new Error('VEXASTORE_INVALID_APP');
   const mode = activateMode(requestedMode || currentMode());
-  if (mode === 'android' && manifest.nativePackages?.android?.url && typeof window.MTP2026NativePlatform?.nativeInstallPackage === 'function') return installNativePackage(manifest.nativePackages.android, mode);
+  const appSlug = manifest.app.slug;
+  emitInstallStatus('starting', { slug: appSlug, requestedMode: requestedMode || null });
+
+  if (mode === 'android' && manifest.nativePackages?.android?.url && typeof window.MTP2026NativePlatform?.nativeInstallPackage === 'function') {
+    const result = await installNativePackage(manifest.nativePackages.android, mode);
+    emitInstallStatus('completed', { slug: appSlug, result });
+    return result;
+  }
+
   const webUrl = manifest.webApp?.url;
   if (webUrl && VALID_MODES.has(mode)) {
+    emitInstallStatus('registering', { slug: appSlug });
     let registered = null;
-    try { registered = await registerWebAppInMtp2026({ url: webUrl }, mode); } catch (error) { if (String(error?.message || '').includes('401') || String(error?.message || '').includes('AUTH')) throw error; }
-    const registry = getRegistry(); const key = String(manifest.app.id || manifest.app.slug || webUrl); const previous = registry[key] || {}; const installedProfiles = new Set(previous.installedProfiles || []); GUEST_MODES.forEach(profile => installedProfiles.add(profile));
-    registry[key] = { ...previous, ...manifest.app, ...(registered || {}), name: manifest.app.name, title: manifest.app.name, url: webUrl, iconUrl: manifest.app.iconUrl || registered?.iconUrl || null, installedAt: previous.installedAt || new Date().toISOString(), version: manifest.webApp.version || registered?.version || null, installMode: 'mtp2026-webapp', guestMode: mode, guestModes: GUEST_MODES, installedProfiles: Array.from(installedProfiles), source: 'VexaStore', manifestUrl: manifest.installIntent?.manifestUrl || `${VEXASTORE_ORIGIN}/api/platform/apps/${encodeURIComponent(manifest.app.slug)}/install-manifest`, nativePackages: manifest.nativePackages || {} };
+    try { registered = await registerWebAppInMtp2026({ url: webUrl }, mode); }
+    catch (error) {
+      const message = String(error?.message || error);
+      if (/401|AUTH/i.test(message)) throw error;
+      emitInstallStatus('local-only', { slug: appSlug, reason: message });
+    }
+
+    const registry = getRegistry();
+    const key = String(manifest.app.id || appSlug || webUrl);
+    const previous = registry[key] || {};
+    const installedProfiles = new Set(previous.installedProfiles || []);
+    GUEST_MODES.forEach(profile => installedProfiles.add(profile));
+    registry[key] = { ...previous, ...manifest.app, ...(registered || {}), name: manifest.app.name, title: manifest.app.name, url: webUrl, iconUrl: manifest.app.iconUrl || registered?.iconUrl || null, installedAt: previous.installedAt || new Date().toISOString(), version: manifest.webApp.version || registered?.version || null, installMode: 'mtp2026-webapp', guestMode: mode, guestModes: GUEST_MODES, installedProfiles: Array.from(installedProfiles), source: 'VexaStore', manifestUrl: manifest.installIntent?.manifestUrl || `${VEXASTORE_ORIGIN}/api/platform/apps/${encodeURIComponent(appSlug)}/install-manifest`, nativePackages: manifest.nativePackages || {} };
     saveRegistry(registry);
     window.dispatchEvent(new CustomEvent('mtp2026:vexastore-installed', { detail: registry[key] }));
-    return { success: true, mode, type: 'webapp', cloudRegistered: Boolean(registered), app: registry[key] };
+    const result = { success: true, mode, type: 'webapp', cloudRegistered: Boolean(registered), app: registry[key] };
+    emitInstallStatus('completed', { slug: appSlug, result });
+    return result;
   }
-  return installNativePackage(manifest.nativePackages?.[mode], mode);
+
+  const result = await installNativePackage(manifest.nativePackages?.[mode], mode);
+  emitInstallStatus('completed', { slug: appSlug, result });
+  return result;
 }
 
-export async function installVexaStoreSlug(slug, requestedMode = null) { const manifest = await fetchVexaStoreManifest(slug); return installVexaStoreApp(manifest, requestedMode); }
-window.MTP2026VexaStoreInstaller = { fetchVexaStoreManifest, installVexaStoreApp, installVexaStoreSlug, getInstalledVexaApps, syncInstalledVexaApps };
+export async function installVexaStoreSlug(slug, requestedMode = null) {
+  const manifest = await fetchVexaStoreManifest(slug);
+  return installVexaStoreApp(manifest, requestedMode);
+}
+
+window.MTP2026VexaStoreInstaller = { fetchVexaStoreManifest, installVexaStoreApp, installVexaStoreSlug, getInstalledVexaApps, isVexaAppInstalled, uninstallVexaStoreApp, syncInstalledVexaApps };
