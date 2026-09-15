@@ -27,6 +27,19 @@ async function readJson(url, options = {}) {
   return response.json();
 }
 
+function mergeGuestProfile(staticProfile = {}, runtimeProfile = {}) {
+  const staticOwned = String(staticProfile.imageKind || '').startsWith('mtp2026-owned-');
+  const runtimeImageSource = runtimeProfile.imageSource?.url || runtimeProfile.imageUrl || null;
+
+  // A stale backend configuration must never silently turn an MTP2026-owned
+  // profile into an external/proprietary OS contract. Only an explicit runtime
+  // source is allowed to override the static ownership contract.
+  if (staticOwned && !runtimeImageSource) {
+    return { ...runtimeProfile, ...staticProfile };
+  }
+  return { ...staticProfile, ...runtimeProfile };
+}
+
 async function loadManifest() {
   if (!manifestPromise) {
     manifestPromise = (async () => {
@@ -42,16 +55,15 @@ async function loadManifest() {
       // always retained as a safe fallback.
       try {
         const runtime = await readJson(`${API_BASE}/guest-runtime-manifest`);
+        const ids = Object.keys({ ...(staticManifest.guests || {}), ...(runtime.guests || {}) });
         return {
           ...staticManifest,
           ...runtime,
           controlKernel: { ...(staticManifest.controlKernel || {}), ...(runtime.controlKernel || {}) },
-          guests: Object.fromEntries(
-            Object.keys({ ...(staticManifest.guests || {}), ...(runtime.guests || {}) }).map(id => [
-              id,
-              { ...(staticManifest.guests?.[id] || {}), ...(runtime.guests?.[id] || {}) },
-            ]),
-          ),
+          guests: Object.fromEntries(ids.map(id => [
+            id,
+            mergeGuestProfile(staticManifest.guests?.[id] || {}, runtime.guests?.[id] || {}),
+          ])),
         };
       } catch (_) {
         return staticManifest;
