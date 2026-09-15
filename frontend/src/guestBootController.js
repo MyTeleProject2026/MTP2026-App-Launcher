@@ -1,9 +1,8 @@
 /* MTP2026 guest boot coordinator.
  *
- * Every selectable profile is an MTP2026-owned guest OS contract. The
- * control kernel is only the runtime/control plane. The four profiles may
- * use the MTP2026 ARM64 Linux foundation and their own UI/personality, while
- * externally supplied Android/Windows/iOS media remains separately identified.
+ * The deployed web launcher uses the four MTP2026-owned guest personalities
+ * as production Web-OS shells. Native VM/emulator hosts may additionally boot
+ * the real ARM64 image. Proprietary/external media remains explicitly gated.
  */
 
 import { getGuestSystem, normalizeGuestSystem } from './guestSystemRegistry.js';
@@ -52,7 +51,7 @@ export async function installGuestImage(mode, image, metadata = {}) {
 }
 
 async function missingImageState(id, contract, reason = `GUEST_IMAGE_NOT_INSTALLED_${id}`) {
-  const next = publish({ id, phase: 'needs-install', running: false, provider: nativeProvider()?.bootGuest ? 'native-vm' : 'arm64-wasm', guestKind: 'mtp2026-owned-guest-os', error: reason, recoverable: true, requiresGuestImage: true, contract, progress: 0 });
+  const next = publish({ id, phase: 'needs-install', running: false, provider: nativeProvider()?.bootGuest ? 'native-vm' : 'native-required', guestKind: 'external-guest-os', error: reason, recoverable: true, requiresGuestImage: true, contract, progress: 0 });
   window.dispatchEvent(new CustomEvent('mtp2026:guest-image-required', { detail: { id, contract, code: reason, recoverable: true } }));
   return next;
 }
@@ -64,7 +63,7 @@ export async function bootGuest(mode, options = {}) {
   const token = `${id}:${Date.now()}`;
   const native = nativeProvider();
 
-  publish({ id, phase: 'splash', running: false, provider: native?.bootGuest ? 'native-vm' : 'arm64-wasm', error: null, token, guestKind: controlKernel ? 'mtp2026-control-guest' : 'mtp2026-owned-guest-os', recoverable: false, requiresGuestImage: false });
+  publish({ id, phase: 'splash', running: false, provider: native?.bootGuest ? 'native-vm' : 'web-os-shell', error: null, token, guestKind: controlKernel ? 'mtp2026-control-guest' : 'mtp2026-owned-guest-os', recoverable: false, requiresGuestImage: false });
 
   try {
     const metadata = await loadGuestMetadata(id).catch(() => null);
@@ -72,19 +71,38 @@ export async function bootGuest(mode, options = {}) {
     const ownProfile = contract.imageKind === 'mtp2026-owned-arm64-linux-profile' || contract.imageKind === 'mtp2026-owned-arm64-linux';
     const externalImage = contract.imageKind === 'real-os-image';
 
-    if (!controlKernel) {
-      if (!system.requiresImage || (!ownProfile && !externalImage)) return missingImageState(id, contract, `GUEST_IMAGE_CONTRACT_MISSING_${id}`);
-      if (!(await isInstalledImage(id, metadata))) return missingImageState(id, contract);
+    // The deployed web product is a Web-OS. Its four MTP2026-owned profiles
+    // are usable without pretending that a browser has booted a Linux kernel.
+    // A native VM/emulator can replace the shell with the real ARM64 guest.
+    if (!controlKernel && ownProfile && !native?.bootGuest) {
+      publish({ phase: 'prepare', metadata, contract, controlKernel: false, provider: 'web-os-shell', guestKind: 'mtp2026-owned-guest-os', recoverable: false });
+      const result = { success: true, provider: 'web-os-shell', id, architecture: 'arm64', execution: 'MTP2026-owned-web-os-profile' };
+      await saveGuestMetadata(id, { ...(metadata || {}), provider: 'web-os-shell', architecture: 'arm64', guestKind: 'mtp2026-owned-guest-os', bootProtocol: contract.bootProtocol, status: 'ready', installError: null, runningAt: new Date().toISOString() });
+      window.dispatchEvent(new CustomEvent('mtp2026:guest-shell-ready', { detail: { id, contract, result } }));
+      publish({ phase: 'ready', running: true, provider: 'web-os-shell', result, contract, guestKind: 'mtp2026-owned-guest-os', error: null, recoverable: false, progress: 100 });
+      return getGuestState();
+    }
+
+    if (!controlKernel && externalImage) {
+      if (!native?.bootGuest && !(await isInstalledImage(id, metadata))) return missingImageState(id, contract, `REAL_GUEST_IMAGE_NOT_INSTALLED_${id}`);
+      if (!native?.bootGuest) return missingImageState(id, contract, `REAL_GUEST_NATIVE_PROVIDER_REQUIRED_${id}`);
+    }
+
+    if (!controlKernel && !system.requiresImage) return missingImageState(id, contract, `GUEST_IMAGE_CONTRACT_MISSING_${id}`);
+    if (!controlKernel && !ownProfile && !externalImage) return missingImageState(id, contract, `GUEST_IMAGE_CONTRACT_MISSING_${id}`);
+
+    if (!controlKernel && ownProfile && native?.bootGuest && !(await isInstalledImage(id, metadata))) {
+      return missingImageState(id, contract, `MTP2026_NATIVE_IMAGE_NOT_INSTALLED_${id}`);
     }
 
     publish({ phase: 'prepare', metadata, contract, controlKernel, recoverable: false });
     publish({ phase: 'booting', progress: 35, recoverable: false });
 
     const result = await bootArm64Guest({ id, image: resolveImageOption(options, metadata), storage: options.storage || metadata?.storage || null, controlKernel, guestContract: contract });
-    const provider = result?.provider || 'arm64-wasm';
+    const provider = result?.provider || (native?.bootGuest ? 'native-vm' : 'web-os-shell');
 
     await saveGuestMetadata(id, {
-      ...metadata,
+      ...(metadata || {}),
       image: result?.image || metadata?.image || null,
       provider,
       architecture: system.architecture,
