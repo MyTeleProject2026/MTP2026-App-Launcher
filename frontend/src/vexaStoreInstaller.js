@@ -8,7 +8,7 @@
 const VEXASTORE_API = 'https://api-vexastore.onrender.com/api';
 const VEXASTORE_ORIGIN = 'https://www.vexastore.2bd.net';
 const MTP_API = (window.__MTP_API_BASE__ || 'https://mtp2026-app-launcher-backend.onrender.com/api').replace(/\/$/, '');
-const REGISTRY_KEY = 'mtp2026-installed-vexastore-apps-v5';
+const REGISTRY_KEY = 'mtp2026-installed-vexastore-apps-v6';
 const VALID_MODES = new Set(['mtp2026', 'ios', 'android', 'windows', 'windows11', 'gaming']);
 const GUEST_MODES = ['mtp2026', 'android', 'windows11', 'gaming'];
 
@@ -92,13 +92,19 @@ async function registerWebAppInMtp2026(app, guestMode) {
   return body.app || body.data || body;
 }
 
+function nativePackageForMode(manifest, mode) {
+  const packages = manifest?.nativePackages || {};
+  if (mode === 'windows11') return packages.windows11 || packages.windows || null;
+  return packages[mode] || null;
+}
+
 async function installNativePackage(native, mode) {
   if (!native?.url) throw new Error(`VEXASTORE_NATIVE_PACKAGE_UNAVAILABLE_${mode}`);
   const url = assertTrustedUrl(native.url);
   const bridge = window.MTP2026NativePlatform;
   if (typeof bridge?.nativeInstallPackage === 'function') {
-    emitInstallStatus('native-handoff', { mode, url, version: native.version || null });
-    const result = await bridge.nativeInstallPackage(url, native.version, { mode, packageName: native.packageName || null, sha256: native.sha256 || null, versionCode: native.versionCode || null });
+    emitInstallStatus('native-handoff', { mode, url, version: native.version || null, packageType: native.packageType || mode });
+    const result = await bridge.nativeInstallPackage(url, native.version, { mode, packageType: native.packageType || mode, packageName: native.packageName || null, sha256: native.sha256 || null, versionCode: native.versionCode || null });
     return { ...result, url };
   }
   window.open(url, '_blank', 'noopener,noreferrer');
@@ -111,14 +117,20 @@ export async function installVexaStoreApp(manifest, requestedMode = null) {
   const appSlug = manifest.app.slug;
   emitInstallStatus('starting', { slug: appSlug, requestedMode: requestedMode || null });
 
-  if (mode === 'android' && manifest.nativePackages?.android?.url && typeof window.MTP2026NativePlatform?.nativeInstallPackage === 'function') {
-    const result = await installNativePackage(manifest.nativePackages.android, mode);
-    emitInstallStatus('completed', { slug: appSlug, result });
-    return result;
+  const native = nativePackageForMode(manifest, mode);
+  if (native?.url && (mode === 'android' || mode === 'windows11' || mode === 'gaming')) {
+    const host = window.MTP2026NativePlatform?.nativeHost?.();
+    // Native package installation is only attempted when the current host can
+    // actually own that package type. Otherwise the WebApp edition is used.
+    if ((mode === 'android' && host === 'android') || (mode === 'windows11' && host === 'windows') || (mode === 'gaming' && (host === 'windows' || host === 'android'))) {
+      const result = await installNativePackage(native, mode);
+      emitInstallStatus('completed', { slug: appSlug, result });
+      return result;
+    }
   }
 
   const webUrl = manifest.webApp?.url;
-  if (webUrl && VALID_MODES.has(mode)) {
+  if (webUrl && GUEST_MODES.includes(mode)) {
     emitInstallStatus('registering', { slug: appSlug });
     let registered = null;
     try { registered = await registerWebAppInMtp2026({ url: webUrl }, mode); }
@@ -141,9 +153,9 @@ export async function installVexaStoreApp(manifest, requestedMode = null) {
     return result;
   }
 
-  const result = await installNativePackage(manifest.nativePackages?.[mode], mode);
-  emitInstallStatus('completed', { slug: appSlug, result });
-  return result;
+  if (mode === 'mtp2026') throw new Error('VEXASTORE_WEBAPP_REQUIRED_FOR_MTP2026');
+  if (mode === 'ios') throw new Error('VEXASTORE_IOS_USES_MTP2026_WEBAPP_OR_APPLE_AUTHORIZED_DISTRIBUTION');
+  throw new Error(`VEXASTORE_INSTALL_TARGET_UNAVAILABLE_${mode}`);
 }
 
 export async function installVexaStoreSlug(slug, requestedMode = null) {
