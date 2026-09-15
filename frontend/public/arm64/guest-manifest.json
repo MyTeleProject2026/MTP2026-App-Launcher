@@ -1,5 +1,5 @@
 {
-  "schema": "mtp2026-guest-runtime-v6",
+  "schema": "mtp2026-guest-runtime-v7",
   "architecture": "arm64",
   "machine": "qemu-aarch64-virt",
   "controlKernel": {
@@ -22,7 +22,7 @@
       "type": "repository-source",
       "repository": "MyTeleProject2026/MTP2026-App-Launcher",
       "url": "https://github.com/MyTeleProject2026/MTP2026-App-Launcher",
-      "role": "MTP2026-owned AArch64 Linux guest foundation",
+      "role": "MTP2026-owned AArch64 Linux/Web-OS foundation",
       "license": "project-defined"
     },
     "qemuWasmAarch64": {
@@ -45,10 +45,10 @@
       "role": "official Android ARM64 reference media",
       "bundled": false
     },
-    "gamingArmadaReference": {
+    "gamingArm64Reference": {
       "type": "published-github-project-reference",
-      "repository": "armada-os/armada",
-      "url": "https://github.com/armada-os/armada",
+      "repository": "batocera-linux/batocera.linux",
+      "url": "https://github.com/batocera-linux/batocera.linux",
       "role": "optional external ARM64 gaming Linux reference",
       "bundled": false,
       "requiresCompatibleImage": true
@@ -69,38 +69,37 @@
   },
   "guests": {
     "mtp2026": {
-      "id":"mtp2026","name":"MTP2026 Device OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":true,
-      "runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"linux-arm64-guest","installSlot":"mtp2026","runtimeSource":"mtp2026Arm64",
+      "id":"mtp2026","name":"MTP2026 Device OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":false,
+      "runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"mtp2026-device-arm64-webos","installSlot":"mtp2026","runtimeSource":"mtp2026Arm64",
       "profileFamily":"MTP2026","profileLayout":"mobile","accountProvider":"VexaAccount","appStore":"VexaStore","browser":"MTP2026 Browser",
-      "appRuntime":"webapp-registry-plus-native-host-installer"
+      "appRuntime":"webapp-registry-plus-native-host-installer","optionalNativeImage":true
     },
     "android": {
-      "id":"android","name":"MTP2026 Android OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":true,
-      "runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"linux-arm64-guest","installSlot":"android","runtimeSource":"mtp2026Arm64",
+      "id":"android","name":"MTP2026 Android OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":false,
+      "runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"mtp2026-android-arm64-webos","installSlot":"android","runtimeSource":"mtp2026Arm64",
       "externalOsReference":"Android ARM64 GSI","externalOsReferenceUrl":"https://developer.android.com/topic/generic-system-image/releases",
       "profileFamily":"Android-style","profileLayout":"mobile","accountProvider":"VexaAccount","appStore":"VexaStore","browser":"MTP2026 Browser",
-      "nativePackagePolicy":"Android PackageInstaller on a real/native Android host; MTP2026 WebApp fallback inside guest"
+      "nativePackagePolicy":"MTP2026 WebApp runtime by default; Android APK installation requires a real/native Android host PackageInstaller.","optionalNativeImage":true
     },
     "ios": {
-      "id":"ios","name":"MTP2026 Device OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":true,
-      "runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"linux-arm64-guest","installSlot":"ios","runtimeSource":"mtp2026Arm64",
+      "id":"ios","name":"MTP2026 Device OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":false,
+      "runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"mtp2026-device-arm64-webos","installSlot":"ios","runtimeSource":"mtp2026Arm64",
       "profileFamily":"MTP2026","profileLayout":"mobile","accountProvider":"VexaAccount","appStore":"VexaStore","browser":"MTP2026 Browser",
-      "notAppleFirmware":true,"nativePackagePolicy":"WebApp runtime; Apple-authorized native distribution only"
+      "notAppleFirmware":true,"nativePackagePolicy":"MTP2026 WebApp runtime; Apple-authorized native distribution only","optionalNativeImage":true
     },
     "windows11": {
-      "id":"windows11","name":"MTP2026 Desktop OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":true,
-      "runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"linux-arm64-guest","installSlot":"windows11","runtimeSource":"mtp2026Arm64",
+      "id":"windows11","name":"MTP2026 Desktop OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":false,
+      "runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"mtp2026-desktop-arm64-webos","installSlot":"windows11","runtimeSource":"mtp2026Arm64",
       "externalOsReference":"Microsoft Windows 11 ARM64","externalOsReferenceUrl":"https://www.microsoft.com/software-download/windows11arm64",
       "profileFamily":"Desktop-style","profileLayout":"desktop","accountProvider":"VexaAccount","appStore":"VexaStore","browser":"MTP2026 Browser",
-      "notMicrosoftFirmware":true,"nativePackagePolicy":"WebApp runtime; licensed Windows packages require host installer"
+      "notMicrosoftFirmware":true,"nativePackagePolicy":"MTP2026 WebApp runtime; licensed Windows packages require a user-owned licensed Windows host/VM","optionalNativeImage":true
     },
     "gaming": {
-      "id":"gaming","name":"MTP2026 Gaming OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":true,
-      "runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"linux-arm64-guest","installSlot":"gaming","runtimeSource":"mtp2026Arm64",
-      "imageSource":{"type":"mtp2026-profile-package","url":"/arm64/profiles/gaming-profile.json","sha256":"7fbc7562df49242ea76df55c2492512e339fc4f1361400a1825ce819652f59e6"},
-      "externalOsReference":"Armada ARM64 gaming Linux","externalOsReferenceUrl":"https://github.com/armada-os/armada",
+      "id":"gaming","name":"MTP2026 Gaming OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":false,
+      "runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"mtp2026-gaming-arm64-webos","installSlot":"gaming","runtimeSource":"mtp2026Arm64",
+      "externalOsReference":"Batocera ARM64 gaming Linux","externalOsReferenceUrl":"https://github.com/batocera-linux/batocera.linux",
       "profileFamily":"Gaming-style","profileLayout":"gaming","accountProvider":"VexaAccount","appStore":"VexaStore","browser":"MTP2026 Browser",
-      "nativePackagePolicy":"MTP2026 profile package in the web launcher; compatible native gaming images require host/runtime support"
+      "nativePackagePolicy":"MTP2026 WebApp runtime by default; compatible native gaming images require a supported host/runtime","optionalNativeImage":true
     }
   }
 }
