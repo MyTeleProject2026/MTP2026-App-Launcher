@@ -45,11 +45,11 @@
       "role": "official Android ARM64 reference media",
       "bundled": false
     },
-    "gamingBatocera": {
+    "gamingArmadaReference": {
       "type": "published-github-project-reference",
-      "repository": "batocera-linux/batocera.linux",
-      "url": "https://github.com/batocera-linux/batocera.linux",
-      "role": "optional ARM64 gaming Linux reference",
+      "repository": "armada-os/armada",
+      "url": "https://github.com/armada-os/armada",
+      "role": "optional external ARM64 gaming Linux reference",
       "bundled": false,
       "requiresCompatibleImage": true
     },
@@ -97,9 +97,10 @@
     "gaming": {
       "id":"gaming","name":"MTP2026 Gaming OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":true,
       "runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"linux-arm64-guest","installSlot":"gaming","runtimeSource":"mtp2026Arm64",
-      "externalOsReference":"Batocera ARM64 gaming Linux","externalOsReferenceUrl":"https://github.com/batocera-linux/batocera.linux",
+      "imageSource":{"type":"mtp2026-profile-package","url":"/arm64/profiles/gaming-profile.json","sha256":"7fbc7562df49242ea76df55c2492512e339fc4f1361400a1825ce819652f59e6"},
+      "externalOsReference":"Armada ARM64 gaming Linux","externalOsReferenceUrl":"https://github.com/armada-os/armada",
       "profileFamily":"Gaming-style","profileLayout":"gaming","accountProvider":"VexaAccount","appStore":"VexaStore","browser":"MTP2026 Browser",
-      "nativePackagePolicy":"WebApp runtime; compatible native packages require host/runtime support"
+      "nativePackagePolicy":"MTP2026 profile package in the web launcher; compatible native gaming images require host/runtime support"
     }
   }
 }
