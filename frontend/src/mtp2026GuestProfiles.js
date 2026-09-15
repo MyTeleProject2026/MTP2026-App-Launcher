@@ -1,37 +1,21 @@
 /* MTP2026 guest OS personality registry.
- * These are MTP2026-owned operating-system shells. They provide familiar
- * interaction patterns while remaining distinct from proprietary firmware.
+ * These are MTP2026-owned operating-system shells. The old `ios` selector is
+ * retained only as a migration alias and always resolves to MTP2026 Device OS.
  */
 
 export const MTP2026_GUEST_PROFILES = Object.freeze({
-  mtp2026: {
-    id:'mtp2026', label:'MTP2026 Device OS', shortLabel:'MTP2026', family:'MTP2026', layout:'mobile', navigation:'gesture', accent:'#12c8ff',
-    features:['MTP2026 Home','VexaAccount','VexaStore','Files','Control Center','Vexa Apps','In-App WebApp Runtime']
-  },
-  ios: {
-    id:'ios', label:'MTP2026 Device OS', shortLabel:'MTP2026', family:'MTP2026', layout:'mobile', navigation:'gesture', accent:'#12c8ff',
-    features:['MTP2026 Home','VexaAccount','VexaStore','Files','Control Center','Vexa Apps','In-App WebApp Runtime']
-  },
-  android: {
-    id:'android', label:'MTP2026 Android OS', shortLabel:'MTP Android', family:'MTP2026 Android', layout:'mobile', navigation:'three-button-or-gesture', accent:'#3ddc84',
-    features:['Home','App Drawer','Quick Settings','VexaAccount','VexaStore','APK host handoff','In-App WebApp Runtime']
-  },
-  windows: {
-    id:'windows', label:'MTP2026 Desktop OS', shortLabel:'MTP Desktop', family:'MTP2026 Desktop', layout:'desktop', navigation:'taskbar', accent:'#4aa8ff',
-    features:['Desktop','Start Menu','Taskbar','File Explorer','VexaAccount','VexaStore','In-App WebApp Runtime']
-  },
-  windows11: {
-    id:'windows11', label:'MTP2026 Desktop OS', shortLabel:'MTP Desktop', family:'MTP2026 Desktop', layout:'desktop', navigation:'taskbar', accent:'#4aa8ff',
-    features:['Desktop','Start Menu','Taskbar','File Explorer','VexaAccount','VexaStore','In-App WebApp Runtime']
-  },
-  gaming: {
-    id:'gaming', label:'MTP2026 Gaming OS', shortLabel:'MTP Gaming', family:'MTP2026 Gaming', layout:'gaming', navigation:'controller', accent:'#ff3d81',
-    features:['Game Hub','Performance Overlay','Controller Center','VexaAccount','VexaStore','Game Library','In-App WebApp Runtime']
-  },
+  mtp2026: { id:'mtp2026', label:'MTP2026 Device OS', shortLabel:'MTP2026', family:'MTP2026', layout:'mobile', navigation:'gesture', accent:'#12c8ff', features:['MTP2026 Home','VexaAccount','VexaStore','Files','Control Center','Vexa Apps','In-App WebApp Runtime'] },
+  ios: { id:'mtp2026', alias:'ios', label:'MTP2026 Device OS', shortLabel:'MTP2026', family:'MTP2026', layout:'mobile', navigation:'gesture', accent:'#12c8ff', features:['MTP2026 Home','VexaAccount','VexaStore','Files','Control Center','Vexa Apps','In-App WebApp Runtime'] },
+  android: { id:'android', label:'MTP2026 Android OS', shortLabel:'MTP Android', family:'MTP2026 Android', layout:'mobile', navigation:'three-button-or-gesture', accent:'#3ddc84', features:['Home','App Drawer','Quick Settings','VexaAccount','VexaStore','APK host handoff','In-App WebApp Runtime'] },
+  windows: { id:'windows11', alias:'windows', label:'MTP2026 Desktop OS', shortLabel:'MTP Desktop', family:'MTP2026 Desktop', layout:'desktop', navigation:'taskbar', accent:'#4aa8ff', features:['Desktop','Start Menu','Taskbar','File Explorer','VexaAccount','VexaStore','Native host handoff','In-App WebApp Runtime'] },
+  windows11: { id:'windows11', label:'MTP2026 Desktop OS', shortLabel:'MTP Desktop', family:'MTP2026 Desktop', layout:'desktop', navigation:'taskbar', accent:'#4aa8ff', features:['Desktop','Start Menu','Taskbar','File Explorer','VexaAccount','VexaStore','Native host handoff','In-App WebApp Runtime'] },
+  gaming: { id:'gaming', label:'MTP2026 Gaming OS', shortLabel:'MTP Gaming', family:'MTP2026 Gaming', layout:'gaming', navigation:'controller', accent:'#ff3d81', features:['Game Hub','Performance Overlay','Controller Center','VexaAccount','VexaStore','Game Library','Native host handoff','In-App WebApp Runtime'] },
 });
 
 export function normalizeMTP2026GuestProfile(mode) {
   const value = String(mode || '').toLowerCase();
+  if (value === 'ios') return MTP2026_GUEST_PROFILES.mtp2026;
+  if (value === 'windows') return MTP2026_GUEST_PROFILES.windows11;
   return MTP2026_GUEST_PROFILES[value] || MTP2026_GUEST_PROFILES.mtp2026;
 }
 export function getMTP2026GuestProfile(mode) { return normalizeMTP2026GuestProfile(mode); }
