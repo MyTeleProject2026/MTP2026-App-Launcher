@@ -1,0 +1,78 @@
+{
+  "schema": "mtp2026-os-contract-v1",
+  "product": "MTP2026",
+  "deviceName": "MTP2026 Device",
+  "architecture": "arm64",
+  "profiles": [
+    {
+      "id": "mtp2026",
+      "name": "MTP2026 Device OS",
+      "family": "MTP2026",
+      "layout": "mobile",
+      "navigation": "gesture"
+    },
+    {
+      "id": "android",
+      "name": "MTP2026 Android OS",
+      "family": "Android-style",
+      "layout": "mobile",
+      "navigation": "gesture-or-three-button"
+    },
+    {
+      "id": "windows11",
+      "name": "MTP2026 Desktop OS",
+      "family": "Desktop-style",
+      "layout": "desktop",
+      "navigation": "taskbar"
+    },
+    {
+      "id": "gaming",
+      "name": "MTP2026 Gaming OS",
+      "family": "Gaming-style",
+      "layout": "gaming",
+      "navigation": "controller"
+    }
+  ],
+  "identity": {
+    "provider": "VexaAccount",
+    "sharedAcrossProfiles": true
+  },
+  "applicationStore": {
+    "provider": "VexaStore",
+    "origin": "https://www.vexastore.2bd.net",
+    "manifestApi": "https://api-vexastore.onrender.com/api/platform/apps/{slug}/install-manifest",
+    "protocol": "MTP2026_VEXASTORE_INSTALL"
+  },
+  "applicationRuntime": {
+    "webApps": {
+      "supported": true,
+      "runtime": "sandboxed-https-iframe",
+      "registry": "VexaAccount-scoped MTP2026 application library",
+      "profiles": "all"
+    },
+    "nativePackages": {
+      "android": "host-package-installer",
+      "windows11": "host-package-installer",
+      "gaming": "host-package-installer",
+      "mtp2026": "webapp-registry",
+      "iosAlias": "mtp2026"
+    }
+  },
+  "storage": {
+    "logicalPartitions": ["system", "user", "applications", "cache"],
+    "browserBackend": ["OPFS", "IndexedDB"],
+    "nativeBackend": "native filesystem bridge when available"
+  },
+  "osFoundation": {
+    "productionTrack": "os/mtp2026-linux-arm64",
+    "kernel": "upstream Linux AArch64 with MTP2026 userspace/initramfs",
+    "machine": "qemu-aarch64-virt",
+    "longTermKernelTrack": "os/kernel"
+  },
+  "proprietaryFirmwarePolicy": {
+    "appleIOS": "not bundled; MTP2026 Device OS is the replacement personality",
+    "microsoftWindows": "not bundled; MTP2026 Desktop OS is the replacement personality",
+    "googleAndroid": "not bundled as proprietary firmware; MTP2026 Android OS is the replacement personality",
+    "gaming": "MTP2026 Gaming OS personality; compatible open-source ARM64 gaming media may be referenced separately"
+  }
+}
