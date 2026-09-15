@@ -5,12 +5,10 @@ const ROOT_ID = 'mtp2026-vexaaccount-sso';
 const ACCOUNT_URL = 'https://vexaaccount-management.onrender.com';
 const VALID_MODES = new Set(['mtp2026', 'ios', 'android', 'windows', 'windows11', 'gaming']);
 
-function mode() {
-  const value = document.documentElement.dataset.mtpDeviceMode || localStorage.getItem('mtp2026-default-system-os') || 'android';
-  return VALID_MODES.has(value) ? value : 'mtp2026';
-}
+function mode() { const value = document.documentElement.dataset.mtpDeviceMode || localStorage.getItem('mtp2026-default-system-os') || 'android'; return VALID_MODES.has(value) ? value : 'mtp2026'; }
 function esc(v) { return String(v ?? '').replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c])); }
 function profileName(session) { return session?.profile?.name || session?.profile?.email || 'VexaAccount User'; }
+function openAccountCenter() { window.open(ACCOUNT_URL, '_blank', 'noopener,noreferrer'); }
 
 function ensureStyles() {
   if (document.getElementById(`${ROOT_ID}-style`)) return;
@@ -20,35 +18,24 @@ function ensureStyles() {
 }
 
 function ensureRoot() {
-  let root = document.getElementById(ROOT_ID);
-  if (root) return root;
+  let root = document.getElementById(ROOT_ID); if (root) return root;
   root = document.createElement('div'); root.id = ROOT_ID;
-  root.innerHTML = '<div class="mtp-sso-card"><div class="mtp-sso-close"><button data-close aria-label="Close">×</button></div><h2>MTP2026 · VexaAccount</h2><p data-subtitle>Shared account for every MTP2026 OS profile.</p><div data-body></div></div>';
-  document.body.appendChild(root);
-  root.querySelector('[data-close]').onclick = () => root.classList.remove('open');
-  return root;
+  root.innerHTML = '<div class="mtp-sso-card"><div class="mtp-sso-close"><button data-close aria-label="Close">×</button></div><h2>MTP2026 · VexaAccount</h2><p>One VexaAccount SSO session is shared across every MTP2026 OS profile.</p><div data-body></div></div>';
+  document.body.appendChild(root); root.querySelector('[data-close]').onclick = () => root.classList.remove('open'); return root;
 }
 
 export async function openVexaAccountSSO(action = 'account') {
-  ensureStyles();
-  const root = ensureRoot();
-  root.classList.add('open');
-  const body = root.querySelector('[data-body]');
-  body.innerHTML = '<p>Checking VexaAccount session…</p>';
-  let session = null;
-  try { session = await getVexaSession(); } catch (_) {}
+  ensureStyles(); const root = ensureRoot(); root.classList.add('open'); const body = root.querySelector('[data-body]'); body.innerHTML = '<p>Checking VexaAccount session…</p>';
+  let session = null; try { session = await getVexaSession(); } catch (_) {}
   if (!session) {
     body.innerHTML = '<div class="mtp-sso-actions"><button class="primary" data-login>Continue with VexaAccount</button><button data-open>Open VexaAccount Management</button></div>';
     root.querySelector('[data-login]').onclick = () => startVexaLogin({ prompt: action === 'login' ? 'login' : '' });
-    root.querySelector('[data-open]').onclick = () => window.open(ACCOUNT_URL, '_blank', 'noopener,noreferrer');
+    root.querySelector('[data-open]').onclick = openAccountCenter;
     return null;
   }
   const name = profileName(session);
-  body.innerHTML = `<div class="mtp-sso-profile"><div class="mtp-sso-avatar">${esc(name.charAt(0).toUpperCase())}</div><div><b>${esc(name)}</b><p>VexaAccount session active · ${esc(mode())}</p></div></div><div class="mtp-sso-actions"><button class="primary" data-account>Open VexaAccount</button><button data-apps>Account applications & sessions</button><button data-notify>Notifications</button><button data-profile>Profile & security</button><button data-logout>Sign out</button></div>`;
-  root.querySelector('[data-account]').onclick = () => window.open(ACCOUNT_URL, '_blank', 'noopener,noreferrer');
-  root.querySelector('[data-apps]').onclick = () => window.open(`${ACCOUNT_URL}/applications`, '_blank', 'noopener,noreferrer');
-  root.querySelector('[data-notify]').onclick = () => window.open(`${ACCOUNT_URL}/notifications`, '_blank', 'noopener,noreferrer');
-  root.querySelector('[data-profile]').onclick = () => window.open(`${ACCOUNT_URL}/profile`, '_blank', 'noopener,noreferrer');
+  body.innerHTML = `<div class="mtp-sso-profile"><div class="mtp-sso-avatar">${esc(name.charAt(0).toUpperCase())}</div><div><b>${esc(name)}</b><p>VexaAccount session active · ${esc(mode())}</p></div></div><div class="mtp-sso-actions"><button class="primary" data-account>Open VexaAccount Management</button><button data-apps>Applications & sessions</button><button data-notify>Notifications</button><button data-profile>Profile & security</button><button data-logout>Sign out</button></div>`;
+  root.querySelectorAll('[data-account],[data-apps],[data-notify],[data-profile]').forEach(button => { button.onclick = openAccountCenter; });
   root.querySelector('[data-logout]').onclick = async () => { await signOut(); root.classList.remove('open'); window.dispatchEvent(new CustomEvent('mtp2026:vexaaccount-signed-out')); };
   return session;
 }
