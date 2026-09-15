@@ -1,0 +1,1 @@
+{"schema":"mtp2026-owned-guest-profile-v1","id":"gaming","name":"MTP2026 Gaming OS","architecture":"arm64","profileFamily":"Gaming-style","runtime":"web-os-profile","publisher":"MyTeleProject2026","storeProvider":"VexaStore","identityProvider":"VexaAccount","note":"MTP2026-owned web operating-system profile package; not a third-party firmware image."}
