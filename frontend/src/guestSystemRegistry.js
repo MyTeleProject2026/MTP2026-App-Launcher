@@ -1,9 +1,11 @@
 /* MTP2026 guest-system registry.
- * Four selectable guest profiles are independent MTP2026 OS contracts.
- * The bundled ARM64 control kernel is the common Linux foundation; each
- * profile has its own userspace identity, UX, storage policy and application
- * runtime contract. The ios slot is the MTP2026 Device OS profile and is not
- * Apple firmware.
+ *
+ * The four selectable profiles are MTP2026-owned Web-OS personalities.
+ * They share the ARM64 control/runtime foundation but do NOT require a
+ * separate disk image just to launch the web guest shell. Native VM images
+ * remain optional for hosts that provide a real ARM64 VM/emulator backend.
+ *
+ * The ios slot is MTP2026 Device OS and is not Apple firmware.
  */
 
 const COMMON = {
@@ -21,34 +23,34 @@ const COMMON = {
 export const GUEST_SYSTEMS = Object.freeze({
   android: Object.freeze({
     ...COMMON,
-    id: 'android', name: 'MTP2026 Android OS', class: 'mobile', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: true,
-    installSlot: 'android', bootProtocol: 'linux-arm64-guest', profileBrand: 'MTP2026 Android OS', profileFamily: 'Android-style',
+    id: 'android', name: 'MTP2026 Android OS', class: 'mobile', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: false, optionalNativeImage: true,
+    installSlot: 'android', bootProtocol: 'mtp2026-android-arm64-webos', profileBrand: 'MTP2026 Android OS', profileFamily: 'Android-style',
     profileLayout: 'mobile', navigation: 'gesture-or-three-button',
     externalReference: 'https://github.com/jqssun/android-lineage-qemu',
-    nativePackagePolicy: 'Android PackageInstaller when the real/native Android host exposes it; WebApp fallback inside MTP2026.',
+    nativePackagePolicy: 'MTP2026 WebApp runtime by default. Android APK installation is available only through a real/native Android host PackageInstaller.',
   }),
   ios: Object.freeze({
     ...COMMON,
-    id: 'ios', name: 'MTP2026 Device OS', class: 'mobile', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: true,
-    installSlot: 'ios', bootProtocol: 'mtp2026-arm64-guest', profileBrand: 'MTP2026 Device OS', profileFamily: 'MTP2026',
+    id: 'ios', name: 'MTP2026 Device OS', class: 'mobile', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: false, optionalNativeImage: true,
+    installSlot: 'ios', bootProtocol: 'mtp2026-device-arm64-webos', profileBrand: 'MTP2026 Device OS', profileFamily: 'MTP2026',
     profileLayout: 'mobile', navigation: 'gesture', notAppleFirmware: true,
     nativePackagePolicy: 'MTP2026 WebApp runtime. Apple-authorized native distribution is required for native Apple packages.',
   }),
   windows11: Object.freeze({
     ...COMMON,
-    id: 'windows11', name: 'MTP2026 Desktop OS', class: 'desktop', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: true,
-    installSlot: 'windows11', bootProtocol: 'mtp2026-desktop-arm64-guest', profileBrand: 'MTP2026 Desktop OS', profileFamily: 'Desktop-style',
+    id: 'windows11', name: 'MTP2026 Desktop OS', class: 'desktop', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: false, optionalNativeImage: true,
+    installSlot: 'windows11', bootProtocol: 'mtp2026-desktop-arm64-webos', profileBrand: 'MTP2026 Desktop OS', profileFamily: 'Desktop-style',
     profileLayout: 'desktop', navigation: 'taskbar', notMicrosoftFirmware: true,
     externalReference: 'https://www.microsoft.com/software-download/windows11arm64',
-    nativePackagePolicy: 'MTP2026 WebApp runtime. Licensed Windows packages require the host installer.',
+    nativePackagePolicy: 'MTP2026 WebApp runtime. Licensed Windows packages require a user-owned licensed Windows host/VM.',
   }),
   gaming: Object.freeze({
     ...COMMON,
-    id: 'gaming', name: 'MTP2026 Gaming OS', class: 'gaming', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: true,
-    installSlot: 'gaming', bootProtocol: 'mtp2026-gaming-arm64-guest', profileBrand: 'MTP2026 Gaming OS', profileFamily: 'Gaming-style',
+    id: 'gaming', name: 'MTP2026 Gaming OS', class: 'gaming', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: false, optionalNativeImage: true,
+    installSlot: 'gaming', bootProtocol: 'mtp2026-gaming-arm64-webos', profileBrand: 'MTP2026 Gaming OS', profileFamily: 'Gaming-style',
     profileLayout: 'gaming', navigation: 'controller',
     externalReference: 'https://github.com/batocera-linux/batocera.linux',
-    nativePackagePolicy: 'MTP2026 WebApp runtime; compatible native packages require host/runtime support.',
+    nativePackagePolicy: 'MTP2026 WebApp runtime by default; compatible native gaming images require a supported host/runtime.',
   }),
 });
 
@@ -69,7 +71,8 @@ export function getGuestRequirements(value) {
     machine: system.machine,
     imageKind: system.imageKind,
     requiresImage: system.requiresImage,
-    nativeExecutionRequired: true,
+    optionalNativeImage: Boolean(system.optionalNativeImage),
+    nativeExecutionRequired: false,
     browserExecution: system.runtimeBackend,
     installSlot: system.installSlot,
     bootProtocol: system.bootProtocol,
