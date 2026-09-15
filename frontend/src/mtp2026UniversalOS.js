@@ -1,9 +1,11 @@
 /* MTP2026 Universal Guest OS runtime.
  *
- * This is the common application layer shared by the four MTP2026-owned
- * guest personalities. It deliberately does not pretend to replace Apple,
- * Microsoft, or Google firmware. Each profile owns its UI/navigation while
- * VexaStore supplies the application contract shared across profiles.
+ * Four MTP2026-owned guest personalities share one application/runtime
+ * contract. WebApps published by VexaStore are launched inside the active
+ * guest shell so the user experiences one coherent MTP2026 OS session.
+ * Native APK/EXE/IPA packages are still handed to the real host installer
+ * where the host platform permits it; browser code never bypasses platform
+ * security controls.
  */
 
 import { getInstalledVexaApps, installVexaStoreSlug, syncInstalledVexaApps } from './vexaStoreInstaller.js';
@@ -33,6 +35,7 @@ function setProfile(mode) {
   document.documentElement.dataset.mtpGuestProfile = id;
   document.documentElement.dataset.mtpGuestLayout = PROFILES[id].layout;
   document.documentElement.dataset.mtpGuestNavigation = PROFILES[id].nav;
+  document.documentElement.dataset.mtpGuestName = PROFILES[id].name;
   window.dispatchEvent(new CustomEvent('mtp2026:universal-os-profile', { detail: { id, ...PROFILES[id] } }));
   return { id, ...PROFILES[id] };
 }
@@ -45,28 +48,56 @@ function appUrl(app) {
   return app?.url || app?.launchUrl || app?.webApp?.url || null;
 }
 
+function ensureRuntimeHost() {
+  let host = document.getElementById('mtp2026-app-runtime');
+  if (host) return host;
+  host = document.createElement('section');
+  host.id = 'mtp2026-app-runtime';
+  host.hidden = true;
+  host.setAttribute('aria-label', 'MTP2026 application runtime');
+  host.innerHTML = '<div class="mtp2026-app-runtime-toolbar"><b data-runtime-title>MTP2026 App</b><span data-runtime-profile></span><button type="button" data-close-runtime>Close</button></div><div class="mtp2026-app-runtime-frame"></div>';
+  document.body.appendChild(host);
+  host.querySelector('[data-close-runtime]')?.addEventListener('click', () => {
+    host.hidden = true;
+    const frame = host.querySelector('.mtp2026-app-runtime-frame');
+    if (frame) frame.innerHTML = '';
+  });
+  return host;
+}
+
+function trustedWebAppUrl(url) {
+  const parsed = new URL(String(url || ''), window.location.href);
+  if (parsed.protocol !== 'https:') throw new Error('MTP2026_APP_HTTPS_REQUIRED');
+  return parsed.toString();
+}
+
 async function openApp(app) {
   const url = appUrl(app);
   if (!url) throw new Error('MTP2026_APP_URL_MISSING');
 
   const mode = currentProfile();
-  window.dispatchEvent(new CustomEvent('mtp2026:app-launch', { detail: { app, mode } }));
+  const profile = PROFILES[mode];
+  const safeUrl = trustedWebAppUrl(url);
+  window.dispatchEvent(new CustomEvent('mtp2026:app-launch', { detail: { app, mode, url: safeUrl } }));
 
-  // MTP2026-owned profiles launch the WebApp inside the launcher shell.
-  // Native hosts may replace this event with a WebView/window implementation.
-  if (typeof window.MTP2026NativePlatform?.nativeOpenExternal === 'function' && mode !== 'mtp2026' && mode !== 'ios') {
-    return window.MTP2026NativePlatform.nativeOpenExternal(url);
-  }
-
-  const target = document.querySelector('#mtp2026-app-runtime');
-  if (target) {
-    target.innerHTML = `<iframe title="${String(app?.name || app?.title || 'VexaApp').replace(/"/g, '&quot;')}" src="${String(url).replace(/"/g, '&quot;')}" allow="fullscreen; autoplay; clipboard-read; clipboard-write" referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
-    target.hidden = false;
-    return true;
-  }
-
-  window.open(url, '_blank', 'noopener,noreferrer');
-  return true;
+  // Every MTP2026-owned guest profile gets the same coherent WebApp runtime.
+  // This is what makes VexaEmail/VexaTube/VexaCloud/etc. behave like installed
+  // OS applications rather than sending the user outside the guest shell.
+  const target = ensureRuntimeHost();
+  target.querySelector('[data-runtime-title]').textContent = app?.name || app?.title || 'VexaApp';
+  target.querySelector('[data-runtime-profile]').textContent = profile.name;
+  const frame = target.querySelector('.mtp2026-app-runtime-frame');
+  frame.innerHTML = '';
+  const iframe = document.createElement('iframe');
+  iframe.title = app?.name || app?.title || 'VexaApp';
+  iframe.src = safeUrl;
+  iframe.allow = 'fullscreen; autoplay; clipboard-read; clipboard-write; camera; microphone; geolocation; notifications';
+  iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+  iframe.loading = 'eager';
+  iframe.setAttribute('sandbox', 'allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts allow-downloads');
+  frame.appendChild(iframe);
+  target.hidden = false;
+  return { success: true, mode, profile: profile.name, type: 'webapp-runtime', url: safeUrl };
 }
 
 async function installFromLocation(slug) {
@@ -88,17 +119,6 @@ function installBridgeListener(event) {
   if (event.origin !== 'https://www.vexastore.2bd.net') return;
   const slug = payload.app?.slug;
   if (slug) void installFromLocation(slug).catch(() => {});
-}
-
-function ensureRuntimeHost() {
-  if (document.getElementById('mtp2026-app-runtime')) return;
-  const host = document.createElement('section');
-  host.id = 'mtp2026-app-runtime';
-  host.hidden = true;
-  host.setAttribute('aria-label', 'MTP2026 application runtime');
-  host.innerHTML = '<div class="mtp2026-app-runtime-toolbar"><b>MTP2026 App</b><button type="button" data-close-runtime>Close</button></div><div class="mtp2026-app-runtime-frame"></div>';
-  document.body.appendChild(host);
-  host.querySelector('[data-close-runtime]')?.addEventListener('click', () => { host.hidden = true; });
 }
 
 async function boot() {
