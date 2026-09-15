@@ -8,14 +8,19 @@ import { getInstalledVexaApps, installVexaStoreSlug, syncInstalledVexaApps } fro
 const PROFILE_KEY = 'mtp2026-active-guest-profile';
 const PROFILES = Object.freeze({
   mtp2026: { name: 'MTP2026 Device OS', layout: 'mobile', nav: 'gesture', storeLabel: 'VexaStore' },
-  ios: { name: 'MTP2026 Device OS', layout: 'mobile', nav: 'gesture', storeLabel: 'VexaStore' },
+  ios: { name: 'MTP2026 Device OS', alias: 'mtp2026', layout: 'mobile', nav: 'gesture', storeLabel: 'VexaStore' },
   android: { name: 'MTP2026 Android OS', layout: 'mobile', nav: 'gesture', storeLabel: 'VexaStore' },
-  windows: { name: 'MTP2026 Desktop OS', layout: 'desktop', nav: 'taskbar', storeLabel: 'VexaStore' },
+  windows: { name: 'MTP2026 Desktop OS', alias: 'windows11', layout: 'desktop', nav: 'taskbar', storeLabel: 'VexaStore' },
   windows11: { name: 'MTP2026 Desktop OS', layout: 'desktop', nav: 'taskbar', storeLabel: 'VexaStore' },
   gaming: { name: 'MTP2026 Gaming OS', layout: 'gaming', nav: 'controller', storeLabel: 'VexaStore' },
 });
 
-function normalize(mode) { const value = String(mode || '').toLowerCase(); return PROFILES[value] ? value : 'mtp2026'; }
+function normalize(mode) {
+  const value = String(mode || '').toLowerCase();
+  if (value === 'ios') return 'mtp2026';
+  if (value === 'windows') return 'windows11';
+  return PROFILES[value] ? value : 'mtp2026';
+}
 function currentProfile() { return normalize(document.documentElement.dataset.mtpDeviceMode || localStorage.getItem(PROFILE_KEY) || 'mtp2026'); }
 function setProfile(mode) {
   const id = normalize(mode); localStorage.setItem(PROFILE_KEY, id); document.documentElement.dataset.mtpGuestProfile = id; document.documentElement.dataset.mtpGuestLayout = PROFILES[id].layout; document.documentElement.dataset.mtpGuestNavigation = PROFILES[id].nav; document.documentElement.dataset.mtpGuestName = PROFILES[id].name;
