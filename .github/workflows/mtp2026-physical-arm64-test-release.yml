@@ -27,12 +27,24 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential bc bison flex libssl-dev libelf-dev \
-            cpio curl gzip rsync tar \
+            cpio curl gzip rsync tar python3 \
             gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
             qemu-system-arm
 
       - name: Build all four MTP2026 physical-test guest profiles
         run: bash os/mtp2026-guest-profiles/build-all.sh
+
+      - name: Validate all four guest artifacts exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          for profile in mtp2026 android windows11 gaming; do
+            image="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-arm64-linux.Image"
+            initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
+            test -s "$image"
+            test -s "$initrd"
+            file "$image" | grep -Eiq 'ARM aarch64|ARM64|Linux kernel'
+          done
 
       - name: Boot-test all guest profiles under AArch64 QEMU
         shell: bash
@@ -42,22 +54,27 @@ jobs:
             image="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-arm64-linux.Image"
             initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
             log="/tmp/mtp2026-${profile}.log"
+            set +e
             timeout 35s qemu-system-aarch64 \
               -M virt -cpu cortex-a72 -m 1024 -nographic \
               -kernel "$image" -initrd "$initrd" \
-              -append 'console=ttyAMA0 rdinit=/init' > "$log" 2>&1 || code=$?
-            code=${code:-0}
+              -append 'console=ttyAMA0 rdinit=/init' > "$log" 2>&1
+            code=$?
+            set -e
             cat "$log"
             grep -q 'MTP2026 GUEST SYSTEM' "$log"
-            grep -q "MTP2026\\[${profile}\\]>" "$log"
-            if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then exit "$code"; fi
-            unset code
+            grep -q "MTP2026\[${profile}\]>" "$log"
+            if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
+              echo "QEMU boot test failed for ${profile} with exit code ${code}" >&2
+              exit "$code"
+            fi
           done
 
       - name: Assemble physical test bundles and checksums
         shell: bash
         run: |
           set -euo pipefail
+          rm -rf release
           mkdir -p release
           for profile in mtp2026 android windows11 gaming; do
             dir="os/mtp2026-linux-arm64/out/artifacts/${profile}"
@@ -65,7 +82,7 @@ jobs:
               "mtp2026-${profile}-arm64-linux.Image" \
               "mtp2026-${profile}-initramfs.cpio.gz"
           done
-          sha256sum release/* > release/SHA256SUMS.txt
+          sha256sum release/mtp2026-*-arm64-guest.tar.gz > release/SHA256SUMS.txt
 
           python3 - <<'PY'
           import hashlib, json, pathlib
