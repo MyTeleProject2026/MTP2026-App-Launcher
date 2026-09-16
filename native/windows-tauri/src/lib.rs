@@ -4,7 +4,7 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs::{self, File};
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
@@ -16,18 +16,10 @@ mod native_capabilities;
 
 #[derive(Clone, Serialize)]
 struct NativeCapabilities {
-    native: bool,
-    platform: &'static str,
-    orientation_lock: bool,
-    fullscreen: bool,
-    filesystem: bool,
-    notifications: bool,
-    clipboard: bool,
-    external_apps: bool,
-    gamepad: bool,
-    window_controls: bool,
+    native: bool, platform: &'static str, orientation_lock: bool, fullscreen: bool,
+    filesystem: bool, notifications: bool, clipboard: bool, external_apps: bool,
+    gamepad: bool, window_controls: bool,
 }
-
 struct GuestProcesses(Mutex<HashMap<String, Child>>);
 
 fn guest_root(app: &tauri::AppHandle, id: &str) -> Result<PathBuf, String> {
@@ -36,243 +28,83 @@ fn guest_root(app: &tauri::AppHandle, id: &str) -> Result<PathBuf, String> {
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir)
 }
-
 fn verify_sha256(path: &PathBuf, expected: &str) -> Result<(), String> {
     let expected = expected.trim().to_ascii_lowercase();
     if expected.is_empty() { return Err("GUEST_IMAGE_SHA256_REQUIRED".into()); }
     let mut file = File::open(path).map_err(|e| e.to_string())?;
-    let mut hasher = Sha256::new();
-    let mut buffer = [0u8; 1024 * 1024];
-    loop {
-        let n = file.read(&mut buffer).map_err(|e| e.to_string())?;
-        if n == 0 { break; }
-        hasher.update(&buffer[..n]);
-    }
-    let actual = format!("{:x}", hasher.finalize());
-    if actual != expected { return Err("GUEST_IMAGE_SHA256_MISMATCH".into()); }
+    let mut hasher = Sha256::new(); let mut buffer = [0u8; 1024 * 1024];
+    loop { let n = file.read(&mut buffer).map_err(|e| e.to_string())?; if n == 0 { break; } hasher.update(&buffer[..n]); }
+    if format!("{:x}", hasher.finalize()) != expected { return Err("GUEST_IMAGE_SHA256_MISMATCH".into()); }
     Ok(())
 }
-
 fn download_https(url: &str, destination: &PathBuf) -> Result<(), String> {
     if !url.starts_with("https://") { return Err("GUEST_IMAGE_HTTPS_REQUIRED".into()); }
-    let status = Command::new("curl")
-        .args(["--fail", "--location", "--retry", "3", "--silent", "--show-error", "--output"])
-        .arg(destination)
-        .arg(url)
-        .status()
-        .map_err(|e| format!("GUEST_IMAGE_CURL_UNAVAILABLE: {e}"))?;
-    if !status.success() { return Err(format!("GUEST_IMAGE_DOWNLOAD_FAILED_{status}")); }
-    Ok(())
+    let status = Command::new("curl").args(["--fail", "--location", "--retry", "3", "--silent", "--show-error", "--output"]).arg(destination).arg(url).status().map_err(|e| format!("GUEST_IMAGE_CURL_UNAVAILABLE: {e}"))?;
+    if !status.success() { return Err(format!("GUEST_IMAGE_DOWNLOAD_FAILED_{status}")); } Ok(())
 }
-
 fn extract_bundle(bundle: &PathBuf, directory: &PathBuf) -> Result<(), String> {
-    let status = Command::new("tar")
-        .args(["-xzf"])
-        .arg(bundle)
-        .arg("-C")
-        .arg(directory)
-        .status()
-        .map_err(|e| format!("GUEST_BUNDLE_TAR_UNAVAILABLE: {e}"))?;
-    if !status.success() { return Err(format!("GUEST_BUNDLE_EXTRACT_FAILED_{status}")); }
-    Ok(())
+    let status = Command::new("tar").args(["-xzf"]).arg(bundle).arg("-C").arg(directory).status().map_err(|e| format!("GUEST_BUNDLE_TAR_UNAVAILABLE: {e}"))?;
+    if !status.success() { return Err(format!("GUEST_BUNDLE_EXTRACT_FAILED_{status}")); } Ok(())
 }
-
-fn profile_name(id: &str) -> Result<&'static str, String> {
-    match id {
-        "mtp2026" => Ok("mtp2026-mtp2026-arm64-linux.Image"),
-        "android" => Ok("mtp2026-android-arm64-linux.Image"),
-        "windows11" => Ok("mtp2026-windows11-arm64-linux.Image"),
-        "gaming" => Ok("mtp2026-gaming-arm64-linux.Image"),
-        _ => Err("UNSUPPORTED_MTP2026_GUEST_PROFILE".into()),
-    }
-}
-
-fn initrd_name(id: &str) -> Result<&'static str, String> {
-    match id {
-        "mtp2026" => Ok("mtp2026-mtp2026-initramfs.cpio.gz"),
-        "android" => Ok("mtp2026-android-initramfs.cpio.gz"),
-        "windows11" => Ok("mtp2026-windows11-initramfs.cpio.gz"),
-        "gaming" => Ok("mtp2026-gaming-initramfs.cpio.gz"),
-        _ => Err("UNSUPPORTED_MTP2026_GUEST_PROFILE".into()),
-    }
-}
+fn profile_name(id: &str) -> Result<&'static str, String> { match id {
+    "mtp2026" => Ok("mtp2026-mtp2026-arm64-linux.Image"), "android" => Ok("mtp2026-android-arm64-linux.Image"),
+    "windows11" => Ok("mtp2026-windows11-arm64-linux.Image"), "gaming" => Ok("mtp2026-gaming-arm64-linux.Image"),
+    _ => Err("UNSUPPORTED_MTP2026_GUEST_PROFILE".into()),
+} }
+fn initrd_name(id: &str) -> Result<&'static str, String> { match id {
+    "mtp2026" => Ok("mtp2026-mtp2026-initramfs.cpio.gz"), "android" => Ok("mtp2026-android-initramfs.cpio.gz"),
+    "windows11" => Ok("mtp2026-windows11-initramfs.cpio.gz"), "gaming" => Ok("mtp2026-gaming-initramfs.cpio.gz"),
+    _ => Err("UNSUPPORTED_MTP2026_GUEST_PROFILE".into()),
+} }
 
 #[tauri::command]
-fn native_capabilities() -> NativeCapabilities {
-    let c = native_capabilities::capabilities();
-    NativeCapabilities {
-        native: c["native"],
-        platform: "windows",
-        orientation_lock: false,
-        fullscreen: c["fullscreen"],
-        filesystem: c["filesystem"],
-        notifications: c["notifications"],
-        clipboard: false,
-        external_apps: c["external_apps"],
-        gamepad: c["gamepad"],
-        window_controls: c["window_controls"],
-    }
-}
+fn native_capabilities() -> NativeCapabilities { let c = native_capabilities::capabilities(); NativeCapabilities {
+    native: c["native"], platform: "windows", orientation_lock: false, fullscreen: c["fullscreen"], filesystem: c["filesystem"],
+    notifications: c["notifications"], clipboard: false, external_apps: c["external_apps"], gamepad: c["gamepad"], window_controls: c["window_controls"],
+} }
+#[tauri::command]
+async fn set_device_mode(window: tauri::Window, mode: String) -> Result<(), String> { let size = match mode.as_str() {
+    "windows" | "gaming" => tauri::LogicalSize::new(1440.0, 900.0), "android" | "ios" => tauri::LogicalSize::new(900.0, 1440.0),
+    _ => return Err("Unsupported MTP2026 device mode".into()),
+}; window.set_size(tauri::Size::Logical(size)).map_err(|e| e.to_string()) }
 
 #[tauri::command]
-async fn set_device_mode(window: tauri::Window, mode: String) -> Result<(), String> {
-    let size = match mode.as_str() {
-        "windows" | "gaming" => tauri::LogicalSize::new(1440.0, 900.0),
-        "android" | "ios" => tauri::LogicalSize::new(900.0, 1440.0),
-        _ => return Err("Unsupported MTP2026 device mode".into()),
-    };
-    window.set_size(tauri::Size::Logical(size)).map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-#[tauri::command]
-async fn boot_guest(
-    app: tauri::AppHandle,
-    id: String,
-    bundle_url: String,
-    bundle_sha256: String,
-    processes: tauri::State<'_, GuestProcesses>,
-) -> Result<serde_json::Value, String> {
-    let kernel_name = profile_name(&id)?;
-    let initrd_name = initrd_name(&id)?;
-    let dir = guest_root(&app, &id)?;
-    let bundle = dir.join("guest.tar.gz");
-
-    {
-        let mut running = processes.0.lock().map_err(|_| "GUEST_PROCESS_LOCK_FAILED")?;
-        if let Some(mut child) = running.remove(&id) { let _ = child.kill(); }
-    }
-
-    if !bundle.exists() {
-        download_https(&bundle_url, &bundle)?;
-    }
-    verify_sha256(&bundle, &bundle_sha256)?;
-    extract_bundle(&bundle, &dir)?;
-
-    let kernel = dir.join(kernel_name);
-    let initrd = dir.join(initrd_name);
-    if !kernel.exists() || !initrd.exists() { return Err("GUEST_BUNDLE_MISSING_BOOT_FILES".into()); }
-
+async fn boot_guest(app: tauri::AppHandle, id: String, bundle_url: String, bundle_sha256: String, processes: tauri::State<'_, GuestProcesses>) -> Result<serde_json::Value, String> {
+    let kernel_name = profile_name(&id)?; let initrd_name = initrd_name(&id)?; let dir = guest_root(&app, &id)?; let bundle = dir.join("guest.tar.gz");
+    { let mut running = processes.0.lock().map_err(|_| "GUEST_PROCESS_LOCK_FAILED")?; if let Some(mut child) = running.remove(&id) { let _ = child.kill(); } }
+    if !bundle.exists() { download_https(&bundle_url, &bundle)?; }
+    verify_sha256(&bundle, &bundle_sha256)?; extract_bundle(&bundle, &dir)?;
+    let kernel = dir.join(kernel_name); let initrd = dir.join(initrd_name); if !kernel.exists() || !initrd.exists() { return Err("GUEST_BUNDLE_MISSING_BOOT_FILES".into()); }
+    let serial_log = dir.join("serial.log");
+    let serial_arg = format!("file:{}", serial_log.to_string_lossy());
     let mut command = Command::new("qemu-system-aarch64");
-    command
-        .args(["-M", "virt", "-cpu", "cortex-a72", "-m", "1024", "-kernel"])
-        .arg(&kernel)
-        .arg("-initrd")
-        .arg(&initrd)
-        .args(["-append", "console=ttyAMA0 rdinit=/init", "-serial", "stdio"])
-        .stdin(Stdio::null());
-
-    let child = command.spawn().map_err(|e| format!("QEMU_AARCH64_NOT_AVAILABLE: {e}"))?;
-    let pid = child.id();
+    command.args(["-M", "virt", "-cpu", "cortex-a72", "-m", "1024", "-kernel"]).arg(&kernel).arg("-initrd").arg(&initrd)
+        .args(["-append", "console=ttyAMA0 rdinit=/init", "-serial"]).arg(serial_arg).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    let child = command.spawn().map_err(|e| format!("QEMU_AARCH64_NOT_AVAILABLE: {e}"))?; let pid = child.id();
     processes.0.lock().map_err(|_| "GUEST_PROCESS_LOCK_FAILED")?.insert(id.clone(), child);
-
-    Ok(serde_json::json!({
-        "success": true,
-        "id": id,
-        "provider": "tauri-qemu-system-aarch64",
-        "architecture": "arm64",
-        "execution": "real-aarch64-linux-guest",
-        "pid": pid,
-        "kernel": kernel.to_string_lossy(),
-        "initrd": initrd.to_string_lossy()
-    }))
+    Ok(serde_json::json!({"success":true,"id":id,"provider":"tauri-qemu-system-aarch64","architecture":"arm64","execution":"real-aarch64-linux-guest","pid":pid,"kernel":kernel.to_string_lossy(),"initrd":initrd.to_string_lossy(),"serialLog":serial_log.to_string_lossy()}))
 }
-
 #[tauri::command]
-async fn stop_guest(id: String, processes: tauri::State<'_, GuestProcesses>) -> Result<(), String> {
-    let mut running = processes.0.lock().map_err(|_| "GUEST_PROCESS_LOCK_FAILED")?;
-    if let Some(mut child) = running.remove(&id) { let _ = child.kill(); }
-    Ok(())
-}
-
+async fn stop_guest(id: String, processes: tauri::State<'_, GuestProcesses>) -> Result<(), String> { let mut running = processes.0.lock().map_err(|_| "GUEST_PROCESS_LOCK_FAILED")?; if let Some(mut child) = running.remove(&id) { let _ = child.kill(); } Ok(()) }
 #[tauri::command]
-async fn guest_runtime_status(id: String, processes: tauri::State<'_, GuestProcesses>) -> Result<serde_json::Value, String> {
-    let mut running = processes.0.lock().map_err(|_| "GUEST_PROCESS_LOCK_FAILED")?;
-    if let Some(child) = running.get_mut(&id) {
-        match child.try_wait().map_err(|e| e.to_string())? {
-            Some(status) => { running.remove(&id); return Ok(serde_json::json!({"running":false,"exitStatus":status.code()})); }
-            None => return Ok(serde_json::json!({"running":true,"pid":child.id()})),
-        }
-    }
-    Ok(serde_json::json!({"running":false}))
-}
-
+async fn guest_runtime_status(id: String, processes: tauri::State<'_, GuestProcesses>) -> Result<serde_json::Value, String> { let mut running = processes.0.lock().map_err(|_| "GUEST_PROCESS_LOCK_FAILED")?; if let Some(child) = running.get_mut(&id) { match child.try_wait().map_err(|e| e.to_string())? {
+    Some(status) => { running.remove(&id); Ok(serde_json::json!({"running":false,"exitStatus":status.code()})) },
+    None => Ok(serde_json::json!({"running":true,"pid":child.id()})),
+} } else { Ok(serde_json::json!({"running":false})) } }
 #[tauri::command]
-async fn enter_fullscreen(window: tauri::Window) -> Result<(), String> {
-    window.set_fullscreen(true).map_err(|e| e.to_string())
-}
-
+async fn enter_fullscreen(window: tauri::Window) -> Result<(), String> { window.set_fullscreen(true).map_err(|e| e.to_string()) }
 #[tauri::command]
-async fn exit_fullscreen(window: tauri::Window) -> Result<(), String> {
-    window.set_fullscreen(false).map_err(|e| e.to_string())
-}
-
+async fn exit_fullscreen(window: tauri::Window) -> Result<(), String> { window.set_fullscreen(false).map_err(|e| e.to_string()) }
 #[tauri::command]
-async fn open_external(app: tauri::AppHandle, url: String) -> Result<(), String> {
-    app.shell().open(url, None).map_err(|e| e.to_string())
-}
-
+async fn open_external(app: tauri::AppHandle, url: String) -> Result<(), String> { app.shell().open(url, None).map_err(|e| e.to_string()) }
 #[tauri::command]
-async fn install_package(app: tauri::AppHandle, url: String, package_type: String) -> Result<serde_json::Value, String> {
-    let trimmed = url.trim();
-    if !trimmed.starts_with("https://") {
-        return Err("NATIVE_PACKAGE_HTTPS_REQUIRED".into());
-    }
-    app.shell().open(trimmed.to_string(), None).map_err(|e| e.to_string())?;
-    Ok(serde_json::json!({
-        "success": true,
-        "status": "external_install_handoff",
-        "host": "windows",
-        "packageType": package_type,
-        "requiresUserApproval": true,
-        "url": trimmed
-    }))
-}
-
+async fn install_package(app: tauri::AppHandle, url: String, package_type: String) -> Result<serde_json::Value, String> { let trimmed = url.trim(); if !trimmed.starts_with("https://") { return Err("NATIVE_PACKAGE_HTTPS_REQUIRED".into()); } app.shell().open(trimmed.to_string(), None).map_err(|e| e.to_string())?; Ok(serde_json::json!({"success":true,"status":"external_install_handoff","host":"windows","packageType":package_type,"requiresUserApproval":true,"url":trimmed})) }
 #[tauri::command]
-async fn notify_native(
-    app: tauri::AppHandle,
-    title: String,
-    body: String,
-) -> Result<(), String> {
-    let title = title.trim();
-    let body = body.trim();
-    if title.is_empty() && body.is_empty() {
-        return Err("Notification title and body cannot both be empty".into());
-    }
-
-    app.notification()
-        .builder()
-        .title(if title.is_empty() { "MTP2026" } else { title })
-        .body(body)
-        .show()
-        .map_err(|e| e.to_string())
-}
+async fn notify_native(app: tauri::AppHandle, title: String, body: String) -> Result<(), String> { let title = title.trim(); let body = body.trim(); if title.is_empty() && body.is_empty() { return Err("Notification title and body cannot both be empty".into()); } app.notification().builder().title(if title.is_empty() { "MTP2026" } else { title }).body(body).show().map_err(|e| e.to_string()) }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    tauri::Builder::default()
-        .manage(GuestProcesses(Mutex::new(HashMap::new())))
-        .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![
-            native_capabilities,
-            set_device_mode,
-            boot_guest,
-            stop_guest,
-            guest_runtime_status,
-            enter_fullscreen,
-            exit_fullscreen,
-            open_external,
-            install_package,
-            notify_native
-        ])
-        .on_window_event(|window, event| {
-            if let WindowEvent::CloseRequested { .. } = event {
-                let _ = window.emit("mtp2026:window-closing", ());
-            }
-        })
-        .run(tauri::generate_context!())
-        .expect("error while running MTP2026 Windows shell");
-}
+pub fn run() { tauri::Builder::default().manage(GuestProcesses(Mutex::new(HashMap::new())))
+    .plugin(tauri_plugin_fs::init()).plugin(tauri_plugin_notification::init()).plugin(tauri_plugin_shell::init())
+    .invoke_handler(tauri::generate_handler![native_capabilities,set_device_mode,boot_guest,stop_guest,guest_runtime_status,enter_fullscreen,exit_fullscreen,open_external,install_package,notify_native])
+    .on_window_event(|window, event| { if let WindowEvent::CloseRequested { .. } = event { let _ = window.emit("mtp2026:window-closing", ()); } })
+    .run(tauri::generate_context!()).expect("error while running MTP2026 Windows shell"); }
