@@ -19,6 +19,7 @@ import './vexaStoreInstaller.js';
 import './mtp2026VexaStoreUI.js';
 import './mtp2026VexaStoreRuntime.js';
 import './mtp2026OsPackageRuntime.js';
+import './mtp2026GuestPackageRuntime.js';
 import './mtp2026GuestProfiles.js';
 import './mtp2026GuestShell.js';
 import './mtp2026GuestShell.css';
