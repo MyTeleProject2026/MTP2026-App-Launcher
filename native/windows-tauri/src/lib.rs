@@ -1,7 +1,14 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use serde::Serialize;
-use tauri::{Emitter, WindowEvent};
+use sha2::{Digest, Sha256};
+use std::collections::HashMap;
+use std::fs::{self, File};
+use std::io::{Read, Write};
+use std::path::PathBuf;
+use std::process::{Child, Command, Stdio};
+use std::sync::Mutex;
+use tauri::{Emitter, Manager, WindowEvent};
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_shell::ShellExt;
 
@@ -19,6 +26,75 @@ struct NativeCapabilities {
     external_apps: bool,
     gamepad: bool,
     window_controls: bool,
+}
+
+struct GuestProcesses(Mutex<HashMap<String, Child>>);
+
+fn guest_root(app: &tauri::AppHandle, id: &str) -> Result<PathBuf, String> {
+    let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let dir = base.join("mtp2026").join("guests").join(id);
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn verify_sha256(path: &PathBuf, expected: &str) -> Result<(), String> {
+    let expected = expected.trim().to_ascii_lowercase();
+    if expected.is_empty() { return Err("GUEST_IMAGE_SHA256_REQUIRED".into()); }
+    let mut file = File::open(path).map_err(|e| e.to_string())?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 1024 * 1024];
+    loop {
+        let n = file.read(&mut buffer).map_err(|e| e.to_string())?;
+        if n == 0 { break; }
+        hasher.update(&buffer[..n]);
+    }
+    let actual = format!("{:x}", hasher.finalize());
+    if actual != expected { return Err("GUEST_IMAGE_SHA256_MISMATCH".into()); }
+    Ok(())
+}
+
+fn download_https(url: &str, destination: &PathBuf) -> Result<(), String> {
+    if !url.starts_with("https://") { return Err("GUEST_IMAGE_HTTPS_REQUIRED".into()); }
+    let status = Command::new("curl")
+        .args(["--fail", "--location", "--retry", "3", "--silent", "--show-error", "--output"])
+        .arg(destination)
+        .arg(url)
+        .status()
+        .map_err(|e| format!("GUEST_IMAGE_CURL_UNAVAILABLE: {e}"))?;
+    if !status.success() { return Err(format!("GUEST_IMAGE_DOWNLOAD_FAILED_{status}")); }
+    Ok(())
+}
+
+fn extract_bundle(bundle: &PathBuf, directory: &PathBuf) -> Result<(), String> {
+    let status = Command::new("tar")
+        .args(["-xzf"])
+        .arg(bundle)
+        .arg("-C")
+        .arg(directory)
+        .status()
+        .map_err(|e| format!("GUEST_BUNDLE_TAR_UNAVAILABLE: {e}"))?;
+    if !status.success() { return Err(format!("GUEST_BUNDLE_EXTRACT_FAILED_{status}")); }
+    Ok(())
+}
+
+fn profile_name(id: &str) -> Result<&'static str, String> {
+    match id {
+        "mtp2026" => Ok("mtp2026-mtp2026-arm64-linux.Image"),
+        "android" => Ok("mtp2026-android-arm64-linux.Image"),
+        "windows11" => Ok("mtp2026-windows11-arm64-linux.Image"),
+        "gaming" => Ok("mtp2026-gaming-arm64-linux.Image"),
+        _ => Err("UNSUPPORTED_MTP2026_GUEST_PROFILE".into()),
+    }
+}
+
+fn initrd_name(id: &str) -> Result<&'static str, String> {
+    match id {
+        "mtp2026" => Ok("mtp2026-mtp2026-initramfs.cpio.gz"),
+        "android" => Ok("mtp2026-android-initramfs.cpio.gz"),
+        "windows11" => Ok("mtp2026-windows11-initramfs.cpio.gz"),
+        "gaming" => Ok("mtp2026-gaming-initramfs.cpio.gz"),
+        _ => Err("UNSUPPORTED_MTP2026_GUEST_PROFILE".into()),
+    }
 }
 
 #[tauri::command]
@@ -47,6 +123,78 @@ async fn set_device_mode(window: tauri::Window, mode: String) -> Result<(), Stri
     };
     window.set_size(tauri::Size::Logical(size)).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+async fn boot_guest(
+    app: tauri::AppHandle,
+    id: String,
+    bundle_url: String,
+    bundle_sha256: String,
+    processes: tauri::State<'_, GuestProcesses>,
+) -> Result<serde_json::Value, String> {
+    let kernel_name = profile_name(&id)?;
+    let initrd_name = initrd_name(&id)?;
+    let dir = guest_root(&app, &id)?;
+    let bundle = dir.join("guest.tar.gz");
+
+    {
+        let mut running = processes.0.lock().map_err(|_| "GUEST_PROCESS_LOCK_FAILED")?;
+        if let Some(mut child) = running.remove(&id) { let _ = child.kill(); }
+    }
+
+    if !bundle.exists() {
+        download_https(&bundle_url, &bundle)?;
+    }
+    verify_sha256(&bundle, &bundle_sha256)?;
+    extract_bundle(&bundle, &dir)?;
+
+    let kernel = dir.join(kernel_name);
+    let initrd = dir.join(initrd_name);
+    if !kernel.exists() || !initrd.exists() { return Err("GUEST_BUNDLE_MISSING_BOOT_FILES".into()); }
+
+    let mut command = Command::new("qemu-system-aarch64");
+    command
+        .args(["-M", "virt", "-cpu", "cortex-a72", "-m", "1024", "-kernel"])
+        .arg(&kernel)
+        .arg("-initrd")
+        .arg(&initrd)
+        .args(["-append", "console=ttyAMA0 rdinit=/init", "-serial", "stdio"])
+        .stdin(Stdio::null());
+
+    let child = command.spawn().map_err(|e| format!("QEMU_AARCH64_NOT_AVAILABLE: {e}"))?;
+    let pid = child.id();
+    processes.0.lock().map_err(|_| "GUEST_PROCESS_LOCK_FAILED")?.insert(id.clone(), child);
+
+    Ok(serde_json::json!({
+        "success": true,
+        "id": id,
+        "provider": "tauri-qemu-system-aarch64",
+        "architecture": "arm64",
+        "execution": "real-aarch64-linux-guest",
+        "pid": pid,
+        "kernel": kernel.to_string_lossy(),
+        "initrd": initrd.to_string_lossy()
+    }))
+}
+
+#[tauri::command]
+async fn stop_guest(id: String, processes: tauri::State<'_, GuestProcesses>) -> Result<(), String> {
+    let mut running = processes.0.lock().map_err(|_| "GUEST_PROCESS_LOCK_FAILED")?;
+    if let Some(mut child) = running.remove(&id) { let _ = child.kill(); }
+    Ok(())
+}
+
+#[tauri::command]
+async fn guest_runtime_status(id: String, processes: tauri::State<'_, GuestProcesses>) -> Result<serde_json::Value, String> {
+    let mut running = processes.0.lock().map_err(|_| "GUEST_PROCESS_LOCK_FAILED")?;
+    if let Some(child) = running.get_mut(&id) {
+        match child.try_wait().map_err(|e| e.to_string())? {
+            Some(status) => { running.remove(&id); return Ok(serde_json::json!({"running":false,"exitStatus":status.code()})); }
+            None => return Ok(serde_json::json!({"running":true,"pid":child.id()})),
+        }
+    }
+    Ok(serde_json::json!({"running":false}))
 }
 
 #[tauri::command]
@@ -104,12 +252,16 @@ async fn notify_native(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(GuestProcesses(Mutex::new(HashMap::new())))
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             native_capabilities,
             set_device_mode,
+            boot_guest,
+            stop_guest,
+            guest_runtime_status,
             enter_fullscreen,
             exit_fullscreen,
             open_external,
