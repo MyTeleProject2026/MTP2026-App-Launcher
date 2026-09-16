@@ -43,14 +43,9 @@ jobs:
             initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
             log="/tmp/mtp2026-${profile}.log"
             timeout 35s qemu-system-aarch64 \
-              -M virt \
-              -cpu cortex-a72 \
-              -m 1024 \
-              -nographic \
-              -kernel "$image" \
-              -initrd "$initrd" \
-              -append 'console=ttyAMA0 rdinit=/init' \
-              > "$log" 2>&1 || code=$?
+              -M virt -cpu cortex-a72 -m 1024 -nographic \
+              -kernel "$image" -initrd "$initrd" \
+              -append 'console=ttyAMA0 rdinit=/init' > "$log" 2>&1 || code=$?
             code=${code:-0}
             cat "$log"
             grep -q 'MTP2026 GUEST SYSTEM' "$log"
@@ -79,6 +74,7 @@ jobs:
           for profile in ('mtp2026', 'android', 'windows11', 'gaming'):
               image = pathlib.Path(f'os/mtp2026-linux-arm64/out/artifacts/{profile}/mtp2026-{profile}-arm64-linux.Image')
               initrd = pathlib.Path(f'os/mtp2026-linux-arm64/out/artifacts/{profile}/mtp2026-{profile}-initramfs.cpio.gz')
+              bundle = root / f'mtp2026-{profile}-arm64-guest.tar.gz'
               def sha(p):
                   h = hashlib.sha256()
                   with p.open('rb') as f:
@@ -89,14 +85,17 @@ jobs:
                   'id': profile,
                   'architecture': 'arm64',
                   'machine': 'qemu-aarch64-virt',
-                  'kernelUrl': f'https://github.com/MyTeleProject2026/MTP2026-App-Launcher/releases/download/mtp2026-physical-test/mtp2026-{profile}-arm64-guest.tar.gz',
+                  'imageSource': {
+                      'url': f'https://github.com/MyTeleProject2026/MTP2026-App-Launcher/releases/download/mtp2026-physical-test/mtp2026-{profile}-arm64-guest.tar.gz',
+                      'sha256': sha(bundle),
+                      'kind': 'arm64-qemu-guest-bundle'
+                  },
                   'initrdName': f'mtp2026-{profile}-initramfs.cpio.gz',
                   'kernelName': f'mtp2026-{profile}-arm64-linux.Image',
                   'kernelSha256': sha(image),
                   'initrdSha256': sha(initrd),
-                  'bundleSha256': sha(root / f'mtp2026-{profile}-arm64-guest.tar.gz'),
                   'runtime': 'qemu-system-aarch64',
-                  'bootArgs': ['-M','virt','-cpu','cortex-a72','-m','1024','-nographic','-append','console=ttyAMA0 rdinit=/init']
+                  'bootArgs': ['-M','virt','-cpu','cortex-a72','-m','1024','-append','console=ttyAMA0 rdinit=/init']
               }
           manifest = {
               'schema': 'mtp2026-physical-arm64-test-v1',
@@ -124,7 +123,6 @@ jobs:
             release/mtp2026-gaming-arm64-guest.tar.gz \
             release/SHA256SUMS.txt \
             release/physical-test-manifest.json \
-            --target "$GITHUB_SHA" \
-            --prerelease \
+            --target "$GITHUB_SHA" --prerelease \
             --title 'MTP2026 Physical ARM64 Test Build' \
             --notes 'Generated ARM64 guest images for physical MTP2026 launcher testing. All four bundles are MTP2026-owned ARM64 Linux guest profiles and are not Apple, Microsoft, Google, or Android firmware.'
