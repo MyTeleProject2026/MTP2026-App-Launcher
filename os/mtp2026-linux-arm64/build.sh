@@ -29,8 +29,31 @@ fetch() {
   fi
 }
 
+fetch_with_fallback() {
+  local dest="$1"
+  shift
+  if [ -f "$dest" ]; then
+    return 0
+  fi
+
+  local url
+  for url in "$@"; do
+    echo "Fetching source: $url"
+    if curl -L --fail --retry 3 --retry-delay 2 -o "$dest" "$url"; then
+      return 0
+    fi
+    rm -f "$dest"
+    echo "Source unavailable, trying next mirror: $url" >&2
+  done
+
+  echo "Unable to download required source: $dest" >&2
+  return 1
+}
+
 fetch "https://github.com/torvalds/linux/archive/refs/tags/v${LINUX_VERSION}.tar.gz" "${SRC}/linux.tar.gz"
-fetch "https://busybox.net/downloads/busybox-${BUSYBOX_VERSION}.tar.bz2" "${SRC}/busybox.tar.bz2"
+fetch_with_fallback "${SRC}/busybox.tar.bz2" \
+  "https://busybox.net/downloads/busybox-${BUSYBOX_VERSION}.tar.bz2" \
+  "https://ftp.funet.fi/pub/Linux/INSTALL/Debian/pool/main/b/busybox/busybox_${BUSYBOX_VERSION}.orig.tar.bz2"
 
 if [ ! -d "${SRC}/linux-${LINUX_VERSION}" ]; then tar -xzf "${SRC}/linux.tar.gz" -C "$SRC"; fi
 if [ ! -d "${SRC}/busybox-${BUSYBOX_VERSION}" ]; then tar -xjf "${SRC}/busybox.tar.bz2" -C "$SRC"; fi
