@@ -9,7 +9,7 @@ ROOTFS="${OUT}/rootfs"
 ARTIFACTS="${OUT}/artifacts/${PROFILE}"
 JOBS="${JOBS:-$(nproc)}"
 LINUX_VERSION="6.16"
-BUSYBOX_VERSION="1_37_0"
+BUSYBOX_VERSION="1.37.0"
 
 case "$PROFILE" in
   mtp2026) PROFILE_NAME="MTP2026 Device OS"; PROFILE_FAMILY="MTP2026"; PROFILE_LAYOUT="mobile"; PROFILE_NAV="gesture" ;;
@@ -30,10 +30,10 @@ fetch() {
 }
 
 fetch "https://github.com/torvalds/linux/archive/refs/tags/v${LINUX_VERSION}.tar.gz" "${SRC}/linux.tar.gz"
-fetch "https://github.com/mirror/busybox/archive/refs/tags/${BUSYBOX_VERSION}.tar.gz" "${SRC}/busybox.tar.gz"
+fetch "https://busybox.net/downloads/busybox-${BUSYBOX_VERSION}.tar.bz2" "${SRC}/busybox.tar.bz2"
 
 if [ ! -d "${SRC}/linux-${LINUX_VERSION}" ]; then tar -xzf "${SRC}/linux.tar.gz" -C "$SRC"; fi
-if [ ! -d "${SRC}/busybox-${BUSYBOX_VERSION}" ]; then tar -xzf "${SRC}/busybox.tar.gz" -C "$SRC"; fi
+if [ ! -d "${SRC}/busybox-${BUSYBOX_VERSION}" ]; then tar -xjf "${SRC}/busybox.tar.bz2" -C "$SRC"; fi
 
 export ARCH=arm64
 export CROSS_COMPILE=aarch64-linux-gnu-
@@ -54,7 +54,7 @@ make -C "$KERNEL" scripts -j"$JOBS"
 make -C "$KERNEL" olddefconfig
 
 rm -rf "$ROOTFS"
-mkdir -p "$ROOTFS"/{bin,sbin,etc,proc,sys,dev,tmp,run,mnt,home,usr/bin,var/lib/mtp2026/apps}
+mkdir -p "$ROOTFS"/{bin,sbin,etc,proc,sys,dev,tmp,run,mnt,home,usr/bin,var/lib/mtp2026/apps,etc/mtp2026}
 
 make -C "$BUSYBOX" defconfig
 sed -i 's/^# CONFIG_STATIC is not set/CONFIG_STATIC=y/' "$BUSYBOX/.config"
@@ -76,9 +76,6 @@ HOME_URL="https://github.com/MyTeleProject2026/MTP2026-App-Launcher"
 VARIANT="MTP2026 ${PROFILE_FAMILY} guest profile"
 EOF
 
-# Machine-readable identity used by the native QEMU host and the MTP2026
-# guest shell. This is deliberately an MTP2026 OS identity, not Apple,
-# Microsoft, Google, or ASUS firmware.
 cat > "$ROOTFS/etc/mtp2026/profile.json" <<EOF
 {
   "schema": "mtp2026-guest-os-profile-v2",
@@ -112,8 +109,6 @@ VexaAccount identity • VexaStore applications
 ========================================
 EOF
 
-# A tiny profile-aware command is useful for serial-console validation and
-# proves the guest image has a distinct, booted MTP2026 profile.
 cat > "$ROOTFS/usr/bin/mtp2026-os-info" <<'EOF'
 #!/bin/sh
 printf '%s\n' 'MTP2026 OS profile:'
@@ -131,7 +126,6 @@ ln -sf /bin/busybox "$ROOTFS/sbin/init"
 make -C "$KERNEL" -j"$JOBS" Image
 cp "$KERNEL/arch/arm64/boot/Image" "$ARTIFACTS/mtp2026-${PROFILE}-arm64-linux.Image"
 
-# Keep the historical default artifact paths intact for existing consumers.
 if [ "$PROFILE" = "mtp2026" ]; then
   cp "$ARTIFACTS/mtp2026-${PROFILE}-initramfs.cpio.gz" "$OUT/artifacts/mtp2026-initramfs.cpio.gz"
   cp "$ARTIFACTS/mtp2026-${PROFILE}-arm64-linux.Image" "$OUT/artifacts/mtp2026-arm64-linux.Image"
