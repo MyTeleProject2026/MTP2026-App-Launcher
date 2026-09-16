@@ -143,3 +143,5 @@ jobs:
             --target "$GITHUB_SHA" --prerelease \
             --title 'MTP2026 Physical ARM64 Test Build' \
             --notes 'Generated ARM64 guest images for physical MTP2026 launcher testing. All four bundles are MTP2026-owned ARM64 Linux guest profiles and are not Apple, Microsoft, Google, or Android firmware.'
+
+      # Keep the physical-test workflow in the push path so runtime/source fixes rerun the complete release gate.
