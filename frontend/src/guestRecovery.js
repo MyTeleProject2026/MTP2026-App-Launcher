@@ -45,16 +45,18 @@
         if (docs) window.open(docs, '_blank', 'noopener,noreferrer');
         throw new Error(`GUEST_IMAGE_SOURCE_NOT_CONFIGURED_${mode}`);
       }
+      if (!source.sha256) throw new Error(`GUEST_IMAGE_SHA256_NOT_CONFIGURED_${mode}`);
       const manager = await import('./guestImageManager.js');
       const result = await manager.downloadGuestImage(mode, source.url, {
-        sha256: contract.sha256 || contract.imageSha256 || null,
-        imageSha256: contract.imageSha256 || contract.sha256 || null,
+        sha256: source.sha256,
+        imageSha256: source.sha256,
+        bundleSha256: source.sha256,
         source: source.type || 'configured-runtime-source',
       }, progress => {
         if (progress?.progress != null) setStatus(`Downloading ${labels[mode]} guest image… ${Math.round(progress.progress * 100)}%`);
         else if (progress?.received) setStatus(`Downloading ${labels[mode]} guest image… ${Math.round(progress.received / 1048576)} MB`);
       });
-      setStatus(`Guest image installed (${Math.round(result.byteLength / 1048576 * 10) / 10} MB). Starting guest…`);
+      setStatus(`Verified guest release bundle (${Math.round(result.byteLength / 1048576 * 10) / 10} MB). Starting guest…`);
       window.setTimeout(() => { close(); window.dispatchEvent(new CustomEvent('mtp2026:default-system-os', { detail: { mode } })); }, 350);
     } catch (error) {
       const message = String(error?.message || error || 'GUEST_IMAGE_INSTALL_FAILED');
