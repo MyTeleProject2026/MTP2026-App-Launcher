@@ -1,10 +1,10 @@
 /* MTP2026 OS package runtime.
  *
- * This is the common application-install contract shared by all four
- * MTP2026-owned guest profiles. WebApps are real installable applications
- * inside the MTP2026 application registry. Native packages are handed to the
- * real host installer only when the host exposes an approved installer API.
- * Browser code never pretends an APK/IPA/EXE was installed when it was not.
+ * Common application-install contract for all four MTP2026-owned guest
+ * profiles. WebApps are real applications in the MTP2026 registry. Native
+ * packages use a real host installer when available; otherwise the verified
+ * package is acquired by the guest package runtime for a compatible native
+ * guest implementation instead of being falsely reported as executable.
  */
 
 const STORE_ORIGIN = 'https://www.vexastore.2bd.net';
@@ -27,17 +27,9 @@ function trustedHttps(value) {
   return url.toString();
 }
 
-function readRegistry() {
-  try { return JSON.parse(localStorage.getItem(REGISTRY_KEY) || '{}'); } catch (_) { return {}; }
-}
-
-function writeRegistry(value) {
-  localStorage.setItem(REGISTRY_KEY, JSON.stringify(value));
-}
-
-export function getMTPInstalledPackages() {
-  return Object.values(readRegistry());
-}
+function readRegistry() { try { return JSON.parse(localStorage.getItem(REGISTRY_KEY) || '{}'); } catch (_) { return {}; } }
+function writeRegistry(value) { localStorage.setItem(REGISTRY_KEY, JSON.stringify(value)); }
+export function getMTPInstalledPackages() { return Object.values(readRegistry()); }
 
 function mirrorPackage(app, mode, result = {}) {
   const registry = readRegistry();
@@ -66,17 +58,8 @@ function mirrorPackage(app, mode, result = {}) {
 async function registerWebApp(app, mode) {
   const url = trustedHttps(app.url || app.webUrl);
   const response = await fetch(`${MTP_API}/apps`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      url,
-      source: 'VexaStore',
-      guestMode: mode,
-      guestModes: MODES,
-      installSource: 'vexastore',
-      installProtocol: 'vexastore-install-manifest-v5',
-    }),
+    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, source: 'VexaStore', guestMode: mode, guestModes: MODES, installSource: 'vexastore', installProtocol: 'vexastore-install-manifest-v5' }),
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || `MTP_WEBAPP_REGISTER_FAILED_${response.status}`);
@@ -90,13 +73,13 @@ async function nativeInstall(nativePackage, mode) {
     window.open(url, '_blank', 'noopener,noreferrer');
     return { status: 'external-handoff', requiresUserApproval: true, mode, url };
   }
-  return window.MTP2026NativePlatform.nativeInstallPackage(url, nativePackage.version || '', {
-    mode,
-    packageType: nativePackage.packageType || mode,
-    packageName: nativePackage.packageName || null,
-    versionCode: nativePackage.versionCode || null,
-    sha256: nativePackage.sha256 || null,
-  });
+  return window.MTP2026NativePlatform.nativeInstallPackage(url, nativePackage.version || '', { mode, packageType: nativePackage.packageType || mode, packageName: nativePackage.packageName || null, versionCode: nativePackage.versionCode || null, sha256: nativePackage.sha256 || null });
+}
+
+async function guestAcquire(nativePackage, mode) {
+  const runtime = window.MTP2026GuestPackageRuntime;
+  if (typeof runtime?.acquireGuestPackage !== 'function') return null;
+  return runtime.acquireGuestPackage({ ...nativePackage, packageType: nativePackage.packageType || mode }, mode);
 }
 
 export async function fetchMTPVexaStoreManifest(slug) {
@@ -115,39 +98,43 @@ export async function installMTPPackage(manifest, requestedMode = null) {
   const web = manifest.webApp;
   let cloudApp = null;
 
-  // Every MTP2026-owned guest profile gets the WebApp registry entry. This is
-  // the portable application layer shared by the four guest personalities.
   if (web?.url) {
     try { cloudApp = await registerWebApp({ ...manifest.app, url: web.url }, mode); } catch (error) {
-      // A logged-out launcher can still keep a local installation intent. The
-      // authenticated sync endpoint will reconcile it after VexaAccount login.
       window.dispatchEvent(new CustomEvent('mtp2026:package-sync-pending', { detail: { error: String(error?.message || error), mode, slug: manifest.app.slug } }));
     }
     mirrorPackage({ ...manifest.app, url: web.url }, mode, { type: 'webapp', cloudRegistered: Boolean(cloudApp), version: web.version || null });
   }
 
-  // Android: use the real Android PackageInstaller bridge when available.
-  if (mode === 'android' && manifest.nativePackages?.android?.url && typeof window.MTP2026NativePlatform?.nativeInstallPackage === 'function') {
-    const nativeResult = await nativeInstall(manifest.nativePackages.android, mode);
-    return { success: true, mode, webAppInstalled: Boolean(web?.url), native: nativeResult, app: manifest.app };
+  if (mode === 'android' && manifest.nativePackages?.android?.url) {
+    const host = window.MTP2026NativePlatform?.nativeHost?.();
+    if (host === 'android' && typeof window.MTP2026NativePlatform?.nativeInstallPackage === 'function') {
+      const nativeResult = await nativeInstall(manifest.nativePackages.android, mode);
+      return { success: true, mode, webAppInstalled: Boolean(web?.url), native: nativeResult, app: manifest.app };
+    }
+    const pending = await guestAcquire(manifest.nativePackages.android, mode);
+    if (pending) return { success: true, mode, webAppInstalled: Boolean(web?.url), native: pending, app: manifest.app, reason: 'ANDROID_PACKAGE_DOWNLOADED_PENDING_GUEST_RUNTIME' };
   }
 
-  // Windows: use the native installer bridge if a Windows desktop build exposes
-  // it; otherwise keep the WebApp installation and hand off the native package.
   if (mode === 'windows11' && manifest.nativePackages?.windows?.url) {
-    const nativeResult = await nativeInstall(manifest.nativePackages.windows, mode);
-    return { success: true, mode, webAppInstalled: Boolean(web?.url), native: nativeResult, app: manifest.app };
+    const host = window.MTP2026NativePlatform?.nativeHost?.();
+    if (host === 'windows' && typeof window.MTP2026NativePlatform?.nativeInstallPackage === 'function') {
+      const nativeResult = await nativeInstall(manifest.nativePackages.windows, mode);
+      return { success: true, mode, webAppInstalled: Boolean(web?.url), native: nativeResult, app: manifest.app };
+    }
+    const pending = await guestAcquire(manifest.nativePackages.windows, mode);
+    if (pending) return { success: true, mode, webAppInstalled: Boolean(web?.url), native: pending, app: manifest.app, reason: 'WINDOWS_PACKAGE_DOWNLOADED_PENDING_GUEST_RUNTIME' };
   }
 
-  // Gaming profile: WebApps are first-class; native packages are optional.
-  if (mode === 'gaming' && manifest.nativePackages?.gaming?.url && typeof window.MTP2026NativePlatform?.nativeInstallPackage === 'function') {
-    const nativeResult = await nativeInstall(manifest.nativePackages.gaming, mode);
-    return { success: true, mode, webAppInstalled: Boolean(web?.url), native: nativeResult, app: manifest.app };
+  if (mode === 'gaming' && manifest.nativePackages?.gaming?.url) {
+    const host = window.MTP2026NativePlatform?.nativeHost?.();
+    if ((host === 'windows' || host === 'android') && typeof window.MTP2026NativePlatform?.nativeInstallPackage === 'function') {
+      const nativeResult = await nativeInstall(manifest.nativePackages.gaming, mode);
+      return { success: true, mode, webAppInstalled: Boolean(web?.url), native: nativeResult, app: manifest.app };
+    }
+    const pending = await guestAcquire(manifest.nativePackages.gaming, mode);
+    if (pending) return { success: true, mode, webAppInstalled: Boolean(web?.url), native: pending, app: manifest.app, reason: 'GAMING_PACKAGE_DOWNLOADED_PENDING_GUEST_RUNTIME' };
   }
 
-  // MTP2026 Device OS deliberately uses the WebApp application layer. An IPA
-  // cannot be silently sideloaded from browser code, so an Apple package is not
-  // falsely reported as installed.
   return { success: Boolean(web?.url), mode, webAppInstalled: Boolean(web?.url), native: null, app: manifest.app, reason: web?.url ? 'WEBAPP_RUNTIME_INSTALLED' : 'NATIVE_PACKAGE_REQUIRES_HOST_INSTALLER' };
 }
 
