@@ -1,0 +1,128 @@
+name: MTP2026 Physical ARM64 Test Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'os/mtp2026-linux-arm64/**'
+      - 'os/mtp2026-guest-profiles/**'
+      - 'frontend/public/arm64/guest-manifest.json'
+      - 'tools/**'
+      - '.github/workflows/mtp2026-physical-arm64-test-release.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ARM64 build and QEMU dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential bc bison flex libssl-dev libelf-dev \
+            cpio curl gzip rsync tar \
+            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+            qemu-system-arm
+
+      - name: Build all four MTP2026 physical-test guest profiles
+        run: bash os/mtp2026-guest-profiles/build-all.sh
+
+      - name: Boot-test all guest profiles under AArch64 QEMU
+        shell: bash
+        run: |
+          set -euo pipefail
+          for profile in mtp2026 android windows11 gaming; do
+            image="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-arm64-linux.Image"
+            initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
+            log="/tmp/mtp2026-${profile}.log"
+            timeout 35s qemu-system-aarch64 \
+              -M virt -cpu cortex-a72 -m 1024 -nographic \
+              -kernel "$image" -initrd "$initrd" \
+              -append 'console=ttyAMA0 rdinit=/init' > "$log" 2>&1 || code=$?
+            code=${code:-0}
+            cat "$log"
+            grep -q 'MTP2026 GUEST SYSTEM' "$log"
+            grep -q "MTP2026\\[${profile}\\]>" "$log"
+            if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then exit "$code"; fi
+            unset code
+          done
+
+      - name: Assemble physical test bundles and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          for profile in mtp2026 android windows11 gaming; do
+            dir="os/mtp2026-linux-arm64/out/artifacts/${profile}"
+            tar -C "$dir" -czf "release/mtp2026-${profile}-arm64-guest.tar.gz" \
+              "mtp2026-${profile}-arm64-linux.Image" \
+              "mtp2026-${profile}-initramfs.cpio.gz"
+          done
+          sha256sum release/* > release/SHA256SUMS.txt
+
+          python3 - <<'PY'
+          import hashlib, json, pathlib
+          root = pathlib.Path('release')
+          profiles = {}
+          for profile in ('mtp2026', 'android', 'windows11', 'gaming'):
+              image = pathlib.Path(f'os/mtp2026-linux-arm64/out/artifacts/{profile}/mtp2026-{profile}-arm64-linux.Image')
+              initrd = pathlib.Path(f'os/mtp2026-linux-arm64/out/artifacts/{profile}/mtp2026-{profile}-initramfs.cpio.gz')
+              bundle = root / f'mtp2026-{profile}-arm64-guest.tar.gz'
+              def sha(p):
+                  h = hashlib.sha256()
+                  with p.open('rb') as f:
+                      for chunk in iter(lambda: f.read(1024 * 1024), b''):
+                          h.update(chunk)
+                  return h.hexdigest()
+              profiles[profile] = {
+                  'id': profile,
+                  'architecture': 'arm64',
+                  'machine': 'qemu-aarch64-virt',
+                  'imageSource': {
+                      'url': f'https://github.com/MyTeleProject2026/MTP2026-App-Launcher/releases/download/mtp2026-physical-test/mtp2026-{profile}-arm64-guest.tar.gz',
+                      'sha256': sha(bundle),
+                      'kind': 'arm64-qemu-guest-bundle'
+                  },
+                  'initrdName': f'mtp2026-{profile}-initramfs.cpio.gz',
+                  'kernelName': f'mtp2026-{profile}-arm64-linux.Image',
+                  'kernelSha256': sha(image),
+                  'initrdSha256': sha(initrd),
+                  'runtime': 'qemu-system-aarch64',
+                  'bootArgs': ['-M','virt','-cpu','cortex-a72','-m','1024','-append','console=ttyAMA0 rdinit=/init']
+              }
+          manifest = {
+              'schema': 'mtp2026-physical-arm64-test-v1',
+              'version': 'physical-test',
+              'architecture': 'arm64',
+              'machine': 'qemu-aarch64-virt',
+              'runtime': {'engine':'qemu-system-aarch64','minimum':'8.x','requiresHostBinary':True},
+              'guests': profiles
+          }
+          (root / 'physical-test-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+          PY
+
+      - name: Publish/update stable physical-test prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view mtp2026-physical-test >/dev/null 2>&1; then
+            gh release delete mtp2026-physical-test --yes --cleanup-tag
+          fi
+          gh release create mtp2026-physical-test \
+            release/mtp2026-mtp2026-arm64-guest.tar.gz \
+            release/mtp2026-android-arm64-guest.tar.gz \
+            release/mtp2026-windows11-arm64-guest.tar.gz \
+            release/mtp2026-gaming-arm64-guest.tar.gz \
+            release/SHA256SUMS.txt \
+            release/physical-test-manifest.json \
+            --target "$GITHUB_SHA" --prerelease \
+            --title 'MTP2026 Physical ARM64 Test Build' \
+            --notes 'Generated ARM64 guest images for physical MTP2026 launcher testing. All four bundles are MTP2026-owned ARM64 Linux guest profiles and are not Apple, Microsoft, Google, or Android firmware.'
