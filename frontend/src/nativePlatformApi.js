@@ -1,11 +1,10 @@
-/* MTP2026 unified native platform capability API.
- * Keeps the existing React/VexaAccount session architecture intact and
- * exposes capabilities supplied by the current native host. */
+/* MTP2026 unified native platform capability API. */
 
 import './startupOrchestrator.js';
 import './nativeGuestStorage.js';
 import './osRuntime.js';
 import './guestBootController.js';
+import { getGuestImageContract } from './guestRuntimeManifest.js';
 
 const hasTauri = () => Boolean(window.__TAURI_INTERNALS__);
 const hasIOSBridge = () => Boolean(window.webkit?.messageHandlers?.mtp2026);
@@ -32,19 +31,15 @@ export function nativeCapabilities() {
   const host = nativeHost();
   const plugins = cap()?.Plugins || {};
   return Object.freeze({
-    native: host !== 'web',
-    host,
-    orientation: host === 'android' || host === 'ios',
-    fullscreen: true,
+    native: host !== 'web', host,
+    orientation: host === 'android' || host === 'ios', fullscreen: true,
     filesystem: Boolean(plugins.Filesystem) || host === 'windows' || Boolean(window.MTP2026NativeGuestStorage),
     guestStorage: Boolean(window.MTP2026NativeGuestStorage),
     notifications: Boolean(plugins.LocalNotifications) || host === 'windows' || host === 'android' || host === 'ios',
-    clipboard: Boolean(navigator.clipboard),
-    externalApps: host !== 'web',
-    gamepad: 'getGamepads' in navigator && host !== 'ios',
-    windowManagement: host === 'windows',
-    guestRuntime: Boolean(window.MTP2026GuestBoot),
-    packageInstaller: host === 'android' || host === 'windows',
+    clipboard: Boolean(navigator.clipboard), externalApps: host !== 'web',
+    gamepad: 'getGamepads' in navigator && host !== 'ios', windowManagement: host === 'windows',
+    guestRuntime: Boolean(window.MTP2026GuestBoot), packageInstaller: host === 'android' || host === 'windows',
+    realArm64GuestRuntime: hasTauri(),
   });
 }
 
@@ -63,6 +58,32 @@ export async function setNativeMode(mode) {
   return nativeResult;
 }
 
+async function bootNativeGuest({ id, guestContract }) {
+  if (!hasTauri()) return null;
+  const source = guestContract?.imageSource || {};
+  const bundleUrl = source.url || guestContract?.imageUrl || null;
+  const bundleSha256 = source.sha256 || guestContract?.bundleSha256 || null;
+  if (!bundleUrl) throw new Error(`GUEST_IMAGE_SOURCE_NOT_CONFIGURED_${id}`);
+  if (!bundleSha256) throw new Error(`GUEST_IMAGE_SHA256_NOT_CONFIGURED_${id}`);
+  return invoke('boot_guest', { id, bundleUrl, bundleSha256 });
+}
+
+async function stopNativeGuest(id) {
+  if (hasTauri() && id) return invoke('stop_guest', { id });
+  return null;
+}
+
+if (hasTauri()) {
+  window.MTP2026NativeGuestRuntime = Object.freeze({
+    async bootGuest({ id, guestContract }) {
+      const result = await bootNativeGuest({ id, guestContract });
+      return { ...result, provider: 'tauri-qemu-system-aarch64', realGuest: true };
+    },
+    async stopGuest(id) { return stopNativeGuest(id); },
+    async status(id) { return invoke('guest_runtime_status', { id }); },
+  });
+}
+
 /** Hand off a verified VexaStore native package to the host installer. */
 export async function nativeInstallPackage(url, version = '', metadata = {}) {
   const safeUrl = String(url || '').trim();
@@ -73,10 +94,7 @@ export async function nativeInstallPackage(url, version = '', metadata = {}) {
     return { success: true, status: 'installer_started', host, version, requiresUserApproval: true };
   }
   if (host === 'windows' && hasTauri()) return invoke('install_package', { url: safeUrl, packageType: metadata.packageType || 'windows' });
-  if (host === 'ios') {
-    await nativeOpenExternal(safeUrl);
-    return { success: true, status: 'external_install_handoff', host, version, requiresUserApproval: true };
-  }
+  if (host === 'ios') { await nativeOpenExternal(safeUrl); return { success: true, status: 'external_install_handoff', host, version, requiresUserApproval: true }; }
   await nativeOpenExternal(safeUrl);
   return { success: true, status: 'external_install_handoff', host, version, requiresUserApproval: true };
 }
@@ -124,7 +142,6 @@ if (startupMode && validModes.has(startupMode)) void setNativeMode(startupMode).
   splash.innerHTML = '<img class="mtp-startup-logo" src="/branding/mtp2026-mark.svg" alt="MTP2026"/><div class="mtp-startup-name">MTP2026</div><div class="mtp-startup-subtitle">MTP2026 Device OS</div>';
   const style = document.createElement('style');
   style.textContent = '#mtp2026-startup-logo{position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 42%,#14284a 0,#070811 48%,#03050b 100%);color:#eef6ff;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;animation:mtp-startup-fade .45s ease-out}.mtp-startup-logo{width:110px;height:110px;object-fit:contain;filter:drop-shadow(0 20px 50px rgba(33,212,253,.28));animation:mtp-startup-pulse 1.1s ease-in-out infinite}.mtp-startup-name{margin-top:22px;font-size:25px;font-weight:800}.mtp-startup-subtitle{margin-top:6px;color:#8fa6c4;font-size:12px;letter-spacing:.08em;text-transform:uppercase}@keyframes mtp-startup-pulse{0%,100%{transform:scale(.96);opacity:.84}50%{transform:scale(1);opacity:1}}@keyframes mtp-startup-fade{from{opacity:0}to{opacity:1}}';
-  document.head.appendChild(style);
-  document.body.appendChild(splash);
+  document.head.appendChild(style); document.body.appendChild(splash);
   window.setTimeout(() => { splash.style.transition = 'opacity .32s ease, visibility .32s ease'; splash.style.opacity = '0'; splash.style.visibility = 'hidden'; picker.classList.remove('mtp-os-hidden'); window.setTimeout(() => { splash.remove(); style.remove(); }, 340); }, 650);
 })();
