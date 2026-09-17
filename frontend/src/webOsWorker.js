@@ -12,19 +12,20 @@ const KERNEL_READY_ADDR = 0x6000;
 const BOOT_MAGIC = 0x4D54503230323641n;
 const KERNEL_READY_MAGIC = 0x4D5450324B524E4Cn;
 const MACHINE_VERSION = 1;
-const MODES = new Set(['android', 'ios', 'windows', 'gaming']);
+const MODES = new Set(['mtp2026', 'android', 'windows11', 'gaming']);
+const MODE_ALIASES = Object.freeze({ ios: 'mtp2026', 'ios-device': 'mtp2026', windows: 'windows11' });
 
 function movz(rd, imm16, hw = 0) { return 0xD2800000 | ((hw & 3) << 21) | ((imm16 & 0xffff) << 5) | (rd & 31); }
 function movk(rd, imm16, hw = 0) { return 0xF2800000 | ((hw & 3) << 21) | ((imm16 & 0xffff) << 5) | (rd & 31); }
 function write32LE(buffer, offset, value) { new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength).setUint32(offset, value >>> 0, true); }
 function read64LE(bytes, offset = 0) { return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getBigUint64(offset, true); }
-function normalizeMode(mode) { return MODES.has(mode) ? mode : 'android'; }
+function normalizeMode(mode) { const value = String(mode || ''); const normalized = MODE_ALIASES[value] || value; return MODES.has(normalized) ? normalized : 'android'; }
 function modeProfile(mode) {
   const profiles = {
-    android: { label: 'Android', orientation: 'portrait', viewport: [412, 915], touch: true, gamepad: false },
-    ios: { label: 'iOS', orientation: 'portrait', viewport: [393, 852], touch: true, gamepad: false },
-    windows: { label: 'Windows 11', orientation: 'landscape', viewport: [1440, 900], touch: false, gamepad: false },
-    gaming: { label: 'Gaming', orientation: 'responsive', viewport: [1280, 720], touch: true, gamepad: true },
+    mtp2026: { label: 'MTP2026 Device OS', orientation: 'portrait', viewport: [412, 915], touch: true, gamepad: false },
+    android: { label: 'MTP2026 Android OS', orientation: 'portrait', viewport: [412, 915], touch: true, gamepad: false },
+    windows11: { label: 'MTP2026 Desktop OS', orientation: 'landscape', viewport: [1440, 900], touch: false, gamepad: false },
+    gaming: { label: 'MTP2026 Gaming OS', orientation: 'responsive', viewport: [1280, 720], touch: true, gamepad: true },
   };
   return profiles[normalizeMode(mode)];
 }
