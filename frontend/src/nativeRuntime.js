@@ -28,6 +28,7 @@ import './mtp2026UniversalOS.js';
 import './mtp2026UniversalOS.css';
 import './mtp2026VexaAccountSSO.js';
 import './mtp2026SystemApps.js';
+import './mtp2026GuestOSRuntime.js';
 
 export function getNativeCapabilities() {
   return nativeCapabilities();
