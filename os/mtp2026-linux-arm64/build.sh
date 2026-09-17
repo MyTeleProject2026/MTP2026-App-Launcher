@@ -9,18 +9,21 @@ ROOTFS="${OUT}/rootfs"
 ARTIFACTS="${OUT}/artifacts/${PROFILE}"
 JOBS="${JOBS:-$(nproc)}"
 LINUX_VERSION="6.16"
-# BusyBox 1.37.0 currently fails against the Ubuntu 24.04 ARM64 cross-build
-# headers used by the physical-test runner (removed CBQ headers and the
-# SHA-NI symbol). Keep the guest foundation on the stable 1.36.1 release,
-# which provides the required initramfs utilities.
 BUSYBOX_VERSION="1.36.1"
 
+# Four user-facing MTP2026-owned ARM64 guest systems. The ios value remains
+# only as a backwards-compatible alias for older physical-test automation.
 case "$PROFILE" in
-  mtp2026) PROFILE_NAME="MTP2026 Device OS"; PROFILE_FAMILY="MTP2026"; PROFILE_LAYOUT="mobile"; PROFILE_NAV="gesture" ;;
-  android) PROFILE_NAME="MTP2026 Android OS"; PROFILE_FAMILY="Android-style"; PROFILE_LAYOUT="mobile"; PROFILE_NAV="gesture-or-three-button" ;;
-  ios) PROFILE_NAME="MTP2026 Device OS"; PROFILE_FAMILY="MTP2026"; PROFILE_LAYOUT="mobile"; PROFILE_NAV="gesture" ;;
-  windows11) PROFILE_NAME="MTP2026 Desktop OS"; PROFILE_FAMILY="Desktop-style"; PROFILE_LAYOUT="desktop"; PROFILE_NAV="taskbar" ;;
-  gaming) PROFILE_NAME="MTP2026 Gaming OS"; PROFILE_FAMILY="Gaming-style"; PROFILE_LAYOUT="gaming"; PROFILE_NAV="controller" ;;
+  mtp2026)
+    PROFILE_NAME="MTP2026 Device OS"; PROFILE_FAMILY="MTP2026"; PROFILE_LAYOUT="mobile"; PROFILE_NAV="gesture"; PROFILE_CLASS="device" ;;
+  android)
+    PROFILE_NAME="MTP2026 Android OS"; PROFILE_FAMILY="Android-style"; PROFILE_LAYOUT="mobile"; PROFILE_NAV="gesture-or-three-button"; PROFILE_CLASS="android" ;;
+  ios)
+    PROFILE_NAME="MTP2026 Device OS"; PROFILE_FAMILY="MTP2026"; PROFILE_LAYOUT="mobile"; PROFILE_NAV="gesture"; PROFILE_CLASS="device" ;;
+  windows11)
+    PROFILE_NAME="MTP2026 Desktop OS"; PROFILE_FAMILY="Desktop-style"; PROFILE_LAYOUT="desktop"; PROFILE_NAV="taskbar"; PROFILE_CLASS="desktop" ;;
+  gaming)
+    PROFILE_NAME="MTP2026 Gaming OS"; PROFILE_FAMILY="Gaming-style"; PROFILE_LAYOUT="gaming"; PROFILE_NAV="controller"; PROFILE_CLASS="gaming" ;;
   *) echo "Unsupported MTP2026 guest profile: $PROFILE" >&2; exit 2 ;;
 esac
 
@@ -36,20 +39,14 @@ fetch() {
 fetch_with_fallback() {
   local dest="$1"
   shift
-  if [ -f "$dest" ]; then
-    return 0
-  fi
-
+  if [ -f "$dest" ]; then return 0; fi
   local url
   for url in "$@"; do
     echo "Fetching source: $url"
-    if curl -L --fail --retry 3 --retry-delay 2 -o "$dest" "$url"; then
-      return 0
-    fi
+    if curl -L --fail --retry 3 --retry-delay 2 -o "$dest" "$url"; then return 0; fi
     rm -f "$dest"
     echo "Source unavailable, trying next mirror: $url" >&2
   done
-
   echo "Unable to download required source: $dest" >&2
   return 1
 }
@@ -76,24 +73,116 @@ make -C "$KERNEL" scripts -j"$JOBS"
 "$KERNEL/scripts/config" --enable CONFIG_SERIAL_AMBA_PL011_CONSOLE
 "$KERNEL/scripts/config" --enable CONFIG_VIRTIO
 "$KERNEL/scripts/config" --enable CONFIG_VIRTIO_MMIO
+"$KERNEL/scripts/config" --enable CONFIG_VIRTIO_BLK
+"$KERNEL/scripts/config" --enable CONFIG_VIRTIO_NET
+"$KERNEL/scripts/config" --enable CONFIG_NET
+"$KERNEL/scripts/config" --enable CONFIG_INET
 "$KERNEL/scripts/config" --enable CONFIG_EXT4_FS
 "$KERNEL/scripts/config" --enable CONFIG_TMPFS
+"$KERNEL/scripts/config" --enable CONFIG_FUSE_FS
+"$KERNEL/scripts/config" --set-str CONFIG_LOCALVERSION "-mtp2026-${PROFILE}"
 make -C "$KERNEL" olddefconfig
 
 rm -rf "$ROOTFS"
 mkdir -p "$ROOTFS"/{bin,sbin,etc,proc,sys,dev,tmp,run,mnt,home,usr/bin,var/lib/mtp2026/apps,etc/mtp2026}
 
 make -C "$BUSYBOX" defconfig
-# Ubuntu 24.04 no longer exposes the legacy CBQ kernel headers expected by
-# BusyBox 1.36.1's optional tc applet. The guest does not depend on tc, so
-# disable only that applet and keep the rest of the default userspace intact.
 sed -i 's/^CONFIG_TC=y/# CONFIG_TC is not set/' "$BUSYBOX/.config"
 sed -i 's/^# CONFIG_STATIC is not set/CONFIG_STATIC=y/' "$BUSYBOX/.config"
-# BusyBox 1.36.1 does not require an olddefconfig pass here. defconfig
-# creates the complete configuration and the two explicit toggles above are
-# the only intentional changes before the cross-build.
 make -C "$BUSYBOX" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE"
 make -C "$BUSYBOX" CONFIG_PREFIX="$ROOTFS" install
+
+# Profile capability contract. These are MTP2026-owned system services and
+# interfaces; they are not copies of proprietary Apple, Microsoft, ASUS or ROG firmware.
+cat > "$ROOTFS/etc/mtp2026/capabilities.json" <<EOF
+{
+  "schema": "mtp2026-guest-capabilities-v1",
+  "profile": "${PROFILE}",
+  "name": "${PROFILE_NAME}",
+  "architecture": "arm64",
+  "kernel": "Linux ${LINUX_VERSION}",
+  "machine": "qemu-aarch64-virt",
+  "identity": {"provider":"VexaAccount","session":"launcher-managed"},
+  "apps": {"store":"VexaStore","webApps":true,"nativePackages":"host-installer-handoff"},
+  "system": {
+    "boot":"initramfs",
+    "power":"reboot,poweroff",
+    "storage":"virtual-ext4-tmpfs",
+    "network":"virtio-net",
+    "display":"${PROFILE_LAYOUT}",
+    "input":"${PROFILE_NAV}"
+  },
+  "features": {
+    "deviceAndOsSwitcher":true,
+    "notifications":true,
+    "settings":true,
+    "fileManager":true,
+    "webAppRuntime":true,
+    "accountCenter":true,
+    "store":true,
+    "nativeHostHandoff":true,
+    "proprietaryFirmware":false
+  }
+}
+EOF
+
+cat > "$ROOTFS/etc/mtp2026/profile.json" <<EOF
+{
+  "schema": "mtp2026-guest-os-profile-v3",
+  "id": "${PROFILE}",
+  "name": "${PROFILE_NAME}",
+  "family": "${PROFILE_FAMILY}",
+  "architecture": "arm64",
+  "machine": "qemu-aarch64-virt",
+  "kernelVersion": "${LINUX_VERSION}",
+  "kernelLocalVersion": "-mtp2026-${PROFILE}",
+  "layout": "${PROFILE_LAYOUT}",
+  "navigation": "${PROFILE_NAV}",
+  "profileClass": "${PROFILE_CLASS}",
+  "accountProvider": "VexaAccount",
+  "applicationStore": "VexaStore",
+  "applicationProtocol": "vexastore-install-manifest-v2",
+  "applicationInstallRoot": "/var/lib/mtp2026/apps",
+  "webApps": true,
+  "nativePackageHandoff": true,
+  "deviceAndOsSwitcher": true,
+  "notifications": true,
+  "settings": true,
+  "fileManager": true,
+  "proprietaryFirmware": false
+}
+EOF
+
+cat > "$ROOTFS/usr/bin/mtp2026-system-info" <<'EOF'
+#!/bin/sh
+set -eu
+printf '%s\n' 'MTP2026 system information'
+printf 'Profile: '; sed -n 's/.*"id": "\([^"]*\)".*/\1/p' /etc/mtp2026/profile.json
+printf 'Name: '; sed -n 's/.*"name": "\([^"]*\)".*/\1/p' /etc/mtp2026/profile.json
+printf 'Kernel: '; uname -a
+printf 'Machine: '; uname -m
+printf 'Identity: VexaAccount\nStore: VexaStore\n'
+EOF
+chmod +x "$ROOTFS/usr/bin/mtp2026-system-info"
+
+cat > "$ROOTFS/usr/bin/mtp2026-service" <<'EOF'
+#!/bin/sh
+set -eu
+SERVICE="${2:-}"
+ACTION="${1:-status}"
+case "$SERVICE" in
+  account|store|webapp|notifications|settings|files|device-os)
+    case "$ACTION" in
+      status) echo "mtp2026-$SERVICE: active (launcher-managed)" ;;
+      start|restart) echo "mtp2026-$SERVICE: launcher-managed; request accepted" ;;
+      stop) echo "mtp2026-$SERVICE: launcher-managed; stop requested" ;;
+      *) echo "usage: mtp2026-service {status|start|stop|restart} <service>" >&2; exit 2 ;;
+    esac ;;
+    ;;
+  *) echo "Unknown MTP2026 service: $SERVICE" >&2; exit 2 ;;
+esac
+EOF
+chmod +x "$ROOTFS/usr/bin/mtp2026-service"
 
 sed -e "s/@PROFILE@/${PROFILE}/g" -e "s/@PROFILE_NAME@/${PROFILE_NAME}/g" \
   "$ROOT/rootfs/init.template" > "$ROOTFS/init"
@@ -109,36 +198,18 @@ HOME_URL="https://github.com/MyTeleProject2026/MTP2026-App-Launcher"
 VARIANT="MTP2026 ${PROFILE_FAMILY} guest profile"
 EOF
 
-cat > "$ROOTFS/etc/mtp2026/profile.json" <<EOF
-{
-  "schema": "mtp2026-guest-os-profile-v2",
-  "id": "${PROFILE}",
-  "name": "${PROFILE_NAME}",
-  "family": "${PROFILE_FAMILY}",
-  "architecture": "arm64",
-  "machine": "qemu-aarch64-virt",
-  "layout": "${PROFILE_LAYOUT}",
-  "navigation": "${PROFILE_NAV}",
-  "accountProvider": "VexaAccount",
-  "applicationStore": "VexaStore",
-  "applicationProtocol": "vexastore-install-manifest-v2",
-  "applicationInstallRoot": "/var/lib/mtp2026/apps",
-  "webApps": true,
-  "nativePackageHandoff": true,
-  "proprietaryFirmware": false
-}
-EOF
-
 cat > "$ROOTFS/etc/motd" <<EOF
 ========================================
           MTP2026 GUEST SYSTEM
 ========================================
 ${PROFILE_NAME}
 ARM64 Linux guest foundation
+Kernel: Linux ${LINUX_VERSION}-mtp2026-${PROFILE}
 Profile family: ${PROFILE_FAMILY}
 Layout: ${PROFILE_LAYOUT}
 Navigation: ${PROFILE_NAV}
 VexaAccount identity • VexaStore applications
+MTP2026-owned firmware/runtime profile
 ========================================
 EOF
 
@@ -164,4 +235,4 @@ if [ "$PROFILE" = "mtp2026" ]; then
   cp "$ARTIFACTS/mtp2026-${PROFILE}-arm64-linux.Image" "$OUT/artifacts/mtp2026-arm64-linux.Image"
 fi
 
-printf '%s\n' "Built MTP2026 ARM64 profile: $PROFILE" "Kernel: $ARTIFACTS/mtp2026-${PROFILE}-arm64-linux.Image" "Initramfs: $ARTIFACTS/mtp2026-${PROFILE}-initramfs.cpio.gz" "Profile: $ROOTFS/etc/mtp2026/profile.json" "VexaStore installer: $ROOTFS/usr/bin/mtp2026-app-install"
+printf '%s\n' "Built MTP2026 ARM64 profile: $PROFILE" "Kernel: $ARTIFACTS/mtp2026-${PROFILE}-arm64-linux.Image" "Initramfs: $ARTIFACTS/mtp2026-${PROFILE}-initramfs.cpio.gz" "Profile: $ROOTFS/etc/mtp2026/profile.json" "Capabilities: $ROOTFS/etc/mtp2026/capabilities.json" "VexaStore installer: $ROOTFS/usr/bin/mtp2026-app-install"
