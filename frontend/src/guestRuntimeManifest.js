@@ -12,14 +12,30 @@ async function readJson(url, options = {}) {
   return response.json();
 }
 
+function mergeGuestProfile(base = {}, overlay = {}) {
+  const merged = { ...base, ...overlay };
+  const baseSource = base.imageSource || {};
+  const overlaySource = overlay.imageSource || {};
+  const source = { ...baseSource, ...overlaySource };
+  if (source.url || source.sha256) merged.imageSource = source;
+  else if (base.imageSource) merged.imageSource = base.imageSource;
+  else delete merged.imageSource;
+  return merged;
+}
+
 function mergeManifests(base, overlay) {
   const ids = Object.keys({ ...(base.guests || {}), ...(overlay.guests || {}) });
   return {
     ...base,
     ...overlay,
     controlKernel: { ...(base.controlKernel || {}), ...(overlay.controlKernel || {}) },
-    guests: Object.fromEntries(ids.map(id => [id, { ...(base.guests?.[id] || {}), ...(overlay.guests?.[id] || {}) }])),
+    guests: Object.fromEntries(ids.map(id => [id, mergeGuestProfile(base.guests?.[id], overlay.guests?.[id])])),
   };
+}
+
+function hasUsablePhysicalSources(manifest) {
+  const guests = manifest?.guests || {};
+  return ['mtp2026', 'android', 'windows11', 'gaming'].every(id => Boolean(guests[id]?.imageSource?.url && guests[id]?.imageSource?.sha256));
 }
 
 async function loadManifest() {
@@ -28,9 +44,16 @@ async function loadManifest() {
       let manifest = { schema: 'mtp2026-guest-runtime-v8', architecture: 'arm64', guests: {} };
       try { manifest = await readJson(STATIC_MANIFEST_URL, { credentials: 'same-origin' }); } catch (_) {}
       if (manifest.physicalTestManifestUrl) {
-        try { manifest = mergeManifests(manifest, await readJson(manifest.physicalTestManifestUrl)); } catch (_) {}
+        try {
+          const physical = await readJson(manifest.physicalTestManifestUrl);
+          if (hasUsablePhysicalSources(physical)) manifest = mergeManifests(manifest, physical);
+        } catch (_) {}
       }
-      try { manifest = mergeManifests(manifest, await readJson(`${API_BASE}/guest-runtime-manifest`)); } catch (_) {}
+      try {
+        const apiManifest = await readJson(`${API_BASE}/guest-runtime-manifest`);
+        const candidate = mergeManifests(manifest, apiManifest);
+        if (!(hasUsablePhysicalSources(manifest) && !hasUsablePhysicalSources(candidate))) manifest = candidate;
+      } catch (_) {}
       return manifest;
     })().catch(error => { manifestPromise = null; throw error; });
   }
@@ -48,7 +71,8 @@ export async function getGuestImageSource(id) {
   const contract = await getGuestImageContract(id);
   const source = contract?.imageSource || {};
   const url = source.url || contract.imageUrl || contract.kernelUrl || null;
-  return { ...source, url: url ? String(url) : null, sha256: source.sha256 || contract.bundleSha256 || null, configured: Boolean(url) };
+  const sha256 = source.sha256 || contract.bundleSha256 || null;
+  return { ...source, url: url ? String(url) : null, sha256, configured: Boolean(url && sha256) };
 }
 export async function validateGuestImageContract(id, metadata = {}) {
   const contract = await getGuestImageContract(id);
