@@ -1,13 +1,12 @@
 /* MTP2026 guest runtime manifest loader. */
 
 const STATIC_MANIFEST_URL = '/arm64/guest-manifest.json';
-const API_BASE = (window.__MTP_API_BASE__ || 'https://mtp2026-app-launcher-backend.onrender.com/api').replace(/\/$/, '');
 let manifestPromise = null;
 
 export const GUEST_IMAGE_STATES = Object.freeze({ missing: 'missing', downloading: 'downloading', installed: 'installed', ready: 'ready', failed: 'failed' });
 
-async function readJson(url, options = {}) {
-  const response = await fetch(url, { cache: 'no-store', credentials: options.credentials || 'omit' });
+async function readJson(url) {
+  const response = await fetch(url, { cache: 'no-store', credentials: 'same-origin' });
   if (!response.ok) throw new Error(`GUEST_MANIFEST_FETCH_${response.status}`);
   return response.json();
 }
@@ -41,19 +40,9 @@ function hasUsablePhysicalSources(manifest) {
 async function loadManifest() {
   if (!manifestPromise) {
     manifestPromise = (async () => {
-      let manifest = { schema: 'mtp2026-guest-runtime-v8', architecture: 'arm64', guests: {} };
-      try { manifest = await readJson(STATIC_MANIFEST_URL, { credentials: 'same-origin' }); } catch (_) {}
-      if (manifest.physicalTestManifestUrl) {
-        try {
-          const physical = await readJson(manifest.physicalTestManifestUrl);
-          if (hasUsablePhysicalSources(physical)) manifest = mergeManifests(manifest, physical);
-        } catch (_) {}
-      }
-      try {
-        const apiManifest = await readJson(`${API_BASE}/guest-runtime-manifest`);
-        const candidate = mergeManifests(manifest, apiManifest);
-        if (!(hasUsablePhysicalSources(manifest) && !hasUsablePhysicalSources(candidate))) manifest = candidate;
-      } catch (_) {}
+      const manifest = await readJson(STATIC_MANIFEST_URL);
+      if (!manifest || typeof manifest !== 'object') throw new Error('GUEST_MANIFEST_INVALID');
+      if (!hasUsablePhysicalSources(manifest)) throw new Error('GUEST_MANIFEST_INCOMPLETE');
       return manifest;
     })().catch(error => { manifestPromise = null; throw error; });
   }
