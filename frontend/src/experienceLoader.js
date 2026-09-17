@@ -5,7 +5,7 @@
 
   let loaded = false;
   const load = () => {
-    if (loaded || !document.querySelector('.app-shell')) return;
+    if (loaded || !window.__MTP2026_AUTHENTICATED_LAUNCHER__ || !document.querySelector('.app-shell')) return;
     loaded = true;
     import('./experience.js').catch(error => {
       loaded = false;
@@ -16,6 +16,7 @@
 
   const observer = new MutationObserver(load);
   observer.observe(document.documentElement, { childList: true, subtree: true });
+  window.addEventListener('mtp2026:authenticated-launcher-ready', load);
   window.addEventListener('load', load, { once: true });
   load();
 })();
