@@ -4,7 +4,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_ROOT="${ROOT}/mtp2026-linux-arm64"
 
-for profile in mtp2026 android ios windows11 gaming; do
+# Keep the existing five-profile build as the default for the normal launcher
+# build. Release workflows can provide a space-separated subset when they only
+# need the physical-test profiles, avoiding an unnecessary fifth guest build.
+BUILD_PROFILES="${MTP2026_BUILD_PROFILES:-mtp2026 android ios windows11 gaming}"
+
+for profile in ${BUILD_PROFILES}; do
   echo "=== Building ${profile} ==="
   MTP2026_PROFILE="$profile" bash "${BUILD_ROOT}/build.sh"
 done
