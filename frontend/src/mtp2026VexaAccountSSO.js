@@ -68,5 +68,23 @@ export async function openVexaAccountSSO(action = 'account') {
   renderAccount(root,session); return session;
 }
 
+function interceptLegacyAccountNavigation(event) {
+  const target = event.target?.closest?.('button,a');
+  if (!target) return;
+  const label = String(target.textContent || '').replace(/\s+/g,' ').trim().toLowerCase();
+  const href = String(target.getAttribute?.('href') || '').toLowerCase();
+  const isManage = label.includes('manage vexaaccount') || href.includes('vexaaccount-management.onrender.com');
+  const isForgot = label.includes('forgot password');
+  const isRegister = label.includes('create one') || label.includes('create vexaaccount');
+  const isHelp = label.includes('help with signing in');
+  if (!(isManage || isForgot || isRegister || isHelp)) return;
+  event.preventDefault(); event.stopImmediatePropagation();
+  if (isManage) void openVexaAccountSSO('account');
+  else if (isForgot) void requestLogin('forgot_password');
+  else if (isRegister) void requestLogin('register');
+  else if (isHelp) void requestLogin('help');
+}
+
 window.MTP2026VexaAccountSSO=Object.freeze({open:openVexaAccountSSO});
 window.addEventListener('mtp2026:open-account',()=>{void openVexaAccountSSO('account');});
+document.addEventListener('click', interceptLegacyAccountNavigation, true);
