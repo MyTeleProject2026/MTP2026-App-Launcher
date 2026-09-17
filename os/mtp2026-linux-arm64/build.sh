@@ -9,7 +9,12 @@ ROOTFS="${OUT}/rootfs"
 ARTIFACTS="${OUT}/artifacts/${PROFILE}"
 JOBS="${JOBS:-$(nproc)}"
 LINUX_VERSION="6.16"
-BUSYBOX_VERSION="1.37.0"
+# BusyBox 1.37.0 currently fails against the Ubuntu 24.04 ARM64 cross-build
+# headers used by the physical-test runner (removed CBQ headers and the
+# SHA-NI symbol).  Keep the guest foundation on the stable 1.36.1 release,
+# which builds cleanly with the runner toolchain and provides the same required
+# initramfs utilities.
+BUSYBOX_VERSION="1.36.1"
 
 case "$PROFILE" in
   mtp2026) PROFILE_NAME="MTP2026 Device OS"; PROFILE_FAMILY="MTP2026"; PROFILE_LAYOUT="mobile"; PROFILE_NAV="gesture" ;;
@@ -81,10 +86,9 @@ mkdir -p "$ROOTFS"/{bin,sbin,etc,proc,sys,dev,tmp,run,mnt,home,usr/bin,var/lib/m
 
 make -C "$BUSYBOX" defconfig
 sed -i 's/^# CONFIG_STATIC is not set/CONFIG_STATIC=y/' "$BUSYBOX/.config"
-# BusyBox 1.37.0 does not provide an olddefconfig target.  The defconfig
-# already generated a complete .config; the static toggle above is the only
-# intentional delta, so proceed directly to the build instead of invoking a
-# non-existent target.
+# BusyBox 1.36.1 does not require an olddefconfig pass here.  defconfig
+# creates the complete configuration and the static toggle above is the only
+# intentional change before the cross-build.
 make -C "$BUSYBOX" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE"
 make -C "$BUSYBOX" CONFIG_PREFIX="$ROOTFS" install
 
