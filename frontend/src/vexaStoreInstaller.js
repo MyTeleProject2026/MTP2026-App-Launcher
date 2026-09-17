@@ -92,6 +92,32 @@ async function registerWebAppInMtp2026(app, guestMode) {
   return body.app || body.data || body;
 }
 
+export async function installManualWebApp(payload = {}) {
+  const url = assertTrustedUrl(payload.url);
+  const mode = activateMode(payload.guestMode || currentMode());
+  const parsed = new URL(url);
+  const fallbackName = parsed.hostname.replace(/^www\./, '') || 'WebApp';
+  const name = String(payload.name || fallbackName).trim().slice(0, 80) || fallbackName;
+  const slug = `manual-${btoa(unescape(encodeURIComponent(url))).replace(/[^a-zA-Z0-9]/g, '').slice(0, 32) || Date.now()}`;
+  const key = `manual:${url}`;
+  const registry = getRegistry();
+  const previous = registry[key] || {};
+  let registered = null;
+  try {
+    registered = await registerWebAppInMtp2026({ url }, mode);
+  } catch (error) {
+    const message = String(error?.message || error);
+    if (/401|AUTH/i.test(message)) throw error;
+    emitInstallStatus('local-only', { url, reason: message });
+  }
+  const app = { ...previous, ...(registered || {}), id: registered?.id || key, slug: registered?.slug || slug, name: registered?.name || registered?.title || name, title: registered?.title || registered?.name || name, description: registered?.description || `Manual HTTPS WebApp from ${parsed.hostname}`, url, iconUrl: registered?.iconUrl || null, source: registered?.source || 'Manual WebApp', installMode: 'mtp2026-webapp-manual', guestMode: mode, guestModes: GUEST_MODES, installedProfiles: GUEST_MODES, installedAt: previous.installedAt || new Date().toISOString(), cloudRegistered: Boolean(registered) };
+  registry[key] = app;
+  saveRegistry(registry);
+  window.dispatchEvent(new CustomEvent('mtp2026:vexastore-installed', { detail: app }));
+  emitInstallStatus('completed', { url, app });
+  return { success: true, type: 'webapp', mode, cloudRegistered: Boolean(registered), app };
+}
+
 function nativePackageForMode(manifest, mode) {
   const packages = manifest?.nativePackages || {};
   if (mode === 'windows11') return packages.windows11 || packages.windows || null;
@@ -120,8 +146,6 @@ export async function installVexaStoreApp(manifest, requestedMode = null) {
   const native = nativePackageForMode(manifest, mode);
   if (native?.url && (mode === 'android' || mode === 'windows11' || mode === 'gaming')) {
     const host = window.MTP2026NativePlatform?.nativeHost?.();
-    // Native package installation is only attempted when the current host can
-    // actually own that package type. Otherwise the WebApp edition is used.
     if ((mode === 'android' && host === 'android') || (mode === 'windows11' && host === 'windows') || (mode === 'gaming' && (host === 'windows' || host === 'android'))) {
       const result = await installNativePackage(native, mode);
       emitInstallStatus('completed', { slug: appSlug, result });
@@ -163,4 +187,4 @@ export async function installVexaStoreSlug(slug, requestedMode = null) {
   return installVexaStoreApp(manifest, requestedMode);
 }
 
-window.MTP2026VexaStoreInstaller = { fetchVexaStoreManifest, installVexaStoreApp, installVexaStoreSlug, getInstalledVexaApps, isVexaAppInstalled, uninstallVexaStoreApp, syncInstalledVexaApps };
+window.MTP2026VexaStoreInstaller = { fetchVexaStoreManifest, installVexaStoreApp, installVexaStoreSlug, installManualWebApp, getInstalledVexaApps, isVexaAppInstalled, uninstallVexaStoreApp, syncInstalledVexaApps };
