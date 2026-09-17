@@ -73,7 +73,14 @@ async fn boot_guest(app: tauri::AppHandle, id: String, bundle_url: String, bundl
     let kernel_name = profile_name(&id)?; let initrd_name = initrd_name(&id)?; let dir = guest_root(&app, &id)?; let bundle = dir.join("guest.tar.gz");
     { let mut running = processes.0.lock().map_err(|_| "GUEST_PROCESS_LOCK_FAILED")?; if let Some(mut child) = running.remove(&id) { let _ = child.kill(); } }
     if !bundle.exists() { download_https(&bundle_url, &bundle)?; }
-    verify_sha256(&bundle, &bundle_sha256)?; extract_bundle(&bundle, &dir)?;
+    if let Err(error) = verify_sha256(&bundle, &bundle_sha256) {
+        if error == "GUEST_IMAGE_SHA256_MISMATCH" {
+            let _ = fs::remove_file(&bundle);
+            download_https(&bundle_url, &bundle)?;
+            verify_sha256(&bundle, &bundle_sha256)?;
+        } else { return Err(error); }
+    }
+    extract_bundle(&bundle, &dir)?;
     let kernel = dir.join(kernel_name); let initrd = dir.join(initrd_name); if !kernel.exists() || !initrd.exists() { return Err("GUEST_BUNDLE_MISSING_BOOT_FILES".into()); }
     let serial_log = dir.join("serial.log");
     let serial_arg = format!("file:{}", serial_log.to_string_lossy());
