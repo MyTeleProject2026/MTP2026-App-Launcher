@@ -1,6 +1,6 @@
 name: MTP2026 App Launcher CI
 
-on:
+"on":
   push:
     branches: [main]
   pull_request:
