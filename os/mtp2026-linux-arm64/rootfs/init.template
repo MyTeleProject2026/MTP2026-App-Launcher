@@ -12,21 +12,58 @@ printf 'Architecture: arm64\n'
 printf 'Identity: VexaAccount\n'
 printf 'Application store: VexaStore\n'
 printf 'Application root: /var/lib/mtp2026/apps\n'
+printf 'System services: account store webapp notifications settings files device-os\n'
 printf '\n'
 
 export HOME=/home
 export PATH=/usr/bin:/bin:/sbin
+export MTP2026_PROFILE="@PROFILE@"
+export MTP2026_PROFILE_NAME="@PROFILE_NAME@"
+
+# MTP2026 guest service bootstrap. These services expose the same stable
+# launcher-managed contracts to every ARM64 profile while the profile-specific
+# UI/runtime remains different on the browser/native side.
+mkdir -p /run/mtp2026 /var/lib/mtp2026/apps
+for service in account store webapp notifications settings files device-os; do
+  printf 'active\n' > "/run/mtp2026/$service"
+done
+
+status() {
+  service="$1"
+  if [ -f "/run/mtp2026/$service" ]; then
+    echo "mtp2026-$service: active (profile=@PROFILE@)"
+  else
+    echo "mtp2026-$service: inactive"
+  fi
+}
+
+profile_features() {
+  case "@PROFILE@" in
+    mtp2026) echo "Device OS: mobile gestures, Control Center, notifications, VexaStore, WebApps" ;;
+    android) echo "Android OS: mobile launcher, gesture/three-button navigation, Quick Settings, APK host handoff" ;;
+    windows11) echo "Desktop OS: desktop workspace, Start/taskbar, files, keyboard/mouse, native package handoff" ;;
+    gaming) echo "Gaming OS: Game Hub, controller navigation, performance mode, game library, native game handoff" ;;
+    *) echo "Profile: @PROFILE@" ;;
+  esac
+}
 
 while true; do
   printf '\nMTP2026[%s]> ' "@PROFILE@"
   if ! IFS= read -r command; then exit 0; fi
   case "$command" in
     ""|help)
-      echo "Commands: help, about, memory, storage, apps, account, store, browser, install <manifest-url>, reboot, poweroff"
+      echo "Commands: help, about, profile, services, memory, storage, apps, account, store, browser, settings, files, notifications, network, install <manifest-url>, reboot, poweroff"
       ;;
     about)
       cat /etc/os-release
       uname -a
+      ;;
+    profile)
+      profile_features
+      /usr/bin/mtp2026-system-info
+      ;;
+    services)
+      for service in account store webapp notifications settings files device-os; do status "$service"; done
       ;;
     memory)
       cat /proc/meminfo | head -n 8
@@ -41,14 +78,35 @@ while true; do
       fi
       ;;
     account)
+      status account
       echo "VexaAccount is the identity authority for this MTP2026 guest."
+      echo "The browser/native launcher owns interactive authentication and session tokens."
       ;;
     store)
+      status store
       echo "VexaStore application catalog: https://www.vexastore.2bd.net/"
       echo "Install protocol: VexaStore manifest -> verified package -> /var/lib/mtp2026/apps"
       ;;
     browser)
-      echo "MTP2026 Browser is the default guest web application."
+      status webapp
+      echo "MTP2026 Browser/WebApp runtime is launcher-managed."
+      echo "Native guest packages are handed to a compatible host installer; the browser does not execute APK/EXE binaries."
+      ;;
+    settings)
+      status settings
+      echo "Settings service: display, orientation, sound, notifications, account, storage, power."
+      ;;
+    files)
+      status files
+      echo "File service: Desktop, Documents, Downloads, Pictures, Music, Games and Device Storage."
+      ;;
+    notifications)
+      status notifications
+      echo "Notification service: launcher-managed guest notifications."
+      ;;
+    network)
+      echo "Network interfaces:"
+      cat /proc/net/dev
       ;;
     install\ *)
       URL="${command#install }"
@@ -61,7 +119,12 @@ while true; do
       poweroff -f
       ;;
     *)
-      echo "Unknown command: $command"
+      case "$command" in
+        service\ status\ *) status "${command#service status }" ;;
+        service\ start\ *) service="${command#service start }"; printf 'active\n' > "/run/mtp2026/$service" 2>/dev/null || true; status "$service" ;;
+        service\ stop\ *) service="${command#service stop }"; rm -f "/run/mtp2026/$service"; status "$service" ;;
+        *) echo "Unknown command: $command" ;;
+      esac
       ;;
   esac
 done
