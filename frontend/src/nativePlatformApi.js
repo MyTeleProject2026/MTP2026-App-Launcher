@@ -43,7 +43,7 @@ export function nativeCapabilities() {
   });
 }
 
-async function setNativeMode(mode) {
+export async function setNativeMode(mode) {
   const normalized = mode === 'windows11' ? 'windows' : mode === 'mtp2026' ? 'android' : mode;
   if (!validModes.has(mode) || !validModes.has(normalized)) throw new Error('Unsupported MTP2026 device mode');
   let nativeResult = null;
