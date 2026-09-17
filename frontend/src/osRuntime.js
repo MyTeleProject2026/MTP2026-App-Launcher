@@ -2,14 +2,14 @@
 import './guestBootController.js';
 
 const MODES = {
-  android: { name: 'Android', subtitle: 'ARM64 mobile guest' },
-  ios: { name: 'iOS', subtitle: 'ARM64 mobile guest' },
-  windows: { name: 'Windows 11', subtitle: 'ARM64 desktop guest' },
-  gaming: { name: 'Gaming OS', subtitle: 'ARM64 gaming guest' },
+  mtp2026: { name: 'MTP2026 Device OS', subtitle: 'MTP2026 ARM64 mobile guest' },
+  android: { name: 'MTP2026 Android OS', subtitle: 'MTP2026 ARM64 mobile guest' },
+  windows11: { name: 'MTP2026 Desktop OS', subtitle: 'MTP2026 ARM64 desktop guest' },
+  gaming: { name: 'MTP2026 Gaming OS', subtitle: 'MTP2026 ARM64 gaming guest' },
 };
 let state = { mode: null, phase: 'idle', provider: 'none', ready: false, error: null, recoverable: false };
 let bootToken = 0;
-const normalize = mode => mode === 'windows11' ? 'windows' : MODES[mode] ? mode : 'android';
+const normalize = mode => mode === 'ios' || mode === 'ios-device' ? 'mtp2026' : mode === 'windows' ? 'windows11' : MODES[mode] ? mode : 'android';
 function capabilities() {
   const platform = window.MTP2026NativePlatform;
   const arm64 = window.MTP2026Arm64GuestRuntime;
