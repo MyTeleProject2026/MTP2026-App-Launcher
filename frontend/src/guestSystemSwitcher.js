@@ -4,10 +4,10 @@
   window.__MTP_GUEST_SYSTEM_SWITCHER__ = true;
 
   const MODES = Object.freeze({
-    android: 'Android',
-    ios: 'iOS',
-    windows11: 'Windows 11',
-    gaming: 'Gaming OS',
+    mtp2026: 'MTP2026 Device OS',
+    android: 'MTP2026 Android OS',
+    windows11: 'MTP2026 Desktop OS',
+    gaming: 'MTP2026 Gaming OS',
   });
 
   function openPicker() {
