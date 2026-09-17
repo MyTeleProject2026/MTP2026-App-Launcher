@@ -5,7 +5,7 @@
  * separate disk image just to launch the web guest shell. Native VM images
  * remain optional for hosts that provide a real ARM64 VM/emulator backend.
  *
- * The ios slot is MTP2026 Device OS and is not Apple firmware.
+ * Legacy ios/windows IDs are accepted only as compatibility aliases and are not selectable profiles.
  */
 
 const COMMON = {
@@ -21,6 +21,13 @@ const COMMON = {
 };
 
 export const GUEST_SYSTEMS = Object.freeze({
+  mtp2026: Object.freeze({
+    ...COMMON,
+    id: 'mtp2026', name: 'MTP2026 Device OS', class: 'mobile', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: false, optionalNativeImage: true,
+    installSlot: 'mtp2026', bootProtocol: 'mtp2026-device-arm64-webos', profileBrand: 'MTP2026 Device OS', profileFamily: 'MTP2026',
+    profileLayout: 'mobile', navigation: 'gesture', notAppleFirmware: true,
+    nativePackagePolicy: 'MTP2026 WebApp runtime. Native Apple packages are not bundled; authorized native distribution is required for any Apple platform package.',
+  }),
   android: Object.freeze({
     ...COMMON,
     id: 'android', name: 'MTP2026 Android OS', class: 'mobile', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: false, optionalNativeImage: true,
@@ -29,13 +36,7 @@ export const GUEST_SYSTEMS = Object.freeze({
     externalReference: 'https://github.com/jqssun/android-lineage-qemu',
     nativePackagePolicy: 'MTP2026 WebApp runtime by default. Android APK installation is available only through a real/native Android host PackageInstaller.',
   }),
-  ios: Object.freeze({
-    ...COMMON,
-    id: 'ios', name: 'MTP2026 Device OS', class: 'mobile', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: false, optionalNativeImage: true,
-    installSlot: 'ios', bootProtocol: 'mtp2026-device-arm64-webos', profileBrand: 'MTP2026 Device OS', profileFamily: 'MTP2026',
-    profileLayout: 'mobile', navigation: 'gesture', notAppleFirmware: true,
-    nativePackagePolicy: 'MTP2026 WebApp runtime. Apple-authorized native distribution is required for native Apple packages.',
-  }),
+
   windows11: Object.freeze({
     ...COMMON,
     id: 'windows11', name: 'MTP2026 Desktop OS', class: 'desktop', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: false, optionalNativeImage: true,
@@ -55,7 +56,7 @@ export const GUEST_SYSTEMS = Object.freeze({
 });
 
 export function normalizeGuestSystem(value) {
-  const id = value === 'windows' ? 'windows11' : value === 'ios-device' ? 'ios' : value;
+  const id = value === 'windows' ? 'windows11' : value === 'ios' || value === 'ios-device' ? 'mtp2026' : value;
   return GUEST_SYSTEMS[id] ? id : 'android';
 }
 
