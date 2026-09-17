@@ -32,6 +32,8 @@ jobs:
             qemu-system-arm
 
       - name: Build all four MTP2026 physical-test guest profiles
+        env:
+          MTP2026_BUILD_PROFILES: mtp2026 android windows11 gaming
         run: bash os/mtp2026-guest-profiles/build-all.sh
 
       - name: Validate all four guest artifacts exist
