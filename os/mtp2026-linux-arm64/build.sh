@@ -81,7 +81,10 @@ mkdir -p "$ROOTFS"/{bin,sbin,etc,proc,sys,dev,tmp,run,mnt,home,usr/bin,var/lib/m
 
 make -C "$BUSYBOX" defconfig
 sed -i 's/^# CONFIG_STATIC is not set/CONFIG_STATIC=y/' "$BUSYBOX/.config"
-make -C "$BUSYBOX" olddefconfig
+# BusyBox 1.37.0 does not provide an olddefconfig target.  The defconfig
+# already generated a complete .config; the static toggle above is the only
+# intentional delta, so proceed directly to the build instead of invoking a
+# non-existent target.
 make -C "$BUSYBOX" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE"
 make -C "$BUSYBOX" CONFIG_PREFIX="$ROOTFS" install
 
