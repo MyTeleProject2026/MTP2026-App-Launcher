@@ -54,7 +54,7 @@ jobs:
           node --check frontend/src/mtp2026GuestShellEnhancements.js
           node --check frontend/src/mtp2026GuestOSRuntime.js
           node --check frontend/src/mtp2026GuestOSBridge.js
-          node --check frontend/src/mtp2026GuestDesktopExperience.js
+          node --check frontend/src/mtp2026DesktopExperience.js
           node --check frontend/src/mtp2026UniversalOS.js
           node --check frontend/src/mtp2026VexaStoreRuntime.js
           node --check frontend/src/startupOrchestrator.js
