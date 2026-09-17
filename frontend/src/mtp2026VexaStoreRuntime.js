@@ -18,6 +18,7 @@ const REGISTRY_KEY = 'mtp2026-installed-vexastore-apps-v3';
 
 function mode() {
   const value = document.documentElement.dataset.mtpDeviceMode || localStorage.getItem(MODE_KEY) || 'android';
+  if (value === 'ios') return 'mtp2026';
   return value === 'windows' ? 'windows11' : value;
 }
 
@@ -29,9 +30,12 @@ function saveRegistry(value) {
   localStorage.setItem(REGISTRY_KEY, JSON.stringify(value));
 }
 
+// Any HTTPS WebApp may be manually registered by the user. Messages from
+// VexaStore itself remain origin-restricted below; this only expands the
+// explicit user URL installation path.
 function trusted(url) {
   const parsed = new URL(String(url));
-  return parsed.protocol === 'https:' && (VEXASTORE_ORIGINS.has(parsed.origin) || parsed.hostname.endsWith('.2bd.net'));
+  return parsed.protocol === 'https:';
 }
 
 function esc(value) {
@@ -77,8 +81,8 @@ function findInstalled(url) {
 async function installWebApp(payload) {
   const app = payload?.app || payload;
   if (!app?.url) throw new Error('MTP2026_APP_URL_REQUIRED');
-  const url = String(app.url);
-  if (!trusted(url)) throw new Error('MTP2026_UNTRUSTED_APP_SOURCE');
+  const url = String(app.url).trim();
+  if (!trusted(url)) throw new Error('MTP2026_WEBAPP_HTTPS_REQUIRED');
 
   const current = registry();
   const id = String(app.id || app.slug || url);
@@ -86,10 +90,10 @@ async function installWebApp(payload) {
     ...current[id],
     ...app,
     id,
-    name: app.name || app.title || 'VexaApp',
-    title: app.title || app.name || 'VexaApp',
+    name: app.name || app.title || new URL(url).hostname,
+    title: app.title || app.name || new URL(url).hostname,
     url,
-    source: 'VexaStore',
+    source: app.source || 'Manual HTTPS WebApp',
     installMode: 'mtp2026-webapp',
     guestMode: mode(),
     guestModes: ['mtp2026', 'android', 'windows11', 'gaming'],
@@ -97,6 +101,7 @@ async function installWebApp(payload) {
   };
   saveRegistry(current);
   window.dispatchEvent(new CustomEvent('mtp2026:vexastore-installed', { detail: current[id] }));
+  window.dispatchEvent(new CustomEvent('mtp2026:apps-changed', { detail: current[id] }));
   return current[id];
 }
 
@@ -106,7 +111,7 @@ async function handleInstallMessage(event) {
   if (data.type !== INSTALL_MESSAGE) return;
 
   try {
-    const result = await installWebApp(data.app || data);
+    const result = await installWebApp({ ...(data.app || data), source: 'VexaStore' });
     event.source?.postMessage({ type: 'MTP2026_VEXASTORE_INSTALL_RESULT', success: true, app: result }, event.origin);
     openWindow(result);
   } catch (error) {
@@ -167,4 +172,4 @@ export function bootMTP2026VexaStoreRuntime() {
 }
 
 bootMTP2026VexaStoreRuntime();
-window.MTP2026VexaStoreRuntime = Object.freeze({ installWebApp, openWindow, closeWindow });
+window.MTP2026VexaStoreRuntime = Object.freeze({ installWebApp, openWindow, closeWindow, findInstalled });
