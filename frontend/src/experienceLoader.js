@@ -5,7 +5,10 @@
 
   let loaded = false;
   const load = () => {
-    if (loaded || !window.__MTP2026_AUTHENTICATED_LAUNCHER__ || !document.querySelector('.app-shell')) return;
+    // App.jsx renders .app-shell only after VexaAccount SSO has produced a session.
+    // Keep the explicit event/marker hooks when available, but do not require a
+    // marker that the existing React entrypoint does not emit.
+    if (loaded || !document.querySelector('.app-shell')) return;
     loaded = true;
     import('./experience.js').catch(error => {
       loaded = false;
