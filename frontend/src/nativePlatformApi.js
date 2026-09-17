@@ -10,7 +10,7 @@ const hasTauri = () => Boolean(window.__TAURI_INTERNALS__);
 const hasIOSBridge = () => Boolean(window.webkit?.messageHandlers?.mtp2026);
 const cap = () => window.Capacitor || null;
 const browserNotification = () => typeof window !== 'undefined' && 'Notification' in window ? window.Notification : null;
-const validModes = new Set(['android', 'ios', 'windows', 'windows11', 'gaming']);
+const validModes = new Set(['mtp2026', 'android', 'ios', 'windows', 'windows11', 'gaming']);
 
 let invokePromise;
 async function invoke(command, args) {
@@ -43,8 +43,8 @@ export function nativeCapabilities() {
   });
 }
 
-export async function setNativeMode(mode) {
-  const normalized = mode === 'windows11' ? 'windows' : mode;
+async function setNativeMode(mode) {
+  const normalized = mode === 'windows11' ? 'windows' : mode === 'mtp2026' ? 'android' : mode;
   if (!validModes.has(mode) || !validModes.has(normalized)) throw new Error('Unsupported MTP2026 device mode');
   let nativeResult = null;
   if (hasTauri()) nativeResult = await invoke('set_device_mode', { mode: normalized });
@@ -54,7 +54,7 @@ export async function setNativeMode(mode) {
     const orientation = normalized === 'windows' ? 'landscape' : normalized === 'android' || normalized === 'ios' ? 'portrait' : null;
     if (orientation && document.fullscreenElement && screen.orientation?.lock) { try { await screen.orientation.lock(orientation); } catch (_) {} }
   }
-  try { localStorage.setItem('mtp2026-default-system-os', normalized); void window.MTP2026Runtime?.boot?.(normalized, { nativeResult }); } catch (_) {}
+  try { localStorage.setItem('mtp2026-default-system-os', mode); void window.MTP2026Runtime?.boot?.(mode, { nativeResult }); } catch (_) {}
   return nativeResult;
 }
 
