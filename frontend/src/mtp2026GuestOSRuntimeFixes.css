@@ -1,0 +1,34 @@
+/* Runtime-layer fix: the operational guest layer is mounted on document.body, not inside #mtp2026-guest-shell. */
+#mtp2026-os-runtime-layer{position:fixed;inset:0;z-index:2147482400;pointer-events:none;color:#eef6ff;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+#mtp2026-os-runtime-layer>*{pointer-events:auto}
+#mtp2026-os-runtime-layer .mtp-os-overlay{position:fixed;inset:0;display:none;align-items:flex-start;justify-content:center;padding:7vh 14px;background:rgba(2,6,13,.62);backdrop-filter:blur(16px)}
+#mtp2026-os-runtime-layer .mtp-os-overlay.open{display:flex}
+#mtp2026-os-runtime-layer .mtp-os-panel{width:min(760px,100%);max-height:86vh;overflow:auto;border:1px solid rgba(148,190,255,.18);border-radius:22px;background:#081223;box-shadow:0 28px 90px rgba(0,0,0,.65);padding:18px;box-sizing:border-box}
+#mtp2026-os-runtime-layer .mtp-os-panel h2{margin:0;font-size:20px}
+#mtp2026-os-runtime-layer .mtp-os-panel p{color:#94a6bf;font-size:12px;margin:5px 0 14px}
+#mtp2026-os-runtime-layer .mtp-os-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+#mtp2026-os-runtime-layer .mtp-os-card{border:1px solid rgba(255,255,255,.1);border-radius:13px;background:#0e1a2d;padding:12px;color:#eef6ff;text-align:left}
+#mtp2026-os-runtime-layer .mtp-os-card b{display:block;font-size:13px}
+#mtp2026-os-runtime-layer .mtp-os-card small{display:block;color:#8496ae;font-size:10px;margin-top:3px}
+#mtp2026-os-runtime-layer .mtp-os-actions{display:flex;gap:8px;margin-top:14px}
+#mtp2026-os-runtime-layer .mtp-os-actions button,#mtp2026-os-runtime-layer .mtp-os-panel button{border:1px solid rgba(255,255,255,.1);border-radius:10px;background:#122039;color:#eef6ff;padding:9px 11px}
+#mtp2026-os-runtime-layer .mtp-os-mobile-shade{position:fixed;inset:0;display:none;background:rgba(2,6,13,.72);backdrop-filter:blur(18px);padding:16px;box-sizing:border-box}
+#mtp2026-os-runtime-layer .mtp-os-mobile-shade.open{display:block}
+#mtp2026-os-runtime-layer .mtp-os-mobile-card{border:1px solid rgba(255,255,255,.12);border-radius:22px;background:#091426;padding:16px}
+#mtp2026-os-runtime-layer .mtp-os-toggle{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+#mtp2026-os-runtime-layer .mtp-os-toggle button{padding:13px;border:1px solid rgba(255,255,255,.08);border-radius:13px;background:#102039;color:#fff;text-align:left}
+#mtp2026-os-runtime-layer .mtp-os-toggle small{display:block;color:#8496ae;margin-top:3px}
+#mtp2026-os-runtime-layer .mtp-os-window{position:fixed;left:7vw;top:8vh;width:min(820px,86vw);height:min(600px,72vh);display:none;flex-direction:column;border:1px solid rgba(255,255,255,.14);border-radius:17px;background:#081223;box-shadow:0 30px 100px rgba(0,0,0,.7);overflow:hidden}
+#mtp2026-os-runtime-layer .mtp-os-window.open{display:flex}
+#mtp2026-os-runtime-layer .mtp-os-window header{display:flex;align-items:center;gap:8px;padding:9px 11px;background:#0e1a2d}
+#mtp2026-os-runtime-layer .mtp-os-window header b{flex:1;font-size:12px}
+#mtp2026-os-runtime-layer .mtp-os-window header button{border:0;background:transparent;color:#fff}
+#mtp2026-os-runtime-layer .mtp-os-window .body{flex:1;overflow:auto;padding:14px}
+#mtp2026-os-runtime-layer .mtp-os-game-hud{position:fixed;right:14px;top:14px;display:none;gap:7px}
+#mtp2026-os-runtime-layer .mtp-os-game-hud.open{display:flex}
+#mtp2026-os-runtime-layer .mtp-os-game-hud span{padding:7px 9px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(5,12,23,.82);font-size:10px}
+#mtp2026-os-runtime-layer .mtp-os-taskbar{position:fixed;left:10px;right:10px;bottom:10px;display:flex;align-items:center;gap:6px;padding:7px;border:1px solid rgba(255,255,255,.1);border-radius:15px;background:rgba(7,15,28,.88);backdrop-filter:blur(18px)}
+#mtp2026-os-runtime-layer .mtp-os-taskbar button{border:0;border-radius:9px;background:transparent;color:#eef6ff;padding:8px 10px}
+#mtp2026-os-runtime-layer .mtp-os-taskbar .spacer{flex:1}
+#mtp2026-os-runtime-layer .mtp-os-taskbar small{color:#91a4bd}
+@media(max-width:700px){#mtp2026-os-runtime-layer .mtp-os-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#mtp2026-os-runtime-layer .mtp-os-window{left:3vw;top:7vh;width:94vw;height:78vh}#mtp2026-os-runtime-layer .mtp-os-taskbar{left:6px;right:6px;bottom:6px}}
