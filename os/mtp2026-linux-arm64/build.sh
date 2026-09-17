@@ -11,9 +11,8 @@ JOBS="${JOBS:-$(nproc)}"
 LINUX_VERSION="6.16"
 # BusyBox 1.37.0 currently fails against the Ubuntu 24.04 ARM64 cross-build
 # headers used by the physical-test runner (removed CBQ headers and the
-# SHA-NI symbol).  Keep the guest foundation on the stable 1.36.1 release,
-# which builds cleanly with the runner toolchain and provides the same required
-# initramfs utilities.
+# SHA-NI symbol). Keep the guest foundation on the stable 1.36.1 release,
+# which provides the required initramfs utilities.
 BUSYBOX_VERSION="1.36.1"
 
 case "$PROFILE" in
@@ -85,10 +84,14 @@ rm -rf "$ROOTFS"
 mkdir -p "$ROOTFS"/{bin,sbin,etc,proc,sys,dev,tmp,run,mnt,home,usr/bin,var/lib/mtp2026/apps,etc/mtp2026}
 
 make -C "$BUSYBOX" defconfig
+# Ubuntu 24.04 no longer exposes the legacy CBQ kernel headers expected by
+# BusyBox 1.36.1's optional tc applet. The guest does not depend on tc, so
+# disable only that applet and keep the rest of the default userspace intact.
+sed -i 's/^CONFIG_TC=y/# CONFIG_TC is not set/' "$BUSYBOX/.config"
 sed -i 's/^# CONFIG_STATIC is not set/CONFIG_STATIC=y/' "$BUSYBOX/.config"
-# BusyBox 1.36.1 does not require an olddefconfig pass here.  defconfig
-# creates the complete configuration and the static toggle above is the only
-# intentional change before the cross-build.
+# BusyBox 1.36.1 does not require an olddefconfig pass here. defconfig
+# creates the complete configuration and the two explicit toggles above are
+# the only intentional changes before the cross-build.
 make -C "$BUSYBOX" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE"
 make -C "$BUSYBOX" CONFIG_PREFIX="$ROOTFS" install
 
