@@ -144,4 +144,29 @@ jobs:
             --title 'MTP2026 Physical ARM64 Test Build' \
             --notes 'Generated ARM64 guest images for physical MTP2026 launcher testing. All four bundles are MTP2026-owned ARM64 Linux guest profiles and are not Apple, Microsoft, Google, or Android firmware.'
 
+      - name: Verify published physical-test release and launcher sources
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh release view mtp2026-physical-test --json isPrerelease --jq '.isPrerelease')" = "true"
+          gh release download mtp2026-physical-test --pattern 'physical-test-manifest.json' --dir /tmp/mtp2026-release-verify --clobber
+          python3 - <<'PY'
+          import hashlib, json, pathlib, urllib.request
+          root = pathlib.Path('/tmp/mtp2026-release-verify')
+          manifest = json.loads((root / 'physical-test-manifest.json').read_text())
+          assert manifest['schema'] == 'mtp2026-physical-arm64-test-v1'
+          assert manifest['architecture'] == 'arm64'
+          assert set(manifest['guests']) == {'mtp2026', 'android', 'windows11', 'gaming'}
+          for profile, guest in manifest['guests'].items():
+              url = guest['imageSource']['url']
+              with urllib.request.urlopen(url, timeout=60) as response:
+                  data = response.read()
+              digest = hashlib.sha256(data).hexdigest()
+              assert digest == guest['imageSource']['sha256'], f'{profile}: published bundle SHA-256 mismatch'
+              assert len(data) > 1024, f'{profile}: published bundle is unexpectedly small'
+          print('Published physical-test release verified for all four guest bundles.')
+          PY
+
       # Keep the physical-test workflow in the push path so runtime/source fixes rerun the complete release gate.
