@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import crypto from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import dns from 'node:dns/promises';
 import net from 'node:net';
 import { URL } from 'node:url';
@@ -104,6 +105,22 @@ app.get('/api/health', async (_req, res) => {
   res.json({ ok: true, service: 'MTP2026 App Launcher', database, databaseType: 'TiDB MySQL' });
 });
 app.get('/api/config', (_req, res) => res.json({ service: 'MTP2026 App Launcher', sso: { issuer, configured: Boolean(vexaConfig), sessionMode: 'backend-managed' }, databaseConfigured: Boolean(pool), databaseType: 'TiDB MySQL' }));
+
+// Public boot metadata: the launcher needs this before an authenticated
+// application-library session exists. Keep it read-only and source it from
+// the same canonical manifest shipped by the frontend so native hosts and the
+// browser cannot silently drift onto different guest contracts.
+app.get('/api/guest-runtime-manifest', async (_req, res) => {
+  try {
+    const manifestPath = new URL('../frontend/public/arm64/guest-manifest.json', import.meta.url);
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+    if (!manifest || manifest.architecture !== 'arm64' || !manifest.guests) return res.status(500).json({ error: 'GUEST_MANIFEST_INVALID' });
+    res.set('Cache-Control', 'no-store');
+    res.json(manifest);
+  } catch (error) {
+    res.status(500).json({ error: 'GUEST_MANIFEST_UNAVAILABLE', detail: error?.message || String(error) });
+  }
+});
 
 async function getLibrary(req) {
   const uid = await ensureUser(req.vexaUser.sub, req.vexaUser.sub);
