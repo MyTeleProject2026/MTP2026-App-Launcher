@@ -32,7 +32,7 @@ export async function bootGuest(mode, options = {}) {
   const controlKernel = options.controlKernel === true;
   const token = `${id}:${Date.now()}`;
   const native = nativeProvider();
-  publish({ id, phase: 'splash', running: false, provider: native?.bootGuest ? 'native-vm' : 'web-os-shell', error: null, token, guestKind: controlKernel ? 'mtp2026-control-guest' : 'mtp2026-owned-guest-os', recoverable: false, requiresGuestImage: false });
+  publish({ id, phase: 'splash', running: false, provider: native?.bootGuest ? 'native-vm' : 'native-required', error: null, token, guestKind: controlKernel ? 'mtp2026-control-guest' : 'mtp2026-owned-guest-os', recoverable: false, requiresGuestImage: !controlKernel });
 
   try {
     const metadata = await loadGuestMetadata(id).catch(() => null);
@@ -40,18 +40,15 @@ export async function bootGuest(mode, options = {}) {
     const ownProfile = contract.imageKind === 'mtp2026-owned-arm64-linux-profile' || contract.imageKind === 'mtp2026-owned-arm64-linux';
     const externalImage = contract.imageKind === 'real-os-image';
 
-    if (!controlKernel && ownProfile && !native?.bootGuest) {
-      publish({ phase: 'prepare', metadata, contract, controlKernel: false, provider: 'web-os-shell', guestKind: 'mtp2026-owned-guest-os', recoverable: false });
-      const result = { success: true, provider: 'web-os-shell', id, architecture: 'arm64', execution: 'MTP2026-owned-web-os-profile' };
-      await saveGuestMetadata(id, { ...(metadata || {}), provider: 'web-os-shell', architecture: 'arm64', guestKind: 'mtp2026-owned-guest-os', bootProtocol: contract.bootProtocol, status: 'ready', installError: null, runningAt: new Date().toISOString() });
-      window.dispatchEvent(new CustomEvent('mtp2026:guest-shell-ready', { detail: { id, contract, result } }));
-      publish({ phase: 'ready', running: true, provider: 'web-os-shell', result, contract, guestKind: 'mtp2026-owned-guest-os', error: null, recoverable: false, progress: 100 });
-      return getGuestState();
-    }
-
-    if (!controlKernel && externalImage) {
-      if (!native?.bootGuest && !(await isInstalledImage(id, metadata))) return missingImageState(id, contract, `REAL_GUEST_IMAGE_NOT_INSTALLED_${id}`);
-      if (!native?.bootGuest) return missingImageState(id, contract, `REAL_GUEST_NATIVE_PROVIDER_REQUIRED_${id}`);
+    if (!controlKernel) {
+      if (!contract.imageSource?.url && !contract.imageUrl) {
+        return missingImageState(id, contract, `GUEST_IMAGE_SOURCE_NOT_CONFIGURED_${id}`);
+      }
+      if (!native?.bootGuest) {
+        const installed = await isInstalledImage(id, metadata);
+        if (!installed) return missingImageState(id, contract, `REAL_GUEST_IMAGE_NOT_INSTALLED_${id}`);
+        return missingImageState(id, contract, `REAL_GUEST_NATIVE_PROVIDER_REQUIRED_${id}`);
+      }
     }
 
     // A native physical-test provider downloads and verifies the configured
