@@ -40,7 +40,14 @@ function hasUsablePhysicalSources(manifest) {
 async function loadManifest() {
   if (!manifestPromise) {
     manifestPromise = (async () => {
-      const manifest = await readJson(STATIC_MANIFEST_URL);
+      let manifest = null;
+      // The backend resolves the current physical-test release manifest and
+      // therefore carries the exact published bundle SHA-256 values.
+      try {
+        const response = await fetch('/api/guest-runtime-manifest', { cache: 'no-store', credentials: 'same-origin' });
+        if (response.ok) manifest = await response.json();
+      } catch (_) {}
+      if (!manifest) manifest = await readJson(STATIC_MANIFEST_URL);
       if (!manifest || typeof manifest !== 'object') throw new Error('GUEST_MANIFEST_INVALID');
       if (!hasUsablePhysicalSources(manifest)) throw new Error('GUEST_MANIFEST_INCOMPLETE');
       return manifest;
