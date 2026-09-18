@@ -112,9 +112,26 @@ app.get('/api/config', (_req, res) => res.json({ service: 'MTP2026 App Launcher'
 // browser cannot silently drift onto different guest contracts.
 app.get('/api/guest-runtime-manifest', async (_req, res) => {
   try {
-    const manifestPath = new URL('../frontend/public/arm64/guest-manifest.json', import.meta.url);
-    const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+    // Prefer the stable physical-test release manifest because its SHA-256
+    // values are generated from the exact bundles that were published. Keep
+    // the repository manifest as a deterministic fallback for local/offline
+    // development and before the first physical-test release exists.
+    const releaseUrl = process.env.MTP2026_PHYSICAL_MANIFEST_URL ||
+      'https://github.com/MyTeleProject2026/MTP2026-App-Launcher/releases/download/mtp2026-physical-test/physical-test-manifest.json';
+    let manifest = null;
+    try {
+      const response = await fetch(releaseUrl, { headers: { accept: 'application/json' } });
+      if (response.ok) manifest = await response.json();
+    } catch (_) {}
+    if (!manifest) {
+      const manifestPath = new URL('../frontend/public/arm64/guest-manifest.json', import.meta.url);
+      manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+    }
     if (!manifest || manifest.architecture !== 'arm64' || !manifest.guests) return res.status(500).json({ error: 'GUEST_MANIFEST_INVALID' });
+    const required = ['mtp2026', 'android', 'windows11', 'gaming'];
+    if (!required.every(id => manifest.guests[id]?.imageSource?.url && manifest.guests[id]?.imageSource?.sha256)) {
+      return res.status(500).json({ error: 'GUEST_MANIFEST_INCOMPLETE' });
+    }
     res.set('Cache-Control', 'no-store');
     res.json(manifest);
   } catch (error) {
