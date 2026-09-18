@@ -28,6 +28,9 @@ fn guest_root(app: &tauri::AppHandle, id: &str) -> Result<PathBuf, String> {
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir)
 }
+fn guest_identity_path(app: &tauri::AppHandle, id: &str) -> Result<PathBuf, String> {
+    Ok(guest_root(app, id)?.join("identity.json"))
+}
 fn verify_sha256(path: &PathBuf, expected: &str) -> Result<(), String> {
     let expected = expected.trim().to_ascii_lowercase();
     if expected.is_empty() { return Err("GUEST_IMAGE_SHA256_REQUIRED".into()); }
@@ -82,6 +85,20 @@ async fn set_device_mode(window: tauri::Window, mode: String) -> Result<(), Stri
 }; window.set_size(tauri::Size::Logical(size)).map_err(|e| e.to_string()) }
 
 #[tauri::command]
+#[tauri::command]
+async fn sync_guest_identity(app: tauri::AppHandle, id: String, subject: String, display_name: String, expires_at: String) -> Result<(), String> {
+    let safe_id = profile_name(&id).map(|_| id.clone())?;
+    let path = guest_identity_path(&app, &safe_id)?;
+    let payload = serde_json::json!({
+        "schema": "mtp2026-guest-identity-v1",
+        "provider": "VexaAccount",
+        "subject": subject,
+        "displayName": display_name,
+        "expiresAt": expires_at
+    });
+    fs::write(path, serde_json::to_vec_pretty(&payload).map_err(|e| e.to_string())?).map_err(|e| e.to_string())
+}
+
 async fn boot_guest(app: tauri::AppHandle, id: String, bundle_url: String, bundle_sha256: String, processes: tauri::State<'_, GuestProcesses>) -> Result<serde_json::Value, String> {
     let kernel_name = profile_name(&id)?; let initrd_name = initrd_name(&id)?; let dir = guest_root(&app, &id)?; let bundle = dir.join("guest.tar.gz");
     { let mut running = processes.0.lock().map_err(|_| "GUEST_PROCESS_LOCK_FAILED")?; if let Some(mut child) = running.remove(&id) { let _ = child.kill(); } }
@@ -96,15 +113,18 @@ async fn boot_guest(app: tauri::AppHandle, id: String, bundle_url: String, bundl
     extract_bundle(&bundle, &dir)?;
     let kernel = dir.join(kernel_name); let initrd = dir.join(initrd_name); if !kernel.exists() || !initrd.exists() { return Err("GUEST_BUNDLE_MISSING_BOOT_FILES".into()); }
     let disk = ensure_persistent_disk(&app, &id)?;
+    let identity = guest_identity_path(&app, &id).ok();
     let serial_log = dir.join("serial.log");
     let serial_arg = format!("file:{}", serial_log.to_string_lossy());
     let mut command = Command::new("qemu-system-aarch64");
     command.args(["-M", "virt", "-cpu", "cortex-a72", "-m", "2048", "-kernel"]).arg(&kernel).arg("-initrd").arg(&initrd)
         .args(["-append", "console=ttyAMA0 rdinit=/init", "-serial"]).arg(serial_arg)
         .args(["-drive", "if=virtio,format=qcow2"]).arg(&disk)
+        .args(["-netdev", "user,id=net0", "-device", "virtio-net-pci,netdev=net0"])
         // Graphical guest path: virtio-gpu exposes the guest framebuffer and
         // virtio input devices provide keyboard/mouse/controller-style events.
-        .args(["-device", "virtio-gpu-pci", "-device", "virtio-keyboard-pci", "-device", "virtio-mouse-pci"])
+        .args(["-device", "virtio-gpu-pci", "-device", "virtio-keyboard-pci", "-device", "virtio-mouse-pci", "-device", "virtio-tablet-pci"])
+        .args(["-audiodev", "driver=none,id=mtp2026audio", "-device", "virtio-sound-pci,audiodev=mtp2026audio"])
         .args(["-display", "default"])
         .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
     let child = command.spawn().map_err(|e| format!("QEMU_AARCH64_NOT_AVAILABLE: {e}"))?; let pid = child.id();
@@ -132,6 +152,6 @@ async fn notify_native(app: tauri::AppHandle, title: String, body: String) -> Re
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() { tauri::Builder::default().manage(GuestProcesses(Mutex::new(HashMap::new())))
     .plugin(tauri_plugin_fs::init()).plugin(tauri_plugin_notification::init()).plugin(tauri_plugin_shell::init())
-    .invoke_handler(tauri::generate_handler![native_capabilities,set_device_mode,boot_guest,stop_guest,guest_runtime_status,enter_fullscreen,exit_fullscreen,open_external,install_package,notify_native])
+    .invoke_handler(tauri::generate_handler![native_capabilities,set_device_mode,sync_guest_identity,boot_guest,stop_guest,guest_runtime_status,enter_fullscreen,exit_fullscreen,open_external,install_package,notify_native])
     .on_window_event(|window, event| { if let WindowEvent::CloseRequested { .. } = event { let _ = window.emit("mtp2026:window-closing", ()); } })
     .run(tauri::generate_context!()).expect("error while running MTP2026 Windows shell"); }
