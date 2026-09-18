@@ -14,7 +14,7 @@
 
 typedef struct { int fd; int w,h,bpp,stride; uint8_t *mem; size_t len; } FB;
 static FB fb={0};
-static int page=0, cursor=0, running=1;
+static int page=0, cursor=0, running=1, pointer_x=0, pointer_y=0;
 static const char *profile="MTP2026";
 static const char *profile_name="MTP2026 Guest OS";
 static const char *pages[]={"Home","Apps","Files","Settings","Network","Notifications","Account","Power"};
@@ -67,7 +67,7 @@ static void select_next(int d){page=(page+d+page_count)%page_count;draw();}
 static void input_loop(){
  DIR*d=opendir("/dev/input");if(!d)return;char path[256];struct dirent*e;int fds[16],n=0;
  while((e=readdir(d))&&n<16){if(strncmp(e->d_name,"event",5)!=0)continue;snprintf(path,sizeof(path),"/dev/input/%s",e->d_name);int fd=open(path,O_RDONLY|O_NONBLOCK);if(fd>=0)fds[n++]=fd;}closedir(d);
- struct input_event ev;for(;;){if(!running)break;for(int i=0;i<n;i++){while(read(fds[i],&ev,sizeof(ev))==(ssize_t)sizeof(ev)){if(ev.type==EV_KEY&&ev.value==1){if(ev.code==KEY_RIGHT||ev.code==KEY_DOWN||ev.code==BTN_A)select_next(1);else if(ev.code==KEY_LEFT||ev.code==KEY_UP||ev.code==BTN_B)select_next(-1);else if(ev.code==KEY_ENTER||ev.code==KEY_SPACE){page=cursor;draw();}else if(ev.code==KEY_ESC){page=0;draw();}}}}usleep(12000);}
+ struct input_event ev;for(;;){if(!running)break;for(int i=0;i<n;i++){while(read(fds[i],&ev,sizeof(ev))==(ssize_t)sizeof(ev)){if(ev.type==EV_ABS){if(ev.code==ABS_X)pointer_x=(int)((long long)ev.value*fb.w/32767);else if(ev.code==ABS_Y)pointer_y=(int)((long long)ev.value*fb.h/32767);}\nif(ev.type==EV_KEY&&ev.value==1){if(ev.code==KEY_RIGHT||ev.code==KEY_DOWN||ev.code==BTN_A)select_next(1);else if(ev.code==KEY_LEFT||ev.code==KEY_UP||ev.code==BTN_B)select_next(-1);else if(ev.code==KEY_ENTER||ev.code==KEY_SPACE){page=cursor;draw();}else if(ev.code==BTN_LEFT){int p=(pointer_y-66)/58;if(pointer_x<190&&p>=0&&p<page_count){page=p;draw();}}else if(ev.code==KEY_ESC){page=0;draw();}}}}usleep(12000);}
  for(int i=0;i<n;i++)close(fds[i]);
 }
 int main(void){
