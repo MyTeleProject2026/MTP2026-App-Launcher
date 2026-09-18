@@ -50,6 +50,7 @@ done
 if [ -x /usr/bin/mtp2026-ui ]; then
   /usr/bin/mtp2026-ui >/run/mtp2026/gui.log 2>&1 &
   echo $! > /run/mtp2026/gui.pid
+  echo "MTP2026 GUI COMPOSITOR STARTED"
 fi
 
 status() {
