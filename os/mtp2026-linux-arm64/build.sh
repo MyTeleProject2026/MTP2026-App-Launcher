@@ -87,6 +87,8 @@ rm -rf "$ROOTFS"
 mkdir -p "$ROOTFS"/{bin,sbin,etc,proc,sys,dev,tmp,run,mnt,home,usr/bin,var/lib/mtp2026/apps,etc/mtp2026}
 
 make -C "$BUSYBOX" defconfig
+# The guest needs a first-boot formatter for its persistent virtio disk.
+sed -i 's/^# CONFIG_MKFS_EXT2 is not set/CONFIG_MKFS_EXT2=y/' "$BUSYBOX/.config"
 sed -i 's/^CONFIG_TC=y/# CONFIG_TC is not set/' "$BUSYBOX/.config"
 sed -i 's/^# CONFIG_STATIC is not set/CONFIG_STATIC=y/' "$BUSYBOX/.config"
 make -C "$BUSYBOX" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE"
