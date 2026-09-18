@@ -75,6 +75,10 @@ make -C "$KERNEL" scripts -j"$JOBS"
 "$KERNEL/scripts/config" --enable CONFIG_VIRTIO_MMIO
 "$KERNEL/scripts/config" --enable CONFIG_VIRTIO_BLK
 "$KERNEL/scripts/config" --enable CONFIG_VIRTIO_NET
+"$KERNEL/scripts/config" --enable CONFIG_VIRTIO_INPUT
+"$KERNEL/scripts/config" --enable CONFIG_FW_CFG_SYSFS
+"$KERNEL/scripts/config" --enable CONFIG_SND
+"$KERNEL/scripts/config" --enable CONFIG_SND_VIRTIO
 "$KERNEL/scripts/config" --enable CONFIG_NET
 "$KERNEL/scripts/config" --enable CONFIG_INET
 "$KERNEL/scripts/config" --enable CONFIG_EXT4_FS
