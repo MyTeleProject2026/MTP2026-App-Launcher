@@ -30,7 +30,7 @@ export async function installGuestImageFromBytes(id, bytes, metadata = {}) {
   const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   if (!data.byteLength) throw new Error('GUEST_IMAGE_EMPTY');
   const digest = await sha256(data.buffer);
-  const expected = String(metadata.sha256 || metadata.imageSha256 || contract.sha256 || contract.imageSha256 || '').toLowerCase();
+  const expected = String(metadata.sha256 || metadata.imageSha256 || contract.imageSource?.sha256 || contract.bundleSha256 || contract.sha256 || contract.imageSha256 || '').toLowerCase();
   await validateGuestImageContract(system.id, {
     ...metadata,
     guestId: system.id,
