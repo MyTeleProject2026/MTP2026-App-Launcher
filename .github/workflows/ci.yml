@@ -78,6 +78,7 @@ jobs:
         run: |
           test -x os/mtp2026-linux-arm64/build.sh
           test -x os/mtp2026-guest-profiles/build-all.sh
+          test -s os/mtp2026-linux-arm64/mtp2026-ui.c
           test -s os/mtp2026-linux-arm64/rootfs/init
           grep -q 'NAME="MTP2026 Device OS"' os/mtp2026-linux-arm64/rootfs/os-release
           grep -q 'MTP2026 DEVICE OS' os/mtp2026-linux-arm64/rootfs/motd
