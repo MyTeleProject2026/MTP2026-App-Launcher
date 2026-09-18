@@ -58,7 +58,8 @@ jobs:
             log="/tmp/mtp2026-${profile}.log"
             set +e
             timeout 35s qemu-system-aarch64 \
-              -M virt -cpu cortex-a72 -m 1024 -nographic \
+              -M virt -cpu cortex-a72 -m 1024 -display none \
+              -device virtio-gpu-pci -device virtio-keyboard-pci -device virtio-mouse-pci \
               -kernel "$image" -initrd "$initrd" \
               -append 'console=ttyAMA0 rdinit=/init' > "$log" 2>&1
             code=$?
