@@ -2,8 +2,8 @@
  *
  * The four selectable profiles are MTP2026-owned Web-OS personalities.
  * They share the ARM64 control/runtime foundation but do NOT require a
- * separate disk image just to launch the web guest shell. Native VM images
- * remain optional for hosts that provide a real ARM64 VM/emulator backend.
+ * requires a verified ARM64 guest bundle before the OS is considered installed or
+ * bootable. Browser-only rendering is never treated as a real guest boot.
  *
  * Legacy ios/windows IDs are accepted only as compatibility aliases and are not selectable profiles.
  */
@@ -73,8 +73,8 @@ export function getGuestRequirements(value) {
     imageKind: system.imageKind,
     requiresImage: system.requiresImage,
     optionalNativeImage: Boolean(system.optionalNativeImage),
-    nativeExecutionRequired: false,
-    browserExecution: system.runtimeBackend,
+    nativeExecutionRequired: true,
+    browserExecution: 'manifest-and-native-provider-required',
     installSlot: system.installSlot,
     bootProtocol: system.bootProtocol,
     runtimeBackend: system.runtimeBackend,
