@@ -65,6 +65,22 @@ async function bootNativeGuest({ id, guestContract }) {
   const bundleSha256 = source.sha256 || guestContract?.bundleSha256 || null;
   if (!bundleUrl) throw new Error(`GUEST_IMAGE_SOURCE_NOT_CONFIGURED_${id}`);
   if (!bundleSha256) throw new Error(`GUEST_IMAGE_SHA256_NOT_CONFIGURED_${id}`);
+  // VexaAccount provider tokens never enter the guest. Only the authenticated
+  // session identity/profile is bridged to the native guest as short-lived
+  // metadata, allowing Account Center features without exposing secrets.
+  try {
+    const sessionResponse = await fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' });
+    if (sessionResponse.ok) {
+      const session = await sessionResponse.json();
+      const profile = session?.profile || {};
+      await invoke('sync_guest_identity', {
+        id,
+        subject: String(profile.sub || profile.id || ''),
+        displayName: String(profile.name || profile.displayName || profile.email || 'VexaAccount'),
+        expiresAt: String(session?.expiresAt || session?.expires_at || '')
+      });
+    }
+  } catch (_) {}
   return invoke('boot_guest', { id, bundleUrl, bundleSha256 });
 }
 
