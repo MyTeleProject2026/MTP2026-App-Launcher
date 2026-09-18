@@ -102,6 +102,9 @@ async fn boot_guest(app: tauri::AppHandle, id: String, bundle_url: String, bundl
     command.args(["-M", "virt", "-cpu", "cortex-a72", "-m", "2048", "-kernel"]).arg(&kernel).arg("-initrd").arg(&initrd)
         .args(["-append", "console=ttyAMA0 rdinit=/init", "-serial"]).arg(serial_arg)
         .args(["-drive", "if=virtio,format=qcow2"]).arg(&disk)
+        // Graphical guest path: virtio-gpu exposes the guest framebuffer and
+        // virtio input devices provide keyboard/mouse/controller-style events.
+        .args(["-device", "virtio-gpu-pci", "-device", "virtio-keyboard-pci", "-device", "virtio-mouse-pci"])
         .args(["-display", "default"])
         .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
     let child = command.spawn().map_err(|e| format!("QEMU_AARCH64_NOT_AVAILABLE: {e}"))?; let pid = child.id();
