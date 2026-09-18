@@ -23,14 +23,14 @@ const COMMON = {
 export const GUEST_SYSTEMS = Object.freeze({
   mtp2026: Object.freeze({
     ...COMMON,
-    id: 'mtp2026', name: 'MTP2026 Device OS', class: 'mobile', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: false, optionalNativeImage: true,
+    id: 'mtp2026', name: 'MTP2026 Device OS', class: 'mobile', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: true, optionalNativeImage: false,
     installSlot: 'mtp2026', bootProtocol: 'mtp2026-device-arm64-webos', profileBrand: 'MTP2026 Device OS', profileFamily: 'MTP2026',
     profileLayout: 'mobile', navigation: 'gesture', notAppleFirmware: true,
     nativePackagePolicy: 'MTP2026 WebApp runtime. Native Apple packages are not bundled; authorized native distribution is required for any Apple platform package.',
   }),
   android: Object.freeze({
     ...COMMON,
-    id: 'android', name: 'MTP2026 Android OS', class: 'mobile', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: false, optionalNativeImage: true,
+    id: 'android', name: 'MTP2026 Android OS', class: 'mobile', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: true, optionalNativeImage: false,
     installSlot: 'android', bootProtocol: 'mtp2026-android-arm64-webos', profileBrand: 'MTP2026 Android OS', profileFamily: 'Android-style',
     profileLayout: 'mobile', navigation: 'gesture-or-three-button',
     externalReference: 'https://github.com/jqssun/android-lineage-qemu',
@@ -39,7 +39,7 @@ export const GUEST_SYSTEMS = Object.freeze({
 
   windows11: Object.freeze({
     ...COMMON,
-    id: 'windows11', name: 'MTP2026 Desktop OS', class: 'desktop', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: false, optionalNativeImage: true,
+    id: 'windows11', name: 'MTP2026 Desktop OS', class: 'desktop', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: true, optionalNativeImage: false,
     installSlot: 'windows11', bootProtocol: 'mtp2026-desktop-arm64-webos', profileBrand: 'MTP2026 Desktop OS', profileFamily: 'Desktop-style',
     profileLayout: 'desktop', navigation: 'taskbar', notMicrosoftFirmware: true,
     externalReference: 'https://www.microsoft.com/software-download/windows11arm64',
@@ -47,7 +47,7 @@ export const GUEST_SYSTEMS = Object.freeze({
   }),
   gaming: Object.freeze({
     ...COMMON,
-    id: 'gaming', name: 'MTP2026 Gaming OS', class: 'gaming', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: false, optionalNativeImage: true,
+    id: 'gaming', name: 'MTP2026 Gaming OS', class: 'gaming', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: true, optionalNativeImage: false,
     installSlot: 'gaming', bootProtocol: 'mtp2026-gaming-arm64-webos', profileBrand: 'MTP2026 Gaming OS', profileFamily: 'Gaming-style',
     profileLayout: 'gaming', navigation: 'controller',
     externalReference: 'https://github.com/batocera-linux/batocera.linux',
