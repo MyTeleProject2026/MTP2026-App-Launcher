@@ -23,7 +23,18 @@ export MTP2026_PROFILE_NAME="@PROFILE_NAME@"
 # MTP2026 guest service bootstrap. These services expose the same stable
 # launcher-managed contracts to every ARM64 profile while the profile-specific
 # UI/runtime remains different on the browser/native side.
-mkdir -p /run/mtp2026 /var/lib/mtp2026/apps
+mkdir -p /run/mtp2026 /var/lib/mtp2026/apps /mnt/device-storage
+# Persistent guest storage is supplied by the native QEMU host as virtio-blk.
+# Keep the initramfs usable when no persistent disk is attached (browser/CI boot).
+if [ -b /dev/vda ]; then
+  if ! mountpoint -q /mnt/device-storage 2>/dev/null; then
+    mount -t ext4 /dev/vda /mnt/device-storage 2>/dev/null || true
+  fi
+  if mountpoint -q /mnt/device-storage 2>/dev/null; then
+    mkdir -p /mnt/device-storage/{Desktop,Documents,Downloads,Pictures,Music,Games,Apps}
+    printf '%s\n' 'persistent-storage-ready' > /run/mtp2026/storage
+  fi
+fi
 for service in account store webapp notifications settings files device-os; do
   printf 'active\n' > "/run/mtp2026/$service"
 done
@@ -99,6 +110,7 @@ while true; do
     files)
       status files
       echo "File service: Desktop, Documents, Downloads, Pictures, Music, Games and Device Storage."
+      if [ -f /run/mtp2026/storage ]; then echo "Persistent storage: active (/mnt/device-storage)"; else echo "Persistent storage: not attached"; fi
       ;;
     notifications)
       status notifications
