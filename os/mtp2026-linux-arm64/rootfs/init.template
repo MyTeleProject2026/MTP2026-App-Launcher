@@ -24,6 +24,12 @@ export MTP2026_PROFILE_NAME="@PROFILE_NAME@"
 # launcher-managed contracts to every ARM64 profile while the profile-specific
 # UI/runtime remains different on the browser/native side.
 mkdir -p /run/mtp2026 /var/lib/mtp2026/apps /mnt/device-storage
+# Read the non-secret VexaAccount identity metadata supplied by the native host
+# through QEMU fw_cfg. Provider access/refresh tokens are never placed here.
+IDENTITY_FWCFG="/sys/firmware/qemu_fw_cfg/by_name/opt/mtp2026/identity/raw"
+if [ -r "$IDENTITY_FWCFG" ]; then
+  cat "$IDENTITY_FWCFG" > /run/mtp2026/identity.json
+fi
 # Persistent guest storage is supplied by the native QEMU host as virtio-blk.
 # Keep the initramfs usable when no persistent disk is attached (browser/CI boot).
 if [ -b /dev/vda ]; then
