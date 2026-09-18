@@ -76,14 +76,10 @@ export async function bootArm64Guest({ id, image, storage, controlKernel = false
   const imageKind = String(guestContract?.imageKind || '');
   const mtpOwnedProfile = imageKind === 'mtp2026-owned-arm64-linux-profile' || imageKind === 'mtp2026-owned-arm64-linux';
 
-  // A deployed browser can launch the MTP2026-owned profile shell without
-  // downloading a multi-hundred-MB guest image. This is the production Web-OS
-  // path. Native builds can use the exact same contract with a real VM.
-  if (!controlKernel && mtpOwnedProfile && !native?.bootGuest) {
-    return { success: true, id, provider: 'web-os-shell', architecture: 'arm64', execution: 'MTP2026-owned-web-os-profile', storage: storage || null };
-  }
-
-  if (!controlKernel && imageKind === 'real-os-image' && !native?.bootGuest) {
+  // A browser can render the launcher/control experience, but it cannot
+  // claim that a complete ARM64 guest kernel has booted. Real guest execution
+  // requires a native provider capable of launching the verified bundle.
+  if (!controlKernel && !native?.bootGuest) {
     throw new Error(`REAL_GUEST_NATIVE_PROVIDER_REQUIRED_${id}`);
   }
 
@@ -129,9 +125,9 @@ export function arm64RuntimeCapabilities() {
     webWorker: isBrowserRuntimeAvailable(),
     cpu: 'aarch64',
     bundledKernel: DEFAULT_KERNEL_URL,
-    backend: native?.bootGuest ? 'native-vm-or-emulator' : 'mtp2026-web-os-shell',
+    backend: native?.bootGuest ? 'native-vm-or-emulator' : 'none-for-real-guests',
     realGuestExecution: Boolean(native?.bootGuest),
-    webOsProfiles: true,
+    webOsProfiles: false,
   };
 }
 
