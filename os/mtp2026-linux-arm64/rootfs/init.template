@@ -44,6 +44,14 @@ for service in account store webapp notifications settings files device-os; do
   printf 'active\n' > "/run/mtp2026/$service"
 done
 
+# Start the native guest compositor in the background. It owns the graphical
+# framebuffer/input surface; the init shell remains available on serial for
+# diagnostics and recovery.
+if [ -x /usr/bin/mtp2026-ui ]; then
+  /usr/bin/mtp2026-ui >/run/mtp2026/gui.log 2>&1 &
+  echo $! > /run/mtp2026/gui.pid
+fi
+
 status() {
   service="$1"
   if [ -f "/run/mtp2026/$service" ]; then
