@@ -85,7 +85,6 @@ async fn set_device_mode(window: tauri::Window, mode: String) -> Result<(), Stri
 }; window.set_size(tauri::Size::Logical(size)).map_err(|e| e.to_string()) }
 
 #[tauri::command]
-#[tauri::command]
 async fn sync_guest_identity(app: tauri::AppHandle, id: String, subject: String, display_name: String, expires_at: String) -> Result<(), String> {
     let safe_id = profile_name(&id).map(|_| id.clone())?;
     let path = guest_identity_path(&app, &safe_id)?;
