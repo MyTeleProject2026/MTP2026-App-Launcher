@@ -44,14 +44,14 @@ export function nativeCapabilities() {
 }
 
 export async function setNativeMode(mode) {
-  const normalized = mode === 'windows11' ? 'windows' : mode === 'mtp2026' ? 'android' : mode;
+  const normalized = mode === 'windows11' ? 'windows' : mode === 'mtp2026' ? 'mtp2026' : mode;
   if (!validModes.has(mode) || !validModes.has(normalized)) throw new Error('Unsupported MTP2026 device mode');
   let nativeResult = null;
   if (hasTauri()) nativeResult = await invoke('set_device_mode', { mode: normalized });
   else if (window.MTP2026Native?.setDeviceMode) nativeResult = await window.MTP2026Native.setDeviceMode(normalized);
   else if (hasIOSBridge()) { window.webkit.messageHandlers.mtp2026.postMessage({ mode: normalized }); nativeResult = true; }
   else {
-    const orientation = normalized === 'windows' ? 'landscape' : normalized === 'android' || normalized === 'ios' ? 'portrait' : null;
+    const orientation = normalized === 'windows' || normalized === 'gaming' ? 'landscape' : normalized === 'android' || normalized === 'mtp2026' || normalized === 'ios' ? 'portrait' : null;
     if (orientation && document.fullscreenElement && screen.orientation?.lock) { try { await screen.orientation.lock(orientation); } catch (_) {} }
   }
   try { localStorage.setItem('mtp2026-default-system-os', mode); void window.MTP2026Runtime?.boot?.(mode, { nativeResult }); } catch (_) {}
