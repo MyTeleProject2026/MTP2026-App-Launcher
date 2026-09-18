@@ -59,7 +59,9 @@ jobs:
             set +e
             timeout 35s qemu-system-aarch64 \
               -M virt -cpu cortex-a72 -m 1024 -display none \
-              -device virtio-gpu-pci -device virtio-keyboard-pci -device virtio-mouse-pci \
+              -device virtio-gpu-pci -device virtio-keyboard-pci -device virtio-mouse-pci -device virtio-tablet-pci \
+              -device virtio-net-pci,netdev=net0 -netdev user,id=net0 \
+              -audiodev driver=none,id=mtp2026audio -device virtio-sound-pci,audiodev=mtp2026audio \
               -kernel "$image" -initrd "$initrd" \
               -append 'console=ttyAMA0 rdinit=/init' > "$log" 2>&1
             code=$?
