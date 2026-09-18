@@ -80,6 +80,16 @@ make -C "$KERNEL" scripts -j"$JOBS"
 "$KERNEL/scripts/config" --enable CONFIG_EXT4_FS
 "$KERNEL/scripts/config" --enable CONFIG_TMPFS
 "$KERNEL/scripts/config" --enable CONFIG_FUSE_FS
+"$KERNEL/scripts/config" --enable CONFIG_DRM
+"$KERNEL/scripts/config" --enable CONFIG_DRM_KMS_HELPER
+"$KERNEL/scripts/config" --enable CONFIG_DRM_VIRTIO_GPU
+"$KERNEL/scripts/config" --enable CONFIG_FB
+"$KERNEL/scripts/config" --enable CONFIG_FRAMEBUFFER_CONSOLE
+"$KERNEL/scripts/config" --enable CONFIG_INPUT
+"$KERNEL/scripts/config" --enable CONFIG_INPUT_EVDEV
+"$KERNEL/scripts/config" --enable CONFIG_VIRTIO_INPUT
+"$KERNEL/scripts/config" --enable CONFIG_HID
+"$KERNEL/scripts/config" --enable CONFIG_HID_GENERIC
 "$KERNEL/scripts/config" --set-str CONFIG_LOCALVERSION "-mtp2026-${PROFILE}"
 make -C "$KERNEL" olddefconfig
 
@@ -93,6 +103,17 @@ sed -i 's/^CONFIG_TC=y/# CONFIG_TC is not set/' "$BUSYBOX/.config"
 sed -i 's/^# CONFIG_STATIC is not set/CONFIG_STATIC=y/' "$BUSYBOX/.config"
 make -C "$BUSYBOX" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE"
 make -C "$BUSYBOX" CONFIG_PREFIX="$ROOTFS" install
+
+# Build the small native MTP2026 compositor/input client into the guest. It
+# renders directly to the Linux framebuffer and consumes evdev keyboard,
+# mouse/controller events, so QEMU graphical boots are not serial-only shells.
+if command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
+  aarch64-linux-gnu-gcc -static -O2 -s "$ROOT/mtp2026-ui.c" -o "$ROOTFS/usr/bin/mtp2026-ui"
+else
+  echo "aarch64-linux-gnu-gcc is required for the graphical ARM64 guest" >&2
+  exit 1
+fi
+chmod +x "$ROOTFS/usr/bin/mtp2026-ui"
 
 # Profile capability contract. These are MTP2026-owned system services and
 # interfaces; they are not copies of proprietary Apple, Microsoft, ASUS or ROG firmware.
