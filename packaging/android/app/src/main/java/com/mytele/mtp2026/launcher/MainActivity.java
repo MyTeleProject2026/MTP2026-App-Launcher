@@ -54,6 +54,7 @@ public final class MainActivity extends Activity {
             "www.vexastore.2bd.net",
             "vexastore.2bd.net",
             "api-vexastore.onrender.com",
+            "api-vexaaccount.onrender.com",
             "vexaaccount-management.onrender.com"
     ));
     private BroadcastReceiver installReceiver;
