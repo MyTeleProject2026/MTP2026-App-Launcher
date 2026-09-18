@@ -126,7 +126,9 @@ async fn boot_guest(app: tauri::AppHandle, id: String, bundle_url: String, bundl
         .args(["-device", "virtio-gpu-pci", "-device", "virtio-keyboard-pci", "-device", "virtio-mouse-pci", "-device", "virtio-tablet-pci"])
         .args(["-audiodev", "driver=none,id=mtp2026audio", "-device", "virtio-sound-pci,audiodev=mtp2026audio"])
         .args(["-display", "default"])
-        .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+        ;
+    if let Some(identity_path) = identity { if identity_path.exists() { let fwcfg = format!("name=opt/mtp2026/identity,file={}", identity_path.to_string_lossy()); command.args(["-fw_cfg", fwcfg.as_str()]); } }
+    command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
     let child = command.spawn().map_err(|e| format!("QEMU_AARCH64_NOT_AVAILABLE: {e}"))?; let pid = child.id();
     processes.0.lock().map_err(|_| "GUEST_PROCESS_LOCK_FAILED")?.insert(id.clone(), child);
     Ok(serde_json::json!({"success":true,"id":id,"provider":"tauri-qemu-system-aarch64","architecture":"arm64","execution":"real-aarch64-linux-guest","pid":pid,"kernel":kernel.to_string_lossy(),"initrd":initrd.to_string_lossy(),"serialLog":serial_log.to_string_lossy(),"persistentDisk":disk.to_string_lossy(),"display":"qemu-default"}))
