@@ -40,16 +40,20 @@ function hasUsablePhysicalSources(manifest) {
 async function loadManifest() {
   if (!manifestPromise) {
     manifestPromise = (async () => {
-      const canonical = await readJson(STATIC_MANIFEST_URL);
+      // Do not make the static asset a single point of failure. A stale CDN,
+      // service-worker cache, or a frontend deployment that omitted the
+      // asset must not prevent the backend physical-runtime contract from
+      // supplying the four real ARM64 image sources.
+      let canonical = null;
       let remote = null;
-      // The backend may expose a physical-test release manifest. Merge it
-      // over the canonical contract so a stale/partial release can never
-      // erase a valid image URL or SHA-256 from the launcher contract.
+      try { canonical = await readJson(STATIC_MANIFEST_URL); } catch (_) {}
       try {
         const response = await fetch('/api/guest-runtime-manifest', { cache: 'no-store', credentials: 'same-origin' });
         if (response.ok) remote = await response.json();
       } catch (_) {}
-      const manifest = remote ? mergeManifests(canonical, remote) : canonical;
+
+      if (!canonical && !remote) throw new Error('GUEST_MANIFEST_UNAVAILABLE');
+      const manifest = canonical && remote ? mergeManifests(canonical, remote) : (remote || canonical);
       if (!manifest || typeof manifest !== 'object') throw new Error('GUEST_MANIFEST_INVALID');
       if (!hasUsablePhysicalSources(manifest)) throw new Error('GUEST_MANIFEST_INCOMPLETE');
       return manifest;
