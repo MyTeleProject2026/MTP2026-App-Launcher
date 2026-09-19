@@ -3,13 +3,13 @@
   if (window.__MTP_GUEST_RECOVERY__) return;
   window.__MTP_GUEST_RECOVERY__ = true;
 
-  const labels = { android: 'Android', ios: 'MTP2026 Device OS', windows11: 'Windows 11', windows: 'Windows 11', gaming: 'Gaming OS' };
+  const labels = { mtp2026: 'MTP2026 Device OS', android: 'Android', ios: 'MTP2026 Device OS', windows11: 'MTP2026 Desktop OS', windows: 'MTP2026 Desktop OS', gaming: 'Gaming OS' };
   let overlay = null;
   let current = null;
   let busy = false;
 
   const esc = value => String(value ?? '').replace(/[&<>\"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '\"':'&quot;', "'":'&#39;' }[c]));
-  const modeOf = value => Object.prototype.hasOwnProperty.call(labels, value) ? (value === 'windows' ? 'windows11' : value) : 'android';
+  const modeOf = value => Object.prototype.hasOwnProperty.call(labels, value) ? (value === 'windows' || value === 'ios' ? (value === 'windows' ? 'windows11' : 'mtp2026') : value) : 'mtp2026';
 
   function close(clearMode = true) {
     overlay?.remove();
