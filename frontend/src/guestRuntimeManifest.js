@@ -40,14 +40,16 @@ function hasUsablePhysicalSources(manifest) {
 async function loadManifest() {
   if (!manifestPromise) {
     manifestPromise = (async () => {
-      let manifest = null;
-      // The backend resolves the current physical-test release manifest and
-      // therefore carries the exact published bundle SHA-256 values.
+      const canonical = await readJson(STATIC_MANIFEST_URL);
+      let remote = null;
+      // The backend may expose a physical-test release manifest. Merge it
+      // over the canonical contract so a stale/partial release can never
+      // erase a valid image URL or SHA-256 from the launcher contract.
       try {
         const response = await fetch('/api/guest-runtime-manifest', { cache: 'no-store', credentials: 'same-origin' });
-        if (response.ok) manifest = await response.json();
+        if (response.ok) remote = await response.json();
       } catch (_) {}
-      if (!manifest) manifest = await readJson(STATIC_MANIFEST_URL);
+      const manifest = remote ? mergeManifests(canonical, remote) : canonical;
       if (!manifest || typeof manifest !== 'object') throw new Error('GUEST_MANIFEST_INVALID');
       if (!hasUsablePhysicalSources(manifest)) throw new Error('GUEST_MANIFEST_INCOMPLETE');
       return manifest;
