@@ -118,17 +118,30 @@ app.get('/api/guest-runtime-manifest', async (_req, res) => {
     // development and before the first physical-test release exists.
     const releaseUrl = process.env.MTP2026_PHYSICAL_MANIFEST_URL ||
       'https://github.com/MyTeleProject2026/MTP2026-App-Launcher/releases/download/mtp2026-physical-test/physical-test-manifest.json';
-    let manifest = null;
+    const manifestPath = new URL('../frontend/public/arm64/guest-manifest.json', import.meta.url);
+    const canonical = JSON.parse(await readFile(manifestPath, 'utf8'));
+    let releaseManifest = null;
     try {
       const response = await fetch(releaseUrl, { headers: { accept: 'application/json' } });
-      if (response.ok) manifest = await response.json();
+      if (response.ok) releaseManifest = await response.json();
     } catch (_) {}
-    if (!manifest) {
-      const manifestPath = new URL('../frontend/public/arm64/guest-manifest.json', import.meta.url);
-      manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
-    }
-    if (!manifest || manifest.architecture !== 'arm64' || !manifest.guests) return res.status(500).json({ error: 'GUEST_MANIFEST_INVALID' });
+    // Never let an older/partial physical-test manifest replace the canonical
+    // four-profile contract. Release metadata may override individual values,
+    // but missing image URLs/SHA-256 values are filled from the repository
+    // contract before the launcher sees the response.
     const required = ['mtp2026', 'android', 'windows11', 'gaming'];
+    const mergeProfile = (base = {}, overlay = {}) => ({
+      ...base,
+      ...overlay,
+      imageSource: { ...(base.imageSource || {}), ...(overlay.imageSource || {}) },
+    });
+    const manifest = {
+      ...canonical,
+      ...(releaseManifest || {}),
+      controlKernel: { ...(canonical.controlKernel || {}), ...(releaseManifest?.controlKernel || {}) },
+      guests: Object.fromEntries(required.map(id => [id, mergeProfile(canonical.guests?.[id], releaseManifest?.guests?.[id])])),
+    };
+    if (!manifest || manifest.architecture !== 'arm64' || !manifest.guests) return res.status(500).json({ error: 'GUEST_MANIFEST_INVALID' });
     if (!required.every(id => manifest.guests[id]?.imageSource?.url && manifest.guests[id]?.imageSource?.sha256)) {
       return res.status(500).json({ error: 'GUEST_MANIFEST_INCOMPLETE' });
     }
