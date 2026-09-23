@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ExternalLink, LogIn, Plus, Smartphone, Monitor, Gamepad2, Trash2, LogOut, Globe2 } from 'lucide-react';
 import { MTP2026_GUEST_PROFILES } from './mtp2026GuestProfiles.js';
 import { MTP2026Arm64Firmware } from './mtp2026Arm64Firmware.jsx';
+import { ARM64MachineConsole } from './arm64MachineConsole.jsx';
 
 const GUEST_PROFILES = [
   MTP2026_GUEST_PROFILES.mtp2026,
@@ -104,6 +105,8 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
           <p>Use this MTP2026 profile immediately in the browser. Web applications are available without signing in and are stored locally on this device for the guest profile.</p>
         </div>
       </section>
+
+      <ARM64MachineConsole />
 
       <section className="mtp-guest-apps">
         <div className="mtp-guest-section-head"><div><h2>Guest applications</h2><p>{apps.length} application{apps.length === 1 ? '' : 's'} on this device</p></div></div>
