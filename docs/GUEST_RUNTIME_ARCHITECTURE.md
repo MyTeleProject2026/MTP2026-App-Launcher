@@ -34,3 +34,22 @@ The web host uses OPFS/IndexedDB capabilities and asks for persistent storage on
 ## Non-blocking startup
 
 Guest boot is asynchronous and must never gate the launcher shell. A slow network request, image download, VM boot, or unavailable provider produces a guest-state error while the launcher remains interactive.
+
+
+## Browser real-guest path
+
+When a real QEMU-AArch64 WebAssembly build is installed, it exposes:
+
+```js
+window.MTP2026QemuWasmRuntime = {
+  engine: 'qemu-system-aarch64-wasm',
+  async boot({ id, architecture, machine, image, storage, boot }) {
+    // Boot the verified ARM64 guest bundle and return { ready: true, ... }.
+  },
+  async stop(id) {}
+};
+```
+
+MTP2026 then routes a verified guest image through this provider. The launcher does not use Unicorn.js as a substitute for a complete system VM: Unicorn remains useful for CPU/instruction-level testing, while QEMU-WASM is the system-emulation path.
+
+A missing QEMU-WASM provider is reported as a runtime-provider requirement rather than a fake OS boot. The normal MTP2026 launcher remains usable without a guest image.
