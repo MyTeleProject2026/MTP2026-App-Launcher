@@ -12,6 +12,17 @@ export const MTP2026_GUEST_PROFILES = Object.freeze({
   gaming: { id:'gaming', label:'MTP2026 Gaming OS', shortLabel:'MTP Gaming', family:'MTP2026 Gaming', layout:'gaming', navigation:'controller', accent:'#ff3d81', features:['Game Hub','Performance Overlay','Controller Center','VexaAccount','VexaStore','Game Library','WebApp/PWA Runtime','Android APK host'] },
 });
 
+
+export const MTP2026_APP_POLICY = Object.freeze({
+  accountProvider: 'VexaAccount',
+  supportedArchitectures: ['arm64', 'aarch64'],
+  supportedAppTypes: ['webapp', 'pwa', 'android-apk'],
+  directBrowserExecution: ['webapp', 'pwa'],
+  nativeHostRequired: ['android-apk'],
+  cloudLibrary: 'VexaAccount',
+  storageScope: 'device-profile'
+});
+
 export function normalizeMTP2026GuestProfile(mode) {
   const value = String(mode || '').toLowerCase();
   if (value === 'ios') return MTP2026_GUEST_PROFILES.mtp2026;
