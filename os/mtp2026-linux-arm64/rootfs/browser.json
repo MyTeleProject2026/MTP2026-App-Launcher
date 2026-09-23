@@ -1,0 +1,15 @@
+{
+  "schema":"mtp2026-browser-runtime-v1",
+  "applicationId":"mtp2026-browser",
+  "name":"MTP2026 Browser",
+  "enginePolicy":"chromium-compatible",
+  "architecture":"arm64",
+  "embeddedInGuest":true,
+  "supportsHttpsWebApps":true,
+  "supportsVexaAccountSso":true,
+  "binaryPolicy":"guest-image-provided-or-user-installed",
+  "proprietaryGoogleChromeBundled":false,
+  "launcher":"/usr/bin/mtp2026-browser",
+  "persistentProfile":"/mnt/device-storage/Apps/.mtp2026-browser-profile",
+  "defaultUrl":"https://vexaaccount-management.onrender.com"
+}
