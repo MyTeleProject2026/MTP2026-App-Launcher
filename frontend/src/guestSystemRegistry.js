@@ -18,6 +18,7 @@ const COMMON = {
   storageBackend: 'mtp2026-native-storage-or-opfs',
   networkStack: 'guest-network-through-host-runtime',
   updateChannel: 'MTP2026 managed profile updates',
+  browserApp: Object.freeze({ id: 'mtp2026-browser', name: 'MTP2026 Browser', engine: 'Chromium/WebView-compatible', embedded: true, supportsHttpsWebApps: true, supportsVexaAccountSso: true }),
 };
 
 export const GUEST_SYSTEMS = Object.freeze({
