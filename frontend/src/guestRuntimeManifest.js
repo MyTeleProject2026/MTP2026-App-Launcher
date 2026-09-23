@@ -74,7 +74,11 @@ export async function getGuestImageContract(id) {
   const manifest = await loadManifest();
   const profile = manifest?.guests?.[id];
   if (!profile) throw new Error(`GUEST_PROFILE_NOT_FOUND_${id}`);
-  return profile;
+  const source = profile.imageSource || {};
+  const fallback = BUILT_IN_GUEST_IMAGE_SOURCES[id] || {};
+  const url = source.url || profile.imageUrl || profile.kernelUrl || fallback.url || null;
+  const sha256 = source.sha256 || profile.bundleSha256 || fallback.sha256 || null;
+  return { ...profile, imageSource: { ...fallback, ...source, url: url ? String(url) : null, sha256 } };
 }
 export async function getGuestImageSource(id) {
   const contract = await getGuestImageContract(id);
@@ -89,8 +93,9 @@ export async function validateGuestImageContract(id, metadata = {}) {
   if (contract.architecture !== 'arm64') throw new Error(`GUEST_ARCHITECTURE_UNSUPPORTED_${id}`);
   if (metadata.guestId && metadata.guestId !== id) throw new Error('GUEST_IMAGE_ID_MISMATCH');
   if (metadata.architecture && metadata.architecture !== 'arm64') throw new Error('GUEST_IMAGE_ARCHITECTURE_MISMATCH');
-  if (contract.imageRequired && !contract.imageSource?.url && !contract.imageUrl && !contract.kernelUrl) throw new Error(`GUEST_IMAGE_SOURCE_NOT_CONFIGURED_${id}`);
-  const expected = String(contract.imageSource?.sha256 || contract.bundleSha256 || '').toLowerCase();
+  const source = await getGuestImageSource(id);
+  if (contract.imageRequired && (!source.url || !source.sha256)) throw new Error(`GUEST_IMAGE_SOURCE_NOT_CONFIGURED_${id}`);
+  const expected = String(source.sha256 || '').toLowerCase();
   if (expected && metadata.sha256 && String(metadata.sha256).toLowerCase() !== expected) throw new Error('GUEST_IMAGE_SHA256_MISMATCH');
   return contract;
 }
