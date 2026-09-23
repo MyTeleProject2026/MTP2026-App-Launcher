@@ -4,7 +4,7 @@ import './startupOrchestrator.js';
 import './nativeGuestStorage.js';
 import './osRuntime.js';
 import './guestBootController.js';
-import { getGuestImageContract } from './guestRuntimeManifest.js';
+import { getGuestImageContract, getGuestImageSource } from './guestRuntimeManifest.js';
 
 const hasTauri = () => Boolean(window.__TAURI_INTERNALS__);
 const hasIOSBridge = () => Boolean(window.webkit?.messageHandlers?.mtp2026);
@@ -60,9 +60,9 @@ export async function setNativeMode(mode) {
 
 async function bootNativeGuest({ id, guestContract }) {
   if (!hasTauri()) return null;
-  const source = guestContract?.imageSource || {};
-  const bundleUrl = source.url || guestContract?.imageUrl || null;
-  const bundleSha256 = source.sha256 || guestContract?.bundleSha256 || null;
+  const source = await getGuestImageSource(id);
+  const bundleUrl = source.url;
+  const bundleSha256 = source.sha256;
   if (!bundleUrl) throw new Error(`GUEST_IMAGE_SOURCE_NOT_CONFIGURED_${id}`);
   if (!bundleSha256) throw new Error(`GUEST_IMAGE_SHA256_NOT_CONFIGURED_${id}`);
   // VexaAccount provider tokens never enter the guest. Only the authenticated
