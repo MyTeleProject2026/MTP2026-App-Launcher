@@ -35,7 +35,7 @@ async function resolveImage(id, supplied) {
   if (direct?.byteLength) return { bytes: direct, source: 'supplied' };
   const stored = await loadGuestImage(id).catch(() => null);
   if (stored?.bytes?.byteLength) return { bytes: stored.bytes, source: 'persistent-storage', metadata: stored.metadata };
-  return fetchDefaultKernel();
+  throw new Error(`REAL_GUEST_IMAGE_NOT_INSTALLED_${id}`);
 }
 
 function createWorker(id) {
