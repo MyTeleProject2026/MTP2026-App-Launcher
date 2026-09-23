@@ -55,7 +55,7 @@ async function loadManifest() {
       if (!canonical && !remote) throw new Error('GUEST_MANIFEST_UNAVAILABLE');
       const manifest = canonical && remote ? mergeManifests(canonical, remote) : (remote || canonical);
       if (!manifest || typeof manifest !== 'object') throw new Error('GUEST_MANIFEST_INVALID');
-      if (!hasUsablePhysicalSources(manifest)) throw new Error('GUEST_MANIFEST_INCOMPLETE');
+      manifest.runtimeState = hasUsablePhysicalSources(manifest) ? 'physical-sources-configured' : 'browser-shell';
       return manifest;
     })().catch(error => { manifestPromise = null; throw error; });
   }
