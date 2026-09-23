@@ -23,12 +23,12 @@ export function MTP2026Arm64Firmware({ profileId='mtp2026', onReady }) {
     let cancelled = false;
     const sequence = [
       ['power','Power-on self test',8],
-      ['firmware','Loading MTP2026 ARM64 firmware',24],
-      ['secure','Verifying signed boot manifest',42],
-      ['memory','Initializing virtual ARM64 memory',58],
-      ['storage','Mounting virtual NVMe/UFS storage',72],
-      ['kernel','Loading MTP2026 ARM64 kernel',88],
-      ['userspace','Starting MTP2026 browser userspace',100]
+      ['firmware','Loading MTP2026 ARM64 runtime manifest',24],
+      ['secure','Verifying MTP2026 runtime policy',42],
+      ['memory','Initializing browser ARM64 execution environment',58],
+      ['storage','Initializing MTP2026 application storage',72],
+      ['kernel','Preparing MTP2026 OS application shell',88],
+      ['userspace','Starting MTP2026 OS application environment',100]
     ];
     (async () => {
       for (const [key,label,target] of sequence) {
@@ -51,14 +51,14 @@ export function MTP2026Arm64Firmware({ profileId='mtp2026', onReady }) {
   return <main className="mtp-arm64-boot">
     <section className="mtp-arm64-console">
       <div className="mtp-arm64-top">
-        <div className="mtp-arm64-brand"><div className="mtp-arm64-logo">M</div><div><b>MTP2026 ARM64 Firmware</b><small>Browser virtual machine • {profile.label}</small></div></div>
+        <div className="mtp-arm64-brand"><div className="mtp-arm64-logo">M</div><div><b>MTP2026 ARM64 Firmware</b><small>ARM64 device profile • {profile.label}</small></div></div>
         <span className="mtp-arm64-chip"><ShieldCheck/> SECURE BOOT</span>
       </div>
       <div className="mtp-arm64-main">
         <div className="mtp-arm64-orb"><Cpu/></div>
         <div className="mtp-arm64-kicker">AARCH64 / UEFI-STYLE BOOT</div>
         <h1>Booting {profile.label}</h1>
-        <p>This browser session is running an MTP2026 ARM64 virtual hardware profile. It provides the MTP2026 OS shell and web-app runtime directly in the browser.</p>
+        <p>This browser session is starting the MTP2026 ARM64 device profile and its application environment. The browser provides the MTP2026 OS shell; a full guest kernel/firmware VM is used only when a native VM provider is available.</p>
         <div className="mtp-arm64-progress"><span style={{width:`${progress}%`}}/></div>
         <div className="mtp-arm64-percent">{progress}% <span>{stage.replace('-', ' ')}</span></div>
         <div className="mtp-arm64-specs">
@@ -69,7 +69,7 @@ export function MTP2026Arm64Firmware({ profileId='mtp2026', onReady }) {
         </div>
       </div>
       <div className="mtp-arm64-log"><div className="mtp-arm64-log-head"><Terminal/> Boot log <span>{startedAt.toLocaleTimeString()}</span></div>{logs.map((line,i)=><div key={i}>{line}</div>)}</div>
-      <footer className="mtp-arm64-footer"><span><Zap/> {spec.firmware}</span><span>{spec.board}</span><span>AArch64 userspace ready after boot</span></footer>
+      <footer className="mtp-arm64-footer"><span><Zap/> {spec.firmware}</span><span>{spec.board}</span><span>MTP2026 application environment ready</span></footer>
     </section>
   </main>;
 }
