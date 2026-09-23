@@ -39,11 +39,14 @@
       setStatus(`Preparing the ${labels[mode]} ARM64 guest image from the configured MTP2026 source…`);
       const manifestModule = await import('./guestRuntimeManifest.js');
       const contract = await manifestModule.getGuestImageContract(mode);
+      // Always resolve the normalized source through getGuestImageSource().
+      // This supports the canonical manifest plus the backend overlay and
+      // avoids treating a valid legacy imageUrl/kernelUrl as unconfigured.
       const source = await manifestModule.getGuestImageSource(mode);
       if (!source.configured || !source.url) {
         const docs = contract?.documentationUrl || null;
         if (docs) window.open(docs, '_blank', 'noopener,noreferrer');
-        throw new Error(`GUEST_IMAGE_SOURCE_NOT_CONFIGURED_${mode}`);
+        throw new Error(`GUEST_IMAGE_SOURCE_NOT_CONFIGURED_${mode}: no downloadable ARM64 bundle is configured for this profile`);
       }
       if (!source.sha256) throw new Error(`GUEST_IMAGE_SHA256_NOT_CONFIGURED_${mode}`);
       const manager = await import('./guestImageManager.js');
