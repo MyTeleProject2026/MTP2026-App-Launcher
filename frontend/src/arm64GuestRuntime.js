@@ -7,6 +7,7 @@
  */
 
 import { loadGuestImage, saveGuestImage } from './guestImageStore.js';
+import { bootQemuWasmGuest, stopQemuWasmGuest, qemuWasmCapabilities } from './qemuWasmGuestRuntime.js';
 
 const workers = new Map();
 const DEFAULT_ENTRY = 0x00400000;
@@ -79,13 +80,18 @@ export async function bootArm64Guest({ id, image, storage, controlKernel = false
   // A browser can render the launcher/control experience, but it cannot
   // claim that a complete ARM64 guest kernel has booted. Real guest execution
   // requires a native provider capable of launching the verified bundle.
-  if (!controlKernel && !native?.bootGuest) {
-    throw new Error(`REAL_GUEST_NATIVE_PROVIDER_REQUIRED_${id}`);
+  if (!controlKernel && !native?.bootGuest && !qemuWasmCapabilities().available) {
+    throw new Error(`REAL_GUEST_RUNTIME_PROVIDER_REQUIRED_${id}`);
   }
 
   if (native?.bootGuest) {
     const result = await native.bootGuest({ id, architecture: 'arm64', class: guestContract?.class || null, image, storage, guestContract, controlKernel });
     return { ...result, provider: result?.provider || 'native-vm' };
+  }
+
+  if (!controlKernel && qemuWasmCapabilities().available) {
+    const resolved = await resolveImage(id, image);
+    return bootQemuWasmGuest({ id, image: resolved.bytes, storage, contract: guestContract });
   }
 
   if (!isBrowserRuntimeAvailable()) throw new Error('ARM64_WEB_RUNTIME_UNAVAILABLE');
@@ -110,6 +116,7 @@ export async function bootArm64Guest({ id, image, storage, controlKernel = false
 export async function stopArm64Guest(id) {
   const native = nativeRuntime();
   if (native?.stopGuest) await native.stopGuest(id);
+  else if (qemuWasmCapabilities().available) await stopQemuWasmGuest(id);
   const worker = workers.get(id);
   if (worker) {
     try { worker.postMessage({ type: 'stop' }); } catch (_) {}
@@ -122,6 +129,7 @@ export function arm64RuntimeCapabilities() {
   const native = nativeRuntime();
   return {
     native: Boolean(native?.bootGuest),
+    qemuWasm: qemuWasmCapabilities(),
     webWorker: isBrowserRuntimeAvailable(),
     cpu: 'aarch64',
     bundledKernel: DEFAULT_KERNEL_URL,
