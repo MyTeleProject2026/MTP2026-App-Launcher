@@ -66,6 +66,13 @@ export async function installGuestImageFromBytes(id, bytes, metadata = {}) {
   return { ...result, sha256: digest, contract };
 }
 
+export async function installGuestImageFromContract(id, metadata = {}, onProgress) {
+  const contract = await getGuestImageContract(id);
+  const source = contract?.imageSource || {};
+  if (!source.url || !source.sha256) throw new Error('GUEST_IMAGE_SOURCE_NOT_CONFIGURED');
+  return downloadGuestImage(id, source.url, { ...metadata, sha256: source.sha256, sourceName: source.url }, onProgress);
+}
+
 export async function downloadGuestImage(id, url, metadata = {}, onProgress) {
   const system = getGuestSystem(id);
   if (!system.requiresImage) throw new Error('GUEST_IMAGE_NOT_REQUIRED');
@@ -114,4 +121,5 @@ window.MTP2026GuestImageManager = Object.freeze({
   installGuestImageFromBytes,
   downloadGuestImage,
   guestImageStatus,
+  installGuestImageFromContract,
 });
