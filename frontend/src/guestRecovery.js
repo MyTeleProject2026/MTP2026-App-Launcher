@@ -84,6 +84,16 @@
   }
 
   function render(event, code) {
+    // Browser mode has a first-class MTP2026 OS shell. Do not block the user
+    // behind a native guest-image installer when no native VM provider exists.
+    // The recovery dialog is reserved for an explicitly available native VM.
+    if (!window.MTP2026NativeGuestRuntime?.bootGuest) {
+      const mode = modeOf(event?.detail?.id || event?.detail?.mode || current);
+      current = mode;
+      window.dispatchEvent(new CustomEvent('mtp2026:default-system-os', { detail: { mode, browserShell: true } }));
+      close();
+      return;
+    }
     const mode = modeOf(event?.detail?.id || event?.detail?.mode || current);
     close(false);
     current = mode;
