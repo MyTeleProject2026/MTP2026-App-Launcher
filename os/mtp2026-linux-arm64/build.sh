@@ -192,6 +192,11 @@ printf 'Identity: VexaAccount\nStore: VexaStore\n'
 EOF
 chmod +x "$ROOTFS/usr/bin/mtp2026-system-info"
 
+# Guest-native browser launcher and runtime contract.
+cp "$ROOT/rootfs/mtp2026-browser" "$ROOTFS/usr/bin/mtp2026-browser"
+cp "$ROOT/rootfs/browser.json" "$ROOTFS/etc/mtp2026/browser.json"
+chmod +x "$ROOTFS/usr/bin/mtp2026-browser"
+
 cat > "$ROOTFS/usr/bin/mtp2026-service" <<'EOF'
 #!/bin/sh
 set -eu
