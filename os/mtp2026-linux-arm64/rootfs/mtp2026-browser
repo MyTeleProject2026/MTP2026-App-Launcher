@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+
+URL="${1:-https://vexaaccount-management.onrender.com}"
+case "$URL" in
+  https://*) ;;
+  *) echo "MTP2026 Browser requires an HTTPS URL" >&2; exit 2 ;;
+esac
+BROWSER=""
+for candidate in /usr/bin/chromium /usr/bin/chromium-browser /usr/bin/google-chrome-stable /usr/bin/google-chrome /usr/bin/webkit2gtk-browser; do
+  if [ -x "$candidate" ]; then BROWSER="$candidate"; break; fi
+done
+if [ -z "$BROWSER" ]; then
+  echo "MTP2026_BROWSER_ENGINE_NOT_INSTALLED" >&2
+  echo "Install a compatible ARM64 Chromium/WebView browser engine in the guest image." >&2
+  echo "The MTP2026 guest does not redistribute proprietary Google Chrome binaries." >&2
+  exit 127
+fi
+PROFILE_DIR="/mnt/device-storage/Apps/.mtp2026-browser-profile"
+mkdir -p "$PROFILE_DIR"
+exec "$BROWSER" --user-data-dir="$PROFILE_DIR" --no-first-run --no-default-browser-check --disable-session-crashed-bubble --app="$URL"
