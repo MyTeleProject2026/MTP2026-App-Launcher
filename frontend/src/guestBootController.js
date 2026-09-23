@@ -1,7 +1,7 @@
 /* MTP2026 guest boot coordinator. */
 
 import { getGuestSystem, normalizeGuestSystem } from './guestSystemRegistry.js';
-import { getGuestImageContract } from './guestRuntimeManifest.js';
+import { getGuestImageContract, getGuestImageSource } from './guestRuntimeManifest.js';
 import { loadGuestMetadata, saveGuestMetadata } from './guestStorage.js';
 import { inspectGuestImage } from './guestImageStore.js';
 import { bootArm64Guest, stopArm64Guest } from './arm64GuestRuntime.js';
@@ -37,11 +37,12 @@ export async function bootGuest(mode, options = {}) {
   try {
     const metadata = await loadGuestMetadata(id).catch(() => null);
     const contract = await getGuestImageContract(id);
+    const source = await getGuestImageSource(id);
     const ownProfile = contract.imageKind === 'mtp2026-owned-arm64-linux-profile' || contract.imageKind === 'mtp2026-owned-arm64-linux';
     const externalImage = contract.imageKind === 'real-os-image';
 
     if (!controlKernel) {
-      if (!contract.imageSource?.url && !contract.imageUrl) {
+      if (!source.configured || !source.url) {
         return missingImageState(id, contract, `GUEST_IMAGE_SOURCE_NOT_CONFIGURED_${id}`);
       }
       if (!native?.bootGuest) {
@@ -55,7 +56,7 @@ export async function bootGuest(mode, options = {}) {
     // release bundle itself. It therefore does not require a browser-stored
     // copy before the first physical boot.
     if (!controlKernel && ownProfile && native?.bootGuest) {
-      if (!contract.imageSource?.url && !contract.imageUrl) return missingImageState(id, contract, `GUEST_IMAGE_SOURCE_NOT_CONFIGURED_${id}`);
+      if (!source.configured || !source.url) return missingImageState(id, contract, `GUEST_IMAGE_SOURCE_NOT_CONFIGURED_${id}`);
     } else if (!controlKernel && !system.requiresImage) {
       return missingImageState(id, contract, `GUEST_IMAGE_CONTRACT_MISSING_${id}`);
     }
