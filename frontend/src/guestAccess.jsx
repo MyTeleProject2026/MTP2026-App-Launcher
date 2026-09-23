@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ExternalLink, LogIn, Plus, Smartphone, Monitor, Gamepad2, Trash2, LogOut, Globe2 } from 'lucide-react';
 import { MTP2026_GUEST_PROFILES } from './mtp2026GuestProfiles.js';
+import { MTP2026Arm64Firmware } from './mtp2026Arm64Firmware.jsx';
 
 const GUEST_PROFILES = [
   MTP2026_GUEST_PROFILES.mtp2026,
@@ -26,6 +27,7 @@ function saveApps(profileId, apps) {
 
 export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
   const [profileId, setProfileId] = useState(initialProfile);
+  const [booted, setBooted] = useState(false);
   const [apps, setApps] = useState(() => loadApps(initialProfile));
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
@@ -42,6 +44,7 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
   }, [profileId]);
 
   function switchProfile(id) {
+    setBooted(false);
     setProfileId(id);
     document.documentElement.dataset.mtpGuestProfile = id;
   }
@@ -71,6 +74,8 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
     setApps(next);
     saveApps(profileId, next);
   }
+
+  if (!booted) return <MTP2026Arm64Firmware profileId={profile.id} onReady={() => setBooted(true)} />;
 
   return <main className="mtp-guest-page" data-profile={profile.id}>
     <section className="mtp-guest-shell">
