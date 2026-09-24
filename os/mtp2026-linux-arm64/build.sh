@@ -155,7 +155,8 @@ cat > "$ROOTFS/etc/mtp2026/capabilities.json" <<EOF
     "accountCenter":true,
     "store":true,
     "nativeHostHandoff":true,
-    "proprietaryFirmware":false
+    "proprietaryFirmware":false,
+    "firmwareContract":"/etc/mtp2026/firmware-profile.json"
   }
 }
 EOF
