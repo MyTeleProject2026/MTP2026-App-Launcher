@@ -29,12 +29,29 @@ jobs:
             build-essential bc bison flex libssl-dev libelf-dev \
             cpio curl gzip rsync tar python3 \
             gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
-            qemu-system-arm
+            qemu-system-arm qemu-system-aarch64 file
 
-      - name: Build ARM64 Chromium-compatible browser runtime\n        env:\n          MTP2026_BUILD_BROWSER_RUNTIME: "1"\n        run: bash tools/build-arm64-browser-runtime.sh os/mtp2026-linux-arm64/out/browser-runtime\n\n      - name: Build all four MTP2026 physical-test guest profiles
+      - name: Build ARM64 Chromium-compatible browser runtime
+        env:
+          MTP2026_BUILD_BROWSER_RUNTIME: "1"
+        run: bash tools/build-arm64-browser-runtime.sh os/mtp2026-linux-arm64/out/browser-runtime
+
+      - name: Build all four MTP2026 physical-test guest profiles
         env:
           MTP2026_BUILD_PROFILES: mtp2026 android windows11 gaming
+          MTP2026_BUILD_BROWSER_RUNTIME: "1"
         run: bash os/mtp2026-guest-profiles/build-all.sh
+
+      - name: Validate embedded ARM64 browser runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x os/mtp2026-linux-arm64/out/browser-runtime/usr/bin/chromium
+          os/mtp2026-linux-arm64/out/browser-runtime/usr/bin/chromium --version || true
+          for profile in mtp2026 android windows11 gaming; do
+            initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
+            gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './usr/bin/chromium'
+          done
 
       - name: Validate all four guest artifacts exist
         shell: bash
