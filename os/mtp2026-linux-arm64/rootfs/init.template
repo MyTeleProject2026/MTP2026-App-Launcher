@@ -133,8 +133,9 @@ while true; do
       ;;
     browser)
       status webapp
-      echo "MTP2026 Browser is a guest-native Chromium/WebView-compatible application."
+      echo "MTP2026 Browser is a guest-native ARM64 Chromium-compatible application."
       echo "Browser contract: /etc/mtp2026/browser.json"
+      if [ ! -x /usr/bin/chromium ]; then echo "MTP2026_BROWSER_ENGINE_NOT_INSTALLED"; exit 127; fi
       echo "Persistent profile: /mnt/device-storage/Apps/.mtp2026-browser-profile"
       echo "Opening VexaAccount inside the guest browser..."
       /usr/bin/mtp2026-browser "${MTP2026_BROWSER_URL:-https://vexaaccount-management.onrender.com}" || {
