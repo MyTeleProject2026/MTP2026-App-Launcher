@@ -1,0 +1,8 @@
+{
+  "id":"gaming","name":"MTP2026 Gaming OS","family":"Gaming-style","architecture":"arm64",
+  "firmware":"MTP2026 ARM64 Boot Firmware","bootloader":"U-Boot qemu_arm64_defconfig",
+  "machine":"qemu-aarch64-virt","cpu":12,"memoryGB":16,"storageGB":512,"gpu":"virtio-gpu",
+  "navigation":"controller","layout":"gaming","identity":"VexaAccount","store":"VexaStore",
+  "applications":["Game Hub","MTP2026 Browser","VexaStore","WebApps","Performance","Controller","Account"],
+  "bootFlow":["firmware","boot-media","linux-kernel","initramfs","services","gui"]
+}
