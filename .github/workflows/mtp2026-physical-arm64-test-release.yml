@@ -42,7 +42,7 @@ jobs:
             "MTP2026 Browser|os/mtp2026-linux-arm64/rootfs/browser.json"
             'CONFIG_DRM_VIRTIO_GPU|os/mtp2026-linux-arm64/build.sh'
             'CONFIG_DRM_FBDEV_EMULATION|os/mtp2026-linux-arm64/build.sh'
-            "qemu-system-aarch64|frontend/src/guestRuntimeManifest.js frontend/src/arm64GuestRuntime.js"
+            "QemuWasmGuest|frontend/src/arm64GuestRuntime.js frontend/src/qemuWasmGuestRuntime.js"
             "web-os-shell|frontend/src/guestBootController.js frontend/src/arm64GuestRuntime.js"
             "tauri-qemu-system-aarch64|native/windows-tauri/src/lib.rs"
             "MTP2026 ARM64 Boot Firmware|os/mtp2026-firmware/README.md"
