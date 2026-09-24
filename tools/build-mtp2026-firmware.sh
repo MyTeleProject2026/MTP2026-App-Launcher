@@ -24,24 +24,13 @@ if [ -x "$UBOOT/scripts/config" ]; then
   "$UBOOT/scripts/config" --enable CONFIG_VIRTIO || true
   "$UBOOT/scripts/config" --enable CONFIG_VIRTIO_BLK || true
   make -C "$UBOOT" olddefconfig
-  grep -Eq '^CONFIG_BOOTSTD_FULL=y
-cp "$UBOOT/u-boot.bin" "$OUT/mtp2026-arm64-boot-firmware.bin"
-cat > "$OUT/firmware-manifest.json" <<EOF
-{"schema":"mtp2026-arm64-firmware-v1","owner":"MTP2026","architecture":"arm64","machine":"qemu-aarch64-virt","bootloader":"U-Boot qemu_arm64_defconfig","sourceVersion":"$UBOOT_VERSION","proprietaryFirmware":false,"bootFlow":["QEMU virt power-on","MTP2026 boot firmware","VirtIO boot media discovery","Linux ARM64 kernel","MTP2026 initramfs","MTP2026 system services","MTP2026 graphical shell"]}
-EOF
- "$UBOOT/.config"
-  grep -Eq '^CONFIG_BOOTMETH_EXTLINUX=y
-cp "$UBOOT/u-boot.bin" "$OUT/mtp2026-arm64-boot-firmware.bin"
-cat > "$OUT/firmware-manifest.json" <<EOF
-{"schema":"mtp2026-arm64-firmware-v1","owner":"MTP2026","architecture":"arm64","machine":"qemu-aarch64-virt","bootloader":"U-Boot qemu_arm64_defconfig","sourceVersion":"$UBOOT_VERSION","proprietaryFirmware":false,"bootFlow":["QEMU virt power-on","MTP2026 boot firmware","VirtIO boot media discovery","Linux ARM64 kernel","MTP2026 initramfs","MTP2026 system services","MTP2026 graphical shell"]}
-EOF
- "$UBOOT/.config"
-  grep -Eq '^CONFIG_VIRTIO(_BLK)?=y
-cp "$UBOOT/u-boot.bin" "$OUT/mtp2026-arm64-boot-firmware.bin"
-cat > "$OUT/firmware-manifest.json" <<EOF
-{"schema":"mtp2026-arm64-firmware-v1","owner":"MTP2026","architecture":"arm64","machine":"qemu-aarch64-virt","bootloader":"U-Boot qemu_arm64_defconfig","sourceVersion":"$UBOOT_VERSION","proprietaryFirmware":false,"bootFlow":["QEMU virt power-on","MTP2026 boot firmware","VirtIO boot media discovery","Linux ARM64 kernel","MTP2026 initramfs","MTP2026 system services","MTP2026 graphical shell"]}
-EOF
- "$UBOOT/.config" || true
+  grep -Eq '^CONFIG_BOOTSTD_FULL=y$' "$UBOOT/.config"
+  grep -Eq '^CONFIG_BOOTMETH_EXTLINUX=y$' "$UBOOT/.config"
+  if grep -q '^CONFIG_VIRTIO_BLK=y$' "$UBOOT/.config"; then
+    :
+  else
+    echo "U-Boot VirtIO block support is not enabled by this defconfig; continuing with bootflow configuration." >&2
+  fi
 fi
 make -C "$UBOOT" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE"
 cp "$UBOOT/u-boot.bin" "$OUT/mtp2026-arm64-boot-firmware.bin"
