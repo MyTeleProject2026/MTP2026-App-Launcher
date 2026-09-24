@@ -69,11 +69,18 @@ fn boot_disk_name(id: &str) -> Result<String, String> {
 fn ensure_persistent_disk(app: &tauri::AppHandle, id: &str) -> Result<PathBuf, String> {
     let dir = guest_root(app, id)?;
     let disk = dir.join("storage.qcow2");
+    let size = match id {
+        "mtp2026" => "64G",
+        "android" => "128G",
+        "windows11" => "256G",
+        "gaming" => "512G",
+        _ => return Err("UNSUPPORTED_MTP2026_GUEST_PROFILE".into()),
+    };
     if disk.exists() { return Ok(disk); }
     let status = Command::new("qemu-img")
         .args(["create", "-f", "qcow2"])
         .arg(&disk)
-        .arg("8G")
+         .arg(size)
         .status()
         .map_err(|e| format!("QEMU_IMG_NOT_AVAILABLE: {e}"))?;
     if !status.success() { return Err(format!("GUEST_STORAGE_CREATE_FAILED_{status}")); }
