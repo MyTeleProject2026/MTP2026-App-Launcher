@@ -77,11 +77,20 @@ export async function bootArm64Guest({ id, image, storage, controlKernel = false
   const imageKind = String(guestContract?.imageKind || '');
   const mtpOwnedProfile = imageKind === 'mtp2026-owned-arm64-linux-profile' || imageKind === 'mtp2026-owned-arm64-linux';
 
-  // A browser can render the launcher/control experience, but it cannot
-  // claim that a complete ARM64 guest kernel has booted. Real guest execution
-  // requires a native provider capable of launching the verified bundle.
+  // Public web deployments do not have access to a native hypervisor. Keep
+  // the MTP2026 browser shell usable instead of surfacing a misleading
+  // "image not installed" error. A real ARM64 guest is only reported when a
+  // native provider or QEMU-WASM backend actually executes it.
   if (!controlKernel && !native?.bootGuest && !qemuWasmCapabilities().available) {
-    throw new Error(`REAL_GUEST_RUNTIME_PROVIDER_REQUIRED_${id}`);
+    return {
+      id,
+      provider: 'web-os-shell',
+      realGuest: false,
+      browserShell: true,
+      imageRequired: true,
+      guestKind: 'mtp2026-owned-guest-os',
+      storage: storage || null,
+    };
   }
 
   if (native?.bootGuest) {
