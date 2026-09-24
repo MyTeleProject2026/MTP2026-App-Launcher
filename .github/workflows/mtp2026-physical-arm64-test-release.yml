@@ -75,6 +75,7 @@ jobs:
             gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './usr/bin/chromium'
             gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './usr/bin/mtp2026-browser'
             gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './usr/bin/mtp2026-ui'
+            gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './usr/bin/mtp2026-daemon'
             gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './etc/mtp2026/browser.json'
             gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './etc/mtp2026/browser-runtime'
           done
@@ -142,6 +143,7 @@ jobs:
             grep -q 'MTP2026 GUI COMPOSITOR STARTED' "$log"
             grep -q "MTP2026\[${profile}\]>" "$log"
             grep -q 'MTP2026 BROWSER SMOKE TEST PASSED' "$log"
+            grep -q 'MTP2026 GUI COMPOSITOR STARTED' "$log"
             if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
               echo "QEMU boot test failed for ${profile} with exit code ${code}" >&2
               exit "$code"
