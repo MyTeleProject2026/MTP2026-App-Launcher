@@ -63,7 +63,7 @@ cp -a "$TMP/runtime/mtp2026-browser-runtime/chromium-share" "$OUT/usr/share/chro
 cp -a "$TMP/runtime/mtp2026-browser-runtime/aarch64-linux-gnu/." "$OUT/usr/lib/"
 cp -a "$TMP/runtime/mtp2026-browser-runtime/lib-aarch64-linux-gnu/." "$OUT/lib/"
 cp -a "$TMP/runtime/mtp2026-browser-runtime/ld-linux-aarch64.so.1" "$OUT/lib/ld-linux-aarch64.so.1"
-if [ -f "$TMP/runtime/mtp2026-browser-runtime/icudtl.dat" ]; then cp -a "$TMP/runtime/icudtl.dat" "$OUT/usr/lib/chromium/icudtl.dat"; fi
+if [ -f "$TMP/runtime/mtp2026-browser-runtime/icudtl.dat" ]; then cp -a "$TMP/runtime/mtp2026-browser-runtime/icudtl.dat" "$OUT/usr/lib/chromium/icudtl.dat"; fi
 cp -a "$TMP/runtime/mtp2026-browser-runtime/certs" "$OUT/etc/ssl/certs"
 cp -a "$TMP/runtime/mtp2026-browser-runtime/fonts/." "$OUT/etc/fonts/"
 chmod +x "$OUT/usr/bin/chromium" "$OUT/usr/lib/chromium/chromium"
