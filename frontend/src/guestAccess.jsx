@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ExternalLink, LogIn, Plus, Smartphone, Monitor, Gamepad2, Trash2, Settings, Globe2, Package, UserRound, ShieldCheck, Power, Store, Grid2X2, Wifi, Bell } from 'lucide-react';
 import { MTP2026_GUEST_PROFILES, normalizeMTP2026GuestProfile, applyMTP2026GuestProfile } from './mtp2026GuestProfiles.js';
 import { MTP2026Arm64Firmware } from './mtp2026Arm64Firmware.jsx';
+import { bootGuest, stopGuest } from './guestBootController.js';
 
 const GUEST_PROFILES = [
   MTP2026_GUEST_PROFILES.mtp2026,
@@ -26,11 +27,30 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
   const [panel,setPanel]=useState('home');
   const [browserUrl,setBrowserUrl]=useState('https://vexaaccount-management.onrender.com');
   const [browserAddress,setBrowserAddress]=useState('https://vexaaccount-management.onrender.com');
+  const [guestProvider,setGuestProvider]=useState('web-os-shell');
+  const [guestBootError,setGuestBootError]=useState('');
 
   const profile=useMemo(()=>GUEST_PROFILES.find(x=>x.id===profileId)||GUEST_PROFILES[0],[profileId]);
   const Icon=ICONS[profile.id]||Smartphone;
 
-  useEffect(()=>{ applyMTP2026GuestProfile(profile.id); setApps(loadApps(profile.id)); setBooted(false); setPanel('home'); setError(''); },[profile.id]);
+  useEffect(()=>{ 
+    let cancelled=false;
+    applyMTP2026GuestProfile(profile.id); setApps(loadApps(profile.id)); setBooted(false); setPanel('home'); setError(''); setGuestBootError('');
+    (async()=>{ 
+      try {
+        const state=await bootGuest(profile.id);
+        if(cancelled) return;
+        if(state?.error) setGuestBootError(state.error);
+        setGuestProvider(state?.provider || 'web-os-shell');
+        setBooted(true);
+      } catch(e) {
+        if(cancelled) return;
+        setGuestBootError(String(e?.message||e||'GUEST_BOOT_FAILED'));
+        setBooted(true);
+      }
+    })();
+    return ()=>{ cancelled=true; void stopGuest().catch(()=>{}); };
+  },[profile.id]);
 
   function switchProfile(id){ setProfileId(id); }
   function addWebApp(e){
@@ -57,12 +77,12 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
     } catch(e){ setError(e.message||'Enter a valid HTTPS address.'); }
   }
 
-  if(!booted) return <MTP2026Arm64Firmware profileId={profile.id} onReady={()=>setBooted(true)} />;
+  if(!booted) return <MTP2026Arm64Firmware profileId={profile.id} onReady={()=>{}} />;
 
   return <main className="mtp-guest-page" data-profile={profile.id}>
     <section className="mtp-guest-shell">
       <header className="mtp-guest-header">
-        <div className="mtp-guest-brand"><div className="mtp-guest-brand-mark">M</div><div><strong>{profile.label}</strong><small>ARM64 device profile · MTP2026 platform</small></div></div>
+        <div className="mtp-guest-brand"><div className="mtp-guest-brand-mark">M</div><div><strong>{profile.label}</strong><small>ARM64 device profile · MTP2026 platform · {guestProvider}</small></div></div>
         <div className="mtp-os-account"><ShieldCheck/><span><b>VexaAccount</b><small>Device identity</small></span><button onClick={onLogin}><LogIn/> Sign in</button></div>
       </header>
 
@@ -71,7 +91,7 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
       </div>
 
       <section className="mtp-os-desktop">
-        <div className="mtp-os-status"><span><Wifi/> Connected</span><span><ShieldCheck/> VexaAccount protected</span><span><Bell/> System ready</span></div>
+        <div className="mtp-os-status"><span><Wifi/> Connected</span><span><ShieldCheck/> Runtime: {guestProvider}</span><span><ShieldCheck/> VexaAccount protected</span><span><Bell/> System ready</span></div>
         <div className="mtp-os-hero"><div className="mtp-guest-hero-icon"><Icon/></div><div><div className="mtp-guest-kicker">MTP2026 DEVICE OS</div><h1>{profile.label}</h1><p>One MTP2026 application environment across all four ARM64 device profiles. The built-in app layer includes <b>MTP2026 Browser</b> for HTTPS WebApp/PWA use, plus <b>Android APK package handoff</b> on a compatible native host.</p></div></div>
 
         <nav className="mtp-os-nav">
@@ -80,6 +100,8 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
           <button className={panel==='install'?'active':''} onClick={()=>setPanel('install')}><Package/> Install</button>
           <button className={panel==='browser'?'active':''} onClick={()=>setPanel('browser')}><Globe2/> Browser</button><button className={panel==='settings'?'active':''} onClick={()=>setPanel('settings')}><Settings/> Settings</button>
         </nav>
+
+        {guestBootError&&<div className="mtp-guest-error" role="status">Guest runtime notice: {guestBootError}. MTP2026 is continuing in browser shell mode where native ARM64 execution is unavailable.</div>}
 
         {panel==='home' && <div className="mtp-os-home-grid">
           <button onClick={()=>setPanel('apps')}><Store/><b>Application Center</b><small>{apps.length} WebApp entries</small></button>
