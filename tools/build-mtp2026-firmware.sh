@@ -13,6 +13,11 @@ if [ ! -d "$SRC/u-boot-${UBOOT_VERSION#v}" ]; then tar -xzf "$tarball" -C "$SRC"
 UBOOT="$SRC/u-boot-${UBOOT_VERSION#v}"
 export CROSS_COMPILE="${CROSS_COMPILE:-aarch64-linux-gnu-}"
 make -C "$UBOOT" qemu_arm64_defconfig
+if [ -x "$UBOOT/scripts/config" ]; then
+  "$UBOOT/scripts/config" --enable CONFIG_BOOTSTD_FULL || true
+  "$UBOOT/scripts/config" --set-str CONFIG_BOOTCOMMAND "bootflow scan -lb" || true
+  make -C "$UBOOT" olddefconfig
+fi
 make -C "$UBOOT" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE"
 cp "$UBOOT/u-boot.bin" "$OUT/mtp2026-arm64-boot-firmware.bin"
 cat > "$OUT/firmware-manifest.json" <<EOF
