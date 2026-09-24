@@ -196,6 +196,8 @@ jobs:
           for profile in ('mtp2026', 'android', 'windows11', 'gaming'):
               image = pathlib.Path(f'os/mtp2026-linux-arm64/out/artifacts/{profile}/mtp2026-{profile}-arm64-linux.Image')
               initrd = pathlib.Path(f'os/mtp2026-linux-arm64/out/artifacts/{profile}/mtp2026-{profile}-initramfs.cpio.gz')
+              firmware = pathlib.Path(f'os/mtp2026-linux-arm64/out/artifacts/{profile}/mtp2026-arm64-boot-firmware.bin')
+              boot_disk = pathlib.Path(f'os/mtp2026-linux-arm64/out/artifacts/{profile}/mtp2026-{profile}-boot-disk.img')
               bundle = root / f'mtp2026-{profile}-arm64-guest.tar.gz'
               def sha(p):
                   h = hashlib.sha256()
@@ -216,6 +218,10 @@ jobs:
                   'kernelName': f'mtp2026-{profile}-arm64-linux.Image',
                   'kernelSha256': sha(image),
                   'initrdSha256': sha(initrd),
+                  'firmwareName': firmware.name,
+                  'firmwareSha256': sha(firmware),
+                  'bootDiskName': boot_disk.name,
+                  'bootDiskSha256': sha(boot_disk),
                   'runtime': 'qemu-system-aarch64',
                   'bootArgs': ['-M','virt','-cpu','cortex-a72','-m','1024','-append','console=ttyAMA0 rdinit=/init']
               }
