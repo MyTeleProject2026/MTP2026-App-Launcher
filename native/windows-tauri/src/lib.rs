@@ -130,8 +130,9 @@ async fn boot_guest(app: tauri::AppHandle, id: String, bundle_url: String, bundl
     let serial_arg = format!("file:{}", serial_log.to_string_lossy());
     let qemu_log = dir.join("qemu.log");
     let mut command = Command::new("qemu-system-aarch64");
+    let boot_drive = format!("if=none,format=raw,id=bootdisk,file={}", boot_disk.to_string_lossy());
     command.args(["-M", "virt", "-cpu", "cortex-a72", "-m", "2048", "-bios"]).arg(&firmware)
-        .args(["-drive", "if=none,format=raw,id=bootdisk"]).arg(&boot_disk)
+        .args(["-drive"]).arg(boot_drive)
         .args(["-device", "virtio-blk-device,drive=bootdisk"])
         .args(["-drive", "if=virtio,format=qcow2"]).arg(&disk)
         .args(["-netdev", "user,id=net0", "-device", "virtio-net-pci,netdev=net0"])
