@@ -22,6 +22,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate build scripts before expensive ARM64 build
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n tools/build-arm64-browser-runtime.sh
+          bash -n os/mtp2026-guest-profiles/build-all.sh
+          bash -n os/mtp2026-linux-arm64/build.sh
+          bash -n os/mtp2026-linux-arm64/rootfs/mtp2026-browser
+          bash -n os/mtp2026-linux-arm64/rootfs/init.template
+          grep -q 'MTP2026 Browser' os/mtp2026-linux-arm64/rootfs/browser.json
+          grep -q 'CONFIG_DRM_VIRTIO_GPU=y' os/mtp2026-linux-arm64/build.sh
+          grep -q 'CONFIG_DRM_FBDEV_EMULATION=y' os/mtp2026-linux-arm64/build.sh
+          grep -q 'qemu-system-aarch64' frontend/src/guestRuntimeManifest.js frontend/src/arm64GuestRuntime.js
+
       - name: Install ARM64 build and QEMU dependencies
         run: |
           sudo apt-get update
