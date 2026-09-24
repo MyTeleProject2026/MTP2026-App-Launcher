@@ -87,6 +87,7 @@ make -C "$KERNEL" scripts -j"$JOBS"
 "$KERNEL/scripts/config" --enable CONFIG_DRM
 "$KERNEL/scripts/config" --enable CONFIG_DRM_KMS_HELPER
 "$KERNEL/scripts/config" --enable CONFIG_DRM_VIRTIO_GPU
+"$KERNEL/scripts/config" --enable CONFIG_DRM_FBDEV_EMULATION
 "$KERNEL/scripts/config" --enable CONFIG_FB
 "$KERNEL/scripts/config" --enable CONFIG_FRAMEBUFFER_CONSOLE
 "$KERNEL/scripts/config" --enable CONFIG_INPUT
