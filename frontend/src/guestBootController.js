@@ -3,7 +3,6 @@
 import { getGuestSystem, normalizeGuestSystem } from './guestSystemRegistry.js';
 import { getGuestImageContract, getGuestImageSource } from './guestRuntimeManifest.js';
 import { loadGuestMetadata, saveGuestMetadata } from './guestStorage.js';
-import { inspectGuestImage } from './guestImageStore.js';
 import { bootArm64Guest, stopArm64Guest } from './arm64GuestRuntime.js';
 import { qemuWasmCapabilities } from './qemuWasmGuestRuntime.js';
 
@@ -14,7 +13,6 @@ export function getGuestState() { return state; }
 export function subscribeGuestState(listener) { listeners.add(listener); return () => listeners.delete(listener); }
 function nativeProvider() { return window.MTP2026NativeGuestRuntime || null; }
 function resolveImageOption(options, metadata) { return options.image || metadata?.imageBytes || metadata?.image || null; }
-async function isInstalledImage(id, metadata) { const stored = await inspectGuestImage(id).catch(() => null); const metadataSha = String(metadata?.sha256 || metadata?.image?.sha256 || '').toLowerCase(); const storedSha = String(stored?.metadata?.sha256 || stored?.metadata?.imageSha256 || '').toLowerCase(); return Boolean(metadata?.status === 'installed' && stored?.byteLength && (metadataSha || storedSha)); }
 async function missingImageState(id, contract, reason = `GUEST_IMAGE_NOT_INSTALLED_${id}`) { const next = publish({ id, phase: 'needs-install', running: false, provider: nativeProvider()?.bootGuest ? 'native-vm' : 'native-required', guestKind: 'external-guest-os', error: reason, recoverable: true, requiresGuestImage: true, contract, progress: 0 }); window.dispatchEvent(new CustomEvent('mtp2026:guest-image-required', { detail: { id, contract, code: reason, recoverable: true } })); return next; }
 
 export async function installGuestImage(mode, image, metadata = {}) {
@@ -33,7 +31,9 @@ export async function bootGuest(mode, options = {}) {
   const controlKernel = options.controlKernel === true;
   const token = `${id}:${Date.now()}`;
   const native = nativeProvider();
-  publish({ id, phase: 'splash', running: false, provider: native?.bootGuest ? 'native-vm' : 'native-required', error: null, token, guestKind: controlKernel ? 'mtp2026-control-guest' : 'mtp2026-owned-guest-os', recoverable: false, requiresGuestImage: !controlKernel });
+  const qemuAvailable = qemuWasmCapabilities().available;
+  const browserOnly = !native?.bootGuest && !qemuAvailable;
+  publish({ id, phase: 'splash', running: false, provider: browserOnly ? 'web-os-shell' : native?.bootGuest ? 'native-vm' : 'qemu-wasm', error: null, token, guestKind: controlKernel ? 'mtp2026-control-guest' : 'mtp2026-owned-guest-os', recoverable: false, requiresGuestImage: !controlKernel && !browserOnly });
 
   try {
     const metadata = await loadGuestMetadata(id).catch(() => null);
@@ -42,27 +42,19 @@ export async function bootGuest(mode, options = {}) {
     // Browser deployments must be able to open the MTP2026-owned guest shell
     // even when a physical ARM64 image cannot be executed in the browser.
     // Validate the manifest only for native/QEMU execution paths.
-    const browserOnly = !native?.bootGuest && !qemuWasmCapabilities().available;
+    // Runtime mode was resolved before the initial state publication.
     const ownProfile = contract.imageKind === 'mtp2026-owned-arm64-linux-profile' || contract.imageKind === 'mtp2026-owned-arm64-linux';
     const externalImage = contract.imageKind === 'real-os-image';
 
     if (!controlKernel) {
       if (browserOnly) {
+        await saveGuestMetadata(id, { ...(metadata || {}), provider: 'web-os-shell', architecture: system.architecture, guestKind: 'mtp2026-owned-guest-os', bootProtocol: contract.bootProtocol, status: 'ready', installError: null, runningAt: new Date().toISOString() });
         publish({ id, phase: 'browser-shell', running: true, provider: 'web-os-shell', error: null, token, contract, guestKind: 'mtp2026-owned-guest-os', progress: 100, requiresGuestImage: false, recoverable: false });
         window.dispatchEvent(new CustomEvent('mtp2026:default-system-os', { detail: { mode: id, browserShell: true } }));
         return getGuestState();
       }
       if (!source.configured || !source.url) {
         return missingImageState(id, contract, `GUEST_IMAGE_SOURCE_NOT_CONFIGURED_${id}`);
-      }
-      if (!native?.bootGuest && !qemuWasmCapabilities().available) {
-        // A normal browser deployment has no native AArch64 VM provider. Do
-        // not surface a misleading "image not installed" error in that mode.
-        // The guest UI is intentionally provided by the MTP2026 browser shell;
-        // real ARM64 execution is reserved for QEMU-WASM or the native host.
-        publish({ id, phase: 'browser-shell', running: true, provider: 'web-os-shell', error: null, recoverable: false, requiresGuestImage: false, contract, guestKind: 'mtp2026-owned-guest-os', progress: 100 });
-        window.dispatchEvent(new CustomEvent('mtp2026:default-system-os', { detail: { mode: id, browserShell: true } }));
-        return getGuestState();
       }
     }
 
