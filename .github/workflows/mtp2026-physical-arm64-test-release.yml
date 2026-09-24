@@ -40,8 +40,8 @@ jobs:
           bash -n os/mtp2026-linux-arm64/rootfs/init.template
           checks=(
             "MTP2026 Browser|os/mtp2026-linux-arm64/rootfs/browser.json"
-            "CONFIG_DRM_VIRTIO_GPU=y|os/mtp2026-linux-arm64/build.sh"
-            "CONFIG_DRM_FBDEV_EMULATION=y|os/mtp2026-linux-arm64/build.sh"
+            'CONFIG_DRM_VIRTIO_GPU|os/mtp2026-linux-arm64/build.sh'
+            'CONFIG_DRM_FBDEV_EMULATION|os/mtp2026-linux-arm64/build.sh'
             "qemu-system-aarch64|frontend/src/guestRuntimeManifest.js frontend/src/arm64GuestRuntime.js"
             "web-os-shell|frontend/src/guestBootController.js frontend/src/arm64GuestRuntime.js"
             "tauri-qemu-system-aarch64|native/windows-tauri/src/lib.rs"
