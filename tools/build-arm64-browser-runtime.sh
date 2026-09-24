@@ -48,21 +48,21 @@ docker create --platform linux/arm64 --name "$NAME" "$IMAGE" bash -lc '
 '
 docker start "$NAME" >/dev/null
 docker wait "$NAME" >/dev/null
-docker cp "$NAME:/opt/mtp2026-browser-runtime/." "$TMP/runtime"
+docker cp "$NAME:/opt/mtp2026-browser-runtime" "$TMP/runtime"
 
 rm -rf "$OUT"
 mkdir -p "$OUT/usr/bin" "$OUT/usr/lib" "$OUT/lib" "$OUT/etc/ssl" "$OUT/etc/fonts" "$OUT/usr/share"
-cp -a "$TMP/runtime/chromium-launcher" "$OUT/usr/bin/chromium"
-cp -a "$TMP/runtime/chromium" "$OUT/usr/lib/chromium"
-cp -a "$TMP/runtime/chromium-share" "$OUT/usr/share/chromium"
-cp -a "$TMP/runtime/aarch64-linux-gnu/." "$OUT/usr/lib/"
-cp -a "$TMP/runtime/lib-aarch64-linux-gnu/." "$OUT/lib/"
-cp -a "$TMP/runtime/ld-linux-aarch64.so.1" "$OUT/lib/ld-linux-aarch64.so.1"
-if [ -f "$TMP/runtime/icudtl.dat" ]; then cp -a "$TMP/runtime/icudtl.dat" "$OUT/usr/lib/chromium/icudtl.dat"; fi
-cp -a "$TMP/runtime/certs" "$OUT/etc/ssl/certs"
-cp -a "$TMP/runtime/fonts/." "$OUT/etc/fonts/"
+cp -a "$TMP/runtime/mtp2026-browser-runtime/chromium-launcher" "$OUT/usr/bin/chromium"
+cp -a "$TMP/runtime/mtp2026-browser-runtime/chromium" "$OUT/usr/lib/chromium"
+cp -a "$TMP/runtime/mtp2026-browser-runtime/chromium-share" "$OUT/usr/share/chromium"
+cp -a "$TMP/runtime/mtp2026-browser-runtime/aarch64-linux-gnu/." "$OUT/usr/lib/"
+cp -a "$TMP/runtime/mtp2026-browser-runtime/lib-aarch64-linux-gnu/." "$OUT/lib/"
+cp -a "$TMP/runtime/mtp2026-browser-runtime/ld-linux-aarch64.so.1" "$OUT/lib/ld-linux-aarch64.so.1"
+if [ -f "$TMP/runtime/mtp2026-browser-runtime/icudtl.dat" ]; then cp -a "$TMP/runtime/icudtl.dat" "$OUT/usr/lib/chromium/icudtl.dat"; fi
+cp -a "$TMP/runtime/mtp2026-browser-runtime/certs" "$OUT/etc/ssl/certs"
+cp -a "$TMP/runtime/mtp2026-browser-runtime/fonts/." "$OUT/etc/fonts/"
 chmod +x "$OUT/usr/bin/chromium" "$OUT/usr/lib/chromium/chromium"
-cp -a "$TMP/runtime/MANIFEST" "$OUT/MANIFEST"
+cp -a "$TMP/runtime/mtp2026-browser-runtime/MANIFEST" "$OUT/MANIFEST"
 touch "$MARKER"
 echo "Built ARM64 browser runtime at $OUT"
 echo "Runtime manifest:"
