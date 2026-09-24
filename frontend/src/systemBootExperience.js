@@ -82,8 +82,17 @@
     waitForAuthentication(mode);
   });
   window.addEventListener('mtp2026:system-boot-start',event=>{ if(event.detail?.mode && !splash) show(event.detail.mode); });
-  window.addEventListener('mtp2026:guest-image-required',event=>showRecovery(event,event.detail?.code));
-  window.addEventListener('mtp2026:guest-boot-error',event=>showRecovery(event,event.detail?.error));
-  window.addEventListener('mtp2026-webos-boot-error',event=>showRecovery(event,event.detail?.error?.message || event.detail?.error));
+  window.addEventListener('mtp2026:guest-image-required',event=>{
+    if (!window.MTP2026NativeGuestRuntime?.bootGuest) { remove(); return; }
+    showRecovery(event,event.detail?.code);
+  });
+  window.addEventListener('mtp2026:guest-boot-error',event=>{
+    if (!window.MTP2026NativeGuestRuntime?.bootGuest) { remove(); return; }
+    showRecovery(event,event.detail?.error);
+  });
+  window.addEventListener('mtp2026-webos-boot-error',event=>{
+    if (!window.MTP2026NativeGuestRuntime?.bootGuest) { remove(); return; }
+    showRecovery(event,event.detail?.error?.message || event.detail?.error);
+  });
   window.MTP2026SystemBoot=Object.freeze({start:show,close:remove});
 })();
