@@ -74,7 +74,7 @@ jobs:
             initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
             log="/tmp/mtp2026-${profile}.log"
             set +e
-            timeout 35s qemu-system-aarch64 \
+            printf 'browser-test\n' | timeout 45s qemu-system-aarch64 \
               -M virt -cpu cortex-a72 -m 1024 -display none \
               -device virtio-gpu-pci -device virtio-keyboard-pci -device virtio-mouse-pci -device virtio-tablet-pci \
               -device virtio-net-pci,netdev=net0 -netdev user,id=net0 \
