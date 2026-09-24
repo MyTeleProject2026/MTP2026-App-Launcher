@@ -39,10 +39,19 @@ export async function bootGuest(mode, options = {}) {
     const metadata = await loadGuestMetadata(id).catch(() => null);
     const contract = await getGuestImageContract(id);
     const source = await getGuestImageSource(id);
+    // Browser deployments must be able to open the MTP2026-owned guest shell
+    // even when a physical ARM64 image cannot be executed in the browser.
+    // Validate the manifest only for native/QEMU execution paths.
+    const browserOnly = !native?.bootGuest && !qemuWasmCapabilities().available;
     const ownProfile = contract.imageKind === 'mtp2026-owned-arm64-linux-profile' || contract.imageKind === 'mtp2026-owned-arm64-linux';
     const externalImage = contract.imageKind === 'real-os-image';
 
     if (!controlKernel) {
+      if (browserOnly) {
+        publish({ id, phase: 'browser-shell', running: true, provider: 'web-os-shell', error: null, token, contract, guestKind: 'mtp2026-owned-guest-os', progress: 100, requiresGuestImage: false, recoverable: false });
+        window.dispatchEvent(new CustomEvent('mtp2026:default-system-os', { detail: { mode: id, browserShell: true } }));
+        return getGuestState();
+      }
       if (!source.configured || !source.url) {
         return missingImageState(id, contract, `GUEST_IMAGE_SOURCE_NOT_CONFIGURED_${id}`);
       }
