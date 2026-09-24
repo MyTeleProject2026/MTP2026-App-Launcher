@@ -83,7 +83,7 @@ while true; do
   if ! IFS= read -r command; then exit 0; fi
   case "$command" in
     ""|help)
-      echo "Commands: help, about, profile, services, memory, storage, apps, account, store, browser, settings, files, notifications, network, install <manifest-url>, reboot, poweroff"
+      echo "Commands: help, about, profile, services, memory, storage, apps, account, store, browser, browser-test, settings, files, notifications, network, install <manifest-url>, reboot, poweroff"
       ;;
     about)
       cat /etc/os-release
@@ -117,6 +117,19 @@ while true; do
       status store
       echo "VexaStore application catalog: https://www.vexastore.2bd.net/"
       echo "Install protocol: VexaStore manifest -> verified package -> /var/lib/mtp2026/apps"
+      ;;
+    browser-test)
+      if [ -x /usr/bin/chromium ]; then
+        echo "MTP2026 Browser ARM64 binary smoke test starting..."
+        if /usr/bin/chromium --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --dump-dom 'data:text/html,<title>MTP2026 Browser</title><h1>MTP2026 Browser OK</h1>' 2>/run/mtp2026/browser-test.err | grep -q 'MTP2026 Browser OK'; then
+          echo "MTP2026 BROWSER SMOKE TEST PASSED"
+        else
+          echo "MTP2026 BROWSER SMOKE TEST FAILED"
+          cat /run/mtp2026/browser-test.err 2>/dev/null || true
+        fi
+      else
+        echo "MTP2026 BROWSER SMOKE TEST FAILED: chromium binary missing"
+      fi
       ;;
     browser)
       status webapp
