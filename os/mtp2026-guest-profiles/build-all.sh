@@ -8,10 +8,17 @@ BUILD_ROOT="${ROOT}/mtp2026-linux-arm64"
 # explicitly requested by older physical-test workflows, but is never exposed
 # as a fifth selectable MTP2026 OS.
 BUILD_PROFILES="${MTP2026_BUILD_PROFILES:-mtp2026 android windows11 gaming}"
+BROWSER_RUNTIME="${ROOT}/mtp2026-linux-arm64/out/browser-runtime"
+
+# Build one real ARM64 Chromium-compatible runtime and bake it into every guest image.
+# CI enables this explicitly; local builds can disable it with MTP2026_BUILD_BROWSER_RUNTIME=0.
+if [ "${MTP2026_BUILD_BROWSER_RUNTIME:-1}" = "1" ]; then
+  bash "${ROOT}/tools/build-arm64-browser-runtime.sh" "$BROWSER_RUNTIME"
+fi
 
 for profile in ${BUILD_PROFILES}; do
   echo "=== Building ${profile} ==="
-  MTP2026_PROFILE="$profile" bash "${BUILD_ROOT}/build.sh"
+  MTP2026_PROFILE="$profile" MTP2026_BROWSER_RUNTIME_DIR="$BROWSER_RUNTIME" bash "${BUILD_ROOT}/build.sh"
 done
 
 MANIFEST="${BUILD_ROOT}/out/artifacts/mtp2026-arm64-guest-manifest.json"
