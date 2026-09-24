@@ -34,9 +34,9 @@ MTP2026 launcher
    +-- persistent profile data disk
 ```
 
-The native runtime boots this chain with `qemu-system-aarch64 -M virt -bios`. QEMU's ARM `virt` machine is a virtual platform intended for guests such as Linux and supports AArch64, virtio devices and `virtio-gpu-pci`. citeturn0search0turn0search2
+The native runtime boots this chain with `qemu-system-aarch64 -M virt -bios`. QEMU's ARM `virt` machine is a virtual platform intended for guests such as Linux and supports AArch64, virtio devices and `virtio-gpu-pci`.
 
-U-Boot's QEMU ARM64 target is used as the MTP2026-owned boot firmware foundation; U-Boot documents `qemu_arm64_defconfig` and booting it with QEMU's ARM64 `virt` machine, including VirtIO block support. citeturn1search1turn1search3
+U-Boot's QEMU ARM64 target is used as the MTP2026-owned boot firmware foundation; U-Boot documents `qemu_arm64_defconfig` and booting it with QEMU's ARM64 `virt` machine, including VirtIO block support.
 
 ## Important platform boundary
 
