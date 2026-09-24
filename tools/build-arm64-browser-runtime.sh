@@ -12,44 +12,56 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 MARKER="$OUT/.runtime-complete"
-if [ -f "$MARKER" ] && [ -x "$OUT/usr/bin/chromium" ]; then
+if [ -f "$MARKER" ] && [ -x "$OUT/usr/bin/chromium" ] && [ -f "$OUT/lib/ld-linux-aarch64.so.1" ]; then
   echo "Using cached ARM64 browser runtime: $OUT"
   exit 0
 fi
 
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
 NAME="mtp2026-browser-runtime-$$"
+cleanup() {
+  docker rm -f "$NAME" >/dev/null 2>&1 || true
+  rm -rf "$TMP"
+}
+trap cleanup EXIT
 
 docker pull --platform linux/arm64 "$IMAGE" >/dev/null
-
-docker run --platform linux/arm64 --name "$NAME" "$IMAGE" bash -lc '
+docker create --platform linux/arm64 --name "$NAME" "$IMAGE" bash -lc '
   set -e
   export DEBIAN_FRONTEND=noninteractive
   apt-get update
   apt-get install -y --no-install-recommends chromium ca-certificates fonts-dejavu fonts-liberation
   rm -rf /var/lib/apt/lists/*
-' >/dev/null
-
-docker cp "$NAME:/usr/bin/chromium" "$TMP/chromium"
-docker cp "$NAME:/usr/lib/chromium" "$TMP/chromium-dir"
-docker cp "$NAME:/usr/lib/aarch64-linux-gnu" "$TMP/aarch64-linux-gnu"
-docker cp "$NAME:/usr/share/chromium" "$TMP/chromium-share" 2>/dev/null || true
-docker cp "$NAME:/etc/ssl/certs" "$TMP/certs"
-docker cp "$NAME:/etc/fonts" "$TMP/fonts" 2>/dev/null || true
-docker rm "$NAME" >/dev/null
+  mkdir -p /opt/mtp2026-browser-runtime
+  cp -a /usr/bin/chromium /opt/mtp2026-browser-runtime/chromium-launcher
+  cp -a /usr/lib/chromium /opt/mtp2026-browser-runtime/chromium
+  cp -a /usr/share/chromium /opt/mtp2026-browser-runtime/chromium-share
+  cp -a /usr/lib/aarch64-linux-gnu /opt/mtp2026-browser-runtime/aarch64-linux-gnu
+  cp -a /lib/aarch64-linux-gnu /opt/mtp2026-browser-runtime/lib-aarch64-linux-gnu
+  cp -a /lib/ld-linux-aarch64.so.1 /opt/mtp2026-browser-runtime/ld-linux-aarch64.so.1
+  cp -a /etc/ssl/certs /opt/mtp2026-browser-runtime/certs
+  cp -a /etc/fonts /opt/mtp2026-browser-runtime/fonts
+  printf "%s\\n" "MTP2026 ARM64 Chromium-compatible runtime" > /opt/mtp2026-browser-runtime/MANIFEST
+  printf "%s\\n" "Base image: Debian Bookworm ARM64 package environment" >> /opt/mtp2026-browser-runtime/MANIFEST
+  /usr/bin/chromium --version >> /opt/mtp2026-browser-runtime/MANIFEST 2>&1 || true
+'
+docker start "$NAME" >/dev/null
+docker wait "$NAME" >/dev/null
+docker cp "$NAME:/opt/mtp2026-browser-runtime/." "$TMP/runtime"
 
 rm -rf "$OUT"
-mkdir -p "$OUT/usr/bin" "$OUT/usr/lib" "$OUT/etc/ssl" "$OUT/etc/fonts"
-cp -a "$TMP/chromium" "$OUT/usr/bin/chromium"
-cp -a "$TMP/chromium-dir" "$OUT/usr/lib/chromium"
-cp -a "$TMP/aarch64-linux-gnu/." "$OUT/usr/lib/"
-cp -a "$TMP/certs" "$OUT/etc/ssl/certs"
-if [ -d "$TMP/fonts" ]; then cp -a "$TMP/fonts/." "$OUT/etc/fonts/"; fi
-chmod +x "$OUT/usr/bin/chromium"
-
-printf '%s\n' "MTP2026 ARM64 Chromium-compatible runtime" > "$OUT/MANIFEST"
-printf '%s\n' "Base image: $IMAGE" >> "$OUT/MANIFEST"
-"$OUT/usr/bin/chromium" --version >> "$OUT/MANIFEST" 2>&1 || true
+mkdir -p "$OUT/usr/bin" "$OUT/usr/lib" "$OUT/lib" "$OUT/etc/ssl" "$OUT/etc/fonts" "$OUT/usr/share"
+cp -a "$TMP/runtime/chromium-launcher" "$OUT/usr/bin/chromium"
+cp -a "$TMP/runtime/chromium" "$OUT/usr/lib/chromium"
+cp -a "$TMP/runtime/chromium-share" "$OUT/usr/share/chromium"
+cp -a "$TMP/runtime/aarch64-linux-gnu/." "$OUT/usr/lib/"
+cp -a "$TMP/runtime/lib-aarch64-linux-gnu/." "$OUT/lib/"
+cp -a "$TMP/runtime/ld-linux-aarch64.so.1" "$OUT/lib/ld-linux-aarch64.so.1"
+cp -a "$TMP/runtime/certs" "$OUT/etc/ssl/certs"
+cp -a "$TMP/runtime/fonts/." "$OUT/etc/fonts/"
+chmod +x "$OUT/usr/bin/chromium" "$OUT/usr/lib/chromium/chromium"
+cp -a "$TMP/runtime/MANIFEST" "$OUT/MANIFEST"
 touch "$MARKER"
 echo "Built ARM64 browser runtime at $OUT"
+echo "Runtime manifest:"
+cat "$OUT/MANIFEST"
