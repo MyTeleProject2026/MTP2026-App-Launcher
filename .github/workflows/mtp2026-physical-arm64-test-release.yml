@@ -31,7 +31,7 @@ jobs:
             gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
             qemu-system-arm
 
-      - name: Build all four MTP2026 physical-test guest profiles
+      - name: Build ARM64 Chromium-compatible browser runtime\n        env:\n          MTP2026_BUILD_BROWSER_RUNTIME: "1"\n        run: bash tools/build-arm64-browser-runtime.sh os/mtp2026-linux-arm64/out/browser-runtime\n\n      - name: Build all four MTP2026 physical-test guest profiles
         env:
           MTP2026_BUILD_PROFILES: mtp2026 android windows11 gaming
         run: bash os/mtp2026-guest-profiles/build-all.sh
