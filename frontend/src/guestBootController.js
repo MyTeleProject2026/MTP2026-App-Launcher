@@ -5,6 +5,7 @@ import { getGuestImageContract, getGuestImageSource } from './guestRuntimeManife
 import { loadGuestMetadata, saveGuestMetadata } from './guestStorage.js';
 import { inspectGuestImage } from './guestImageStore.js';
 import { bootArm64Guest, stopArm64Guest } from './arm64GuestRuntime.js';
+import { qemuWasmCapabilities } from './qemuWasmGuestRuntime.js';
 
 const listeners = new Set();
 let state = Object.freeze({ id: null, phase: 'idle', running: false, provider: 'none', error: null });
@@ -45,10 +46,14 @@ export async function bootGuest(mode, options = {}) {
       if (!source.configured || !source.url) {
         return missingImageState(id, contract, `GUEST_IMAGE_SOURCE_NOT_CONFIGURED_${id}`);
       }
-      if (!native?.bootGuest) {
-        const installed = await isInstalledImage(id, metadata);
-        if (!installed) return missingImageState(id, contract, `REAL_GUEST_IMAGE_NOT_INSTALLED_${id}`);
-        return missingImageState(id, contract, `REAL_GUEST_NATIVE_PROVIDER_REQUIRED_${id}`);
+      if (!native?.bootGuest && !qemuWasmCapabilities().available) {
+        // A normal browser deployment has no native AArch64 VM provider. Do
+        // not surface a misleading "image not installed" error in that mode.
+        // The guest UI is intentionally provided by the MTP2026 browser shell;
+        // real ARM64 execution is reserved for QEMU-WASM or the native host.
+        publish({ id, phase: 'browser-shell', running: true, provider: 'web-os-shell', error: null, recoverable: false, requiresGuestImage: false, contract, guestKind: 'mtp2026-owned-guest-os', progress: 100 });
+        window.dispatchEvent(new CustomEvent('mtp2026:default-system-os', { detail: { mode: id, browserShell: true } }));
+        return getGuestState();
       }
     }
 
