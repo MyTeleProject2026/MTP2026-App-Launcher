@@ -206,14 +206,21 @@ if [ -n "$BROWSER_RUNTIME_DIR" ]; then
     echo "ARM64 browser runtime is missing chromium binary: $BROWSER_RUNTIME_DIR" >&2
     exit 1
   }
-  mkdir -p "$ROOTFS/usr/lib" "$ROOTFS/etc/ssl" "$ROOTFS/etc/fonts"
+  mkdir -p "$ROOTFS/usr/lib" "$ROOTFS/usr/share" "$ROOTFS/lib" "$ROOTFS/etc/ssl" "$ROOTFS/etc/fonts"
   cp -a "$BROWSER_RUNTIME_DIR/usr/bin/chromium" "$ROOTFS/usr/bin/chromium"
   cp -a "$BROWSER_RUNTIME_DIR/usr/lib/." "$ROOTFS/usr/lib/"
+  if [ -d "$BROWSER_RUNTIME_DIR/usr/share/chromium" ]; then
+    mkdir -p "$ROOTFS/usr/share/chromium"
+    cp -a "$BROWSER_RUNTIME_DIR/usr/share/chromium/." "$ROOTFS/usr/share/chromium/"
+  fi
+  if [ -d "$BROWSER_RUNTIME_DIR/lib" ]; then
+    cp -a "$BROWSER_RUNTIME_DIR/lib/." "$ROOTFS/lib/"
+  fi
   cp -a "$BROWSER_RUNTIME_DIR/etc/ssl/." "$ROOTFS/etc/ssl/"
   if [ -d "$BROWSER_RUNTIME_DIR/etc/fonts" ]; then
     cp -a "$BROWSER_RUNTIME_DIR/etc/fonts/." "$ROOTFS/etc/fonts/"
   fi
-  printf '%s\\n' "browserRuntime=chromium-compatible-arm64" "source=debian-bookworm-arm64-package" > "$ROOTFS/etc/mtp2026/browser-runtime"
+  printf '%s\\n' "browserRuntime=chromium-compatible-arm64" "source=debian-bookworm-arm64-package" "loader=/lib/ld-linux-aarch64.so.1" > "$ROOTFS/etc/mtp2026/browser-runtime"
 else
   echo "No ARM64 browser runtime supplied; guest browser command will report MTP2026_BROWSER_ENGINE_NOT_INSTALLED."
 fi
