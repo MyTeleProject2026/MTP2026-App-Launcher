@@ -60,7 +60,13 @@ static void draw(){
  for(int i=0;i<page_count;i++){int y=top+10+i*58;uint32_t c=i==page?rgb(25,70,105):rgb(13,31,50);rect(10,y,side-20,48,c);text(25,y+17,pages[i],2,rgb(225,235,246));}
  int x=side+25,w=fb.w-side-50;
  if(page==0){text(x,top+25,"HOME",4,rgb(90,220,255));text(x,top+80,"MTP2026 GUEST SYSTEM",3,rgb(230,240,250));text(x,top+120,"VEXAACCOUNT   VEXASTORE",2,rgb(150,175,200));}
- else if(page==1){text(x,top+25,"APPS",4,rgb(90,220,255));const char*a[]={"VexaStore","WebApps","File Manager","Settings","Browser","Game Hub"};for(int i=0;i<6;i++){int bx=x+(i%3)*220,by=top+80+(i/3)*95;rect(bx,by,195,72,i==app_cursor?rgb(25,70,105):rgb(14,32,52));text(bx+15,by+28,a[i],2,rgb(230,240,250));}}
+ else if(page==1){text(x,top+25,"APPS",4,rgb(90,220,255));
+const char *a_device[]={"VexaStore","WebApps","Files","Settings","Browser","Device OS"};
+const char *a_android[]={"VexaStore","WebApps","Files","Settings","Browser","APK Host"};
+const char *a_desktop[]={"VexaStore","WebApps","Files","Settings","Browser","Desktop"};
+const char *a_gaming[]={"VexaStore","WebApps","Games","Settings","Browser","Game Hub"};
+const char **a=(strcmp(profile,"android")==0)?a_android:(strcmp(profile,"windows11")==0)?a_desktop:(strcmp(profile,"gaming")==0)?a_gaming:a_device;
+for(int i=0;i<6;i++){int bx=x+(i%3)*220,by=top+80+(i/3)*95;rect(bx,by,195,72,i==app_cursor?rgb(25,70,105):rgb(14,32,52));text(bx+15,by+28,a[i],2,rgb(230,240,250));}}
  else if(page==2){text(x,top+25,"FILES",4,rgb(90,220,255));const char*a[]={"Desktop","Documents","Downloads","Pictures","Music","Games","Apps","Device Storage"};for(int i=0;i<8;i++){int bx=x+(i%4)*170,by=top+80+(i/4)*90;rect(bx,by,150,68,rgb(14,32,52));text(bx+10,by+26,a[i],2,rgb(230,240,250));}}
  else if(page==3){text(x,top+25,"SETTINGS",4,rgb(90,220,255));const char*a[]={"Display","Sound","Notifications","Network","Storage","Account","Device OS","Power"};for(int i=0;i<8;i++){int bx=x+(i%4)*170,by=top+80+(i/4)*90;rect(bx,by,150,68,rgb(14,32,52));text(bx+10,by+26,a[i],2,rgb(230,240,250));}}
  else {char b[128];snprintf(b,sizeof(b),"%s",pages[page]);text(x,top+25,b,4,rgb(90,220,255));text(x,top+90,"SERVICE ACTIVE",3,rgb(220,235,245));text(x,top+135,"MTP2026 SYSTEM SERVICE",2,rgb(145,170,195));}
