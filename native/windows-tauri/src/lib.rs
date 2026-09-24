@@ -59,6 +59,13 @@ fn initrd_name(id: &str) -> Result<&'static str, String> { match id {
     "windows11" => Ok("mtp2026-windows11-initramfs.cpio.gz"), "gaming" => Ok("mtp2026-gaming-initramfs.cpio.gz"),
     _ => Err("UNSUPPORTED_MTP2026_GUEST_PROFILE".into()),
 } }
+fn firmware_name() -> &'static str { "mtp2026-arm64-boot-firmware.bin" }
+fn boot_disk_name(id: &str) -> Result<String, String> {
+    match id {
+        "mtp2026" | "android" | "windows11" | "gaming" => Ok(format!("mtp2026-{}-boot-disk.img", id)),
+        _ => Err("UNSUPPORTED_MTP2026_GUEST_PROFILE".into()),
+    }
+}
 fn ensure_persistent_disk(app: &tauri::AppHandle, id: &str) -> Result<PathBuf, String> {
     let dir = guest_root(app, id)?;
     let disk = dir.join("storage.qcow2");
@@ -110,14 +117,22 @@ async fn boot_guest(app: tauri::AppHandle, id: String, bundle_url: String, bundl
         } else { return Err(error); }
     }
     extract_bundle(&bundle, &dir)?;
-    let kernel = dir.join(kernel_name); let initrd = dir.join(initrd_name); if !kernel.exists() || !initrd.exists() { return Err("GUEST_BUNDLE_MISSING_BOOT_FILES".into()); }
+    let kernel = dir.join(kernel_name);
+    let initrd = dir.join(initrd_name);
+    let firmware = dir.join(firmware_name());
+    let boot_disk = dir.join(boot_disk_name(&id)?);
+    if !kernel.exists() || !initrd.exists() || !firmware.exists() || !boot_disk.exists() {
+        return Err("GUEST_BUNDLE_MISSING_FIRMWARE_BOOT_ARTIFACTS".into());
+    }
     let disk = ensure_persistent_disk(&app, &id)?;
     let identity = guest_identity_path(&app, &id).ok();
     let serial_log = dir.join("serial.log");
     let serial_arg = format!("file:{}", serial_log.to_string_lossy());
+    let qemu_log = dir.join("qemu.log");
     let mut command = Command::new("qemu-system-aarch64");
-    command.args(["-M", "virt", "-cpu", "cortex-a72", "-m", "2048", "-kernel"]).arg(&kernel).arg("-initrd").arg(&initrd)
-        .args(["-append", "console=ttyAMA0 rdinit=/init", "-serial"]).arg(serial_arg)
+    command.args(["-M", "virt", "-cpu", "cortex-a72", "-m", "2048", "-bios"]).arg(&firmware)
+        .args(["-drive", "if=none,format=raw,id=bootdisk"]).arg(&boot_disk)
+        .args(["-device", "virtio-blk-device,drive=bootdisk"])
         .args(["-drive", "if=virtio,format=qcow2"]).arg(&disk)
         .args(["-netdev", "user,id=net0", "-device", "virtio-net-pci,netdev=net0"])
         // Graphical guest path: virtio-gpu exposes the guest framebuffer and
@@ -127,10 +142,12 @@ async fn boot_guest(app: tauri::AppHandle, id: String, bundle_url: String, bundl
         .args(["-display", "default"])
         ;
     if let Some(identity_path) = identity { if identity_path.exists() { let fwcfg = format!("name=opt/mtp2026/identity,file={}", identity_path.to_string_lossy()); command.args(["-fw_cfg", fwcfg.as_str()]); } }
-    command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    let qemu_output = File::create(&qemu_log).map_err(|e| format!("QEMU_LOG_CREATE_FAILED: {e}"))?;
+    let qemu_error = qemu_output.try_clone().map_err(|e| format!("QEMU_LOG_CLONE_FAILED: {e}"))?;
+    command.stdin(Stdio::null()).stdout(Stdio::from(qemu_output)).stderr(Stdio::from(qemu_error));
     let child = command.spawn().map_err(|e| format!("QEMU_AARCH64_NOT_AVAILABLE: {e}"))?; let pid = child.id();
     processes.0.lock().map_err(|_| "GUEST_PROCESS_LOCK_FAILED")?.insert(id.clone(), child);
-    Ok(serde_json::json!({"success":true,"id":id,"provider":"tauri-qemu-system-aarch64","architecture":"arm64","execution":"real-aarch64-linux-guest","pid":pid,"kernel":kernel.to_string_lossy(),"initrd":initrd.to_string_lossy(),"serialLog":serial_log.to_string_lossy(),"persistentDisk":disk.to_string_lossy(),"display":"qemu-default"}))
+    Ok(serde_json::json!({"success":true,"id":id,"provider":"tauri-qemu-system-aarch64","architecture":"arm64","execution":"real-aarch64-linux-guest","bootFirmware":"mtp2026-arm64-boot-firmware.bin","bootDisk":boot_disk.to_string_lossy(),"pid":pid,"kernel":kernel.to_string_lossy(),"initrd":initrd.to_string_lossy(),"serialLog":serial_log.to_string_lossy(),"qemuLog":qemu_log.to_string_lossy(),"persistentDisk":disk.to_string_lossy(),"display":"qemu-default"}))
 }
 #[tauri::command]
 async fn stop_guest(id: String, processes: tauri::State<'_, GuestProcesses>) -> Result<(), String> { let mut running = processes.0.lock().map_err(|_| "GUEST_PROCESS_LOCK_FAILED")?; if let Some(mut child) = running.remove(&id) { let _ = child.kill(); } Ok(()) }
