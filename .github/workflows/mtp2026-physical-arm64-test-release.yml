@@ -27,6 +27,8 @@ jobs:
         run: |
           set -euo pipefail
           bash -n tools/build-arm64-browser-runtime.sh
+          bash -n tools/build-mtp2026-firmware.sh
+          bash -n tools/build-mtp2026-boot-disk.sh
           bash -n os/mtp2026-guest-profiles/build-all.sh
           bash -n os/mtp2026-linux-arm64/build.sh
           bash -n os/mtp2026-linux-arm64/rootfs/mtp2026-browser
@@ -43,12 +45,15 @@ jobs:
             build-essential bc bison flex libssl-dev libelf-dev \
             cpio curl gzip rsync tar python3 \
             gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
-            qemu-system-arm qemu-system-aarch64 file
+            qemu-system-arm qemu-system-aarch64 file e2fsprogs
 
       - name: Build ARM64 Chromium-compatible browser runtime
         env:
           MTP2026_BUILD_BROWSER_RUNTIME: "1"
         run: bash tools/build-arm64-browser-runtime.sh os/mtp2026-linux-arm64/out/browser-runtime
+
+      - name: Build MTP2026 owned ARM64 boot firmware
+        run: bash tools/build-mtp2026-firmware.sh os/mtp2026-linux-arm64/out/firmware
 
       - name: Build all four MTP2026 physical-test guest profiles
         env:
@@ -72,6 +77,20 @@ jobs:
             gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './usr/bin/mtp2026-ui'
             gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './etc/mtp2026/browser.json'
             gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './etc/mtp2026/browser-runtime'
+          done
+
+      - name: Validate MTP2026 firmware and boot media
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s os/mtp2026-linux-arm64/out/firmware/mtp2026-arm64-boot-firmware.bin
+          grep -q '"owner":"MTP2026"' os/mtp2026-linux-arm64/out/firmware/firmware-manifest.json
+          for profile in mtp2026 android windows11 gaming; do
+            dir="os/mtp2026-linux-arm64/out/artifacts/$profile"
+            test -s "$dir/mtp2026-arm64-boot-firmware.bin"
+            test -s "$dir/mtp2026-$profile-boot-disk.img"
+            test -s "$dir/boot-manifest.json"
+            debugfs -R 'ls -l /extlinux' "$dir/mtp2026-$profile-boot-disk.img" 2>/dev/null | grep -q extlinux.conf
           done
 
       - name: Validate all four guest artifacts exist
@@ -138,7 +157,11 @@ jobs:
             dir="os/mtp2026-linux-arm64/out/artifacts/${profile}"
             tar -C "$dir" -czf "release/mtp2026-${profile}-arm64-guest.tar.gz" \
               "mtp2026-${profile}-arm64-linux.Image" \
-              "mtp2026-${profile}-initramfs.cpio.gz"
+              "mtp2026-${profile}-initramfs.cpio.gz" \
+              "mtp2026-arm64-boot-firmware.bin" \
+              "mtp2026-${profile}-boot-disk.img" \
+              "firmware-manifest.json" \
+              "boot-manifest.json"
           done
           sha256sum release/mtp2026-*-arm64-guest.tar.gz > release/SHA256SUMS.txt
 
