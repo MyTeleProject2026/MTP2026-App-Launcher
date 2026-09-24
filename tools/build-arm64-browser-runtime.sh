@@ -47,7 +47,12 @@ docker create --platform linux/arm64 --name "$NAME" "$IMAGE" bash -lc '
   /usr/bin/chromium --version >> /opt/mtp2026-browser-runtime/MANIFEST 2>&1 || true
 '
 docker start "$NAME" >/dev/null
-docker wait "$NAME" >/dev/null
+STATUS="$(docker wait "$NAME")"
+if [ "$STATUS" != "0" ]; then
+  echo "ARM64 browser runtime container failed with exit code $STATUS." >&2
+  docker logs "$NAME" >&2 || true
+  exit 1
+fi
 docker cp "$NAME:/opt/mtp2026-browser-runtime" "$TMP/runtime"
 
 rm -rf "$OUT"
