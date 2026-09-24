@@ -57,6 +57,11 @@ jobs:
             echo "Preflight OK: $pattern"
           done
 
+      - name: Enable ARM64 Docker emulation
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - name: Install ARM64 build and QEMU dependencies
         run: |
           sudo apt-get update
