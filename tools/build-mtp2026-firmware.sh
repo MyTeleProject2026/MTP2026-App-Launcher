@@ -15,7 +15,8 @@ export CROSS_COMPILE="${CROSS_COMPILE:-aarch64-linux-gnu-}"
 make -C "$UBOOT" qemu_arm64_defconfig
 if [ -x "$UBOOT/scripts/config" ]; then
   "$UBOOT/scripts/config" --enable CONFIG_BOOTSTD_FULL || true
-  "$UBOOT/scripts/config" --set-str CONFIG_BOOTCOMMAND "bootflow scan -lb" || true
+  "$UBOOT/scripts/config" --enable CONFIG_BOOTSTD_DEFAULTS || true
+  "$UBOOT/scripts/config" --enable CONFIG_BOOTMETH_EXTLINUX || true
   make -C "$UBOOT" olddefconfig
 fi
 make -C "$UBOOT" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE"
