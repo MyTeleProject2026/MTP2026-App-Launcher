@@ -100,6 +100,12 @@ make -C "$KERNEL" olddefconfig
 
 rm -rf "$ROOTFS"
 mkdir -p "$ROOTFS"/{bin,sbin,etc,proc,sys,dev,tmp,run,mnt,home,usr/bin,var/lib/mtp2026/apps,etc/mtp2026}
+FIRMWARE_PROFILE="${ROOT}/../mtp2026-firmware/profiles/${PROFILE}.json"
+if [ ! -f "$FIRMWARE_PROFILE" ]; then
+  echo "Missing MTP2026 firmware profile contract: $FIRMWARE_PROFILE" >&2
+  exit 1
+fi
+cp "$FIRMWARE_PROFILE" "$ROOTFS/etc/mtp2026/firmware-profile.json"
 
 make -C "$BUSYBOX" defconfig
 # The guest needs a first-boot formatter for its persistent virtio disk.
