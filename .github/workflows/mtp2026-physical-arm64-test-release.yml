@@ -9,6 +9,11 @@ on:
       - 'os/mtp2026-guest-profiles/**'
       - 'frontend/public/arm64/guest-manifest.json'
       - 'tools/**'
+      - 'frontend/src/arm64GuestRuntime.js'
+      - 'frontend/src/guestBootController.js'
+      - 'frontend/src/guestRuntimeManifest.js'
+      - 'frontend/src/guestRecovery.js'
+      - 'native/windows-tauri/**'
       - '.github/workflows/mtp2026-physical-arm64-test-release.yml'
 
 permissions:
@@ -37,6 +42,9 @@ jobs:
           grep -q 'CONFIG_DRM_VIRTIO_GPU=y' os/mtp2026-linux-arm64/build.sh
           grep -q 'CONFIG_DRM_FBDEV_EMULATION=y' os/mtp2026-linux-arm64/build.sh
           grep -q 'qemu-system-aarch64' frontend/src/guestRuntimeManifest.js frontend/src/arm64GuestRuntime.js
+          grep -q 'web-os-shell' frontend/src/guestBootController.js frontend/src/arm64GuestRuntime.js
+          grep -q 'tauri-qemu-system-aarch64' native/windows-tauri/src/lib.rs
+          grep -q 'MTP2026 ARM64 Boot Firmware' os/mtp2026-firmware/README.md
 
       - name: Install ARM64 build and QEMU dependencies
         run: |
