@@ -30,7 +30,7 @@ docker create --platform linux/arm64 --name "$NAME" "$IMAGE" bash -lc '
   set -e
   export DEBIAN_FRONTEND=noninteractive
   apt-get update
-  apt-get install -y --no-install-recommends chromium ca-certificates fonts-dejavu fonts-liberation libgbm1 libdrm2 libegl1 libgl1 mesa-dri-drivers
+  apt-get install -y --no-install-recommends chromium ca-certificates fonts-dejavu fonts-liberation libgbm1 libdrm2 libegl1 libgl1 libx11-6 libxcb1 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxrandr2 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libpango-1.0-0 libpangocairo-1.0-0 libxkbcommon0 libxshmfence1 libasound2 mesa-dri-drivers
   rm -rf /var/lib/apt/lists/*
   mkdir -p /opt/mtp2026-browser-runtime
   cp -a /usr/bin/chromium /opt/mtp2026-browser-runtime/chromium-launcher
@@ -39,6 +39,7 @@ docker create --platform linux/arm64 --name "$NAME" "$IMAGE" bash -lc '
   cp -a /usr/lib/aarch64-linux-gnu /opt/mtp2026-browser-runtime/aarch64-linux-gnu
   cp -a /lib/aarch64-linux-gnu /opt/mtp2026-browser-runtime/lib-aarch64-linux-gnu
   cp -a /lib/ld-linux-aarch64.so.1 /opt/mtp2026-browser-runtime/ld-linux-aarch64.so.1
+  cp -a /usr/lib/chromium/icudtl.dat /opt/mtp2026-browser-runtime/icudtl.dat 2>/dev/null || true
   cp -a /etc/ssl/certs /opt/mtp2026-browser-runtime/certs
   cp -a /etc/fonts /opt/mtp2026-browser-runtime/fonts
   printf "%s\\n" "MTP2026 ARM64 Chromium-compatible runtime" > /opt/mtp2026-browser-runtime/MANIFEST
@@ -57,6 +58,7 @@ cp -a "$TMP/runtime/chromium-share" "$OUT/usr/share/chromium"
 cp -a "$TMP/runtime/aarch64-linux-gnu/." "$OUT/usr/lib/"
 cp -a "$TMP/runtime/lib-aarch64-linux-gnu/." "$OUT/lib/"
 cp -a "$TMP/runtime/ld-linux-aarch64.so.1" "$OUT/lib/ld-linux-aarch64.so.1"
+if [ -f "$TMP/runtime/icudtl.dat" ]; then cp -a "$TMP/runtime/icudtl.dat" "$OUT/usr/lib/chromium/icudtl.dat"; fi
 cp -a "$TMP/runtime/certs" "$OUT/etc/ssl/certs"
 cp -a "$TMP/runtime/fonts/." "$OUT/etc/fonts/"
 chmod +x "$OUT/usr/bin/chromium" "$OUT/usr/lib/chromium/chromium"
