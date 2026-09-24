@@ -47,10 +47,17 @@ jobs:
         run: |
           set -euo pipefail
           test -x os/mtp2026-linux-arm64/out/browser-runtime/usr/bin/chromium
-          os/mtp2026-linux-arm64/out/browser-runtime/usr/bin/chromium --version || true
+          test -x os/mtp2026-linux-arm64/out/browser-runtime/usr/lib/chromium/chromium
+          test -f os/mtp2026-linux-arm64/out/browser-runtime/lib/ld-linux-aarch64.so.1
+          test -f os/mtp2026-linux-arm64/out/browser-runtime/MANIFEST
+          grep -q 'MTP2026 ARM64 Chromium-compatible runtime' os/mtp2026-linux-arm64/out/browser-runtime/MANIFEST
           for profile in mtp2026 android windows11 gaming; do
             initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
             gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './usr/bin/chromium'
+            gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './usr/bin/mtp2026-browser'
+            gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './usr/bin/mtp2026-ui'
+            gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './etc/mtp2026/browser.json'
+            gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './etc/mtp2026/browser-runtime'
           done
 
       - name: Validate all four guest artifacts exist
