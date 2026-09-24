@@ -38,13 +38,24 @@ jobs:
           bash -n os/mtp2026-linux-arm64/build.sh
           bash -n os/mtp2026-linux-arm64/rootfs/mtp2026-browser
           bash -n os/mtp2026-linux-arm64/rootfs/init.template
-          grep -q 'MTP2026 Browser' os/mtp2026-linux-arm64/rootfs/browser.json
-          grep -q 'CONFIG_DRM_VIRTIO_GPU=y' os/mtp2026-linux-arm64/build.sh
-          grep -q 'CONFIG_DRM_FBDEV_EMULATION=y' os/mtp2026-linux-arm64/build.sh
-          grep -q 'qemu-system-aarch64' frontend/src/guestRuntimeManifest.js frontend/src/arm64GuestRuntime.js
-          grep -q 'web-os-shell' frontend/src/guestBootController.js frontend/src/arm64GuestRuntime.js
-          grep -q 'tauri-qemu-system-aarch64' native/windows-tauri/src/lib.rs
-          grep -q 'MTP2026 ARM64 Boot Firmware' os/mtp2026-firmware/README.md
+          checks=(
+            "MTP2026 Browser|os/mtp2026-linux-arm64/rootfs/browser.json"
+            "CONFIG_DRM_VIRTIO_GPU=y|os/mtp2026-linux-arm64/build.sh"
+            "CONFIG_DRM_FBDEV_EMULATION=y|os/mtp2026-linux-arm64/build.sh"
+            "qemu-system-aarch64|frontend/src/guestRuntimeManifest.js frontend/src/arm64GuestRuntime.js"
+            "web-os-shell|frontend/src/guestBootController.js frontend/src/arm64GuestRuntime.js"
+            "tauri-qemu-system-aarch64|native/windows-tauri/src/lib.rs"
+            "MTP2026 ARM64 Boot Firmware|os/mtp2026-firmware/README.md"
+          )
+          for check in "${checks[@]}"; do
+            pattern="${check%%|*}"
+            files="${check#*|}"
+            if ! grep -Fq -- "$pattern" $files; then
+              echo "::error::Preflight check failed: '$pattern' in $files"
+              exit 1
+            fi
+            echo "Preflight OK: $pattern"
+          done
 
       - name: Install ARM64 build and QEMU dependencies
         run: |
