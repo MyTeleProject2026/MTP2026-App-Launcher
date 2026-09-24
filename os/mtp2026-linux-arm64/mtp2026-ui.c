@@ -17,7 +17,7 @@
 typedef struct { int fd; int w,h,bpp,stride; uint8_t *mem; size_t len; } FB;
 static FB fb={0};
 static int page=0, cursor=0, running=1, pointer_x=0, pointer_y=0;
-static int browser_pid=0;
+static int browser_pid=0, app_cursor=0;
 static const char *profile="MTP2026";
 static const char *profile_name="MTP2026 Guest OS";
 static const char *pages[]={"Home","Apps","Files","Settings","Network","Notifications","Account","Power"};
@@ -60,7 +60,7 @@ static void draw(){
  for(int i=0;i<page_count;i++){int y=top+10+i*58;uint32_t c=i==page?rgb(25,70,105):rgb(13,31,50);rect(10,y,side-20,48,c);text(25,y+17,pages[i],2,rgb(225,235,246));}
  int x=side+25,w=fb.w-side-50;
  if(page==0){text(x,top+25,"HOME",4,rgb(90,220,255));text(x,top+80,"MTP2026 GUEST SYSTEM",3,rgb(230,240,250));text(x,top+120,"VEXAACCOUNT   VEXASTORE",2,rgb(150,175,200));}
- else if(page==1){text(x,top+25,"APPS",4,rgb(90,220,255));const char*a[]={"VexaStore","WebApps","File Manager","Settings","Browser","Game Hub"};for(int i=0;i<6;i++){int bx=x+(i%3)*220,by=top+80+(i/3)*95;rect(bx,by,195,72,rgb(14,32,52));text(bx+15,by+28,a[i],2,rgb(230,240,250));}}
+ else if(page==1){text(x,top+25,"APPS",4,rgb(90,220,255));const char*a[]={"VexaStore","WebApps","File Manager","Settings","Browser","Game Hub"};for(int i=0;i<6;i++){int bx=x+(i%3)*220,by=top+80+(i/3)*95;rect(bx,by,195,72,i==app_cursor?rgb(25,70,105):rgb(14,32,52));text(bx+15,by+28,a[i],2,rgb(230,240,250));}}
  else if(page==2){text(x,top+25,"FILES",4,rgb(90,220,255));const char*a[]={"Desktop","Documents","Downloads","Pictures","Music","Games","Apps","Device Storage"};for(int i=0;i<8;i++){int bx=x+(i%4)*170,by=top+80+(i/4)*90;rect(bx,by,150,68,rgb(14,32,52));text(bx+10,by+26,a[i],2,rgb(230,240,250));}}
  else if(page==3){text(x,top+25,"SETTINGS",4,rgb(90,220,255));const char*a[]={"Display","Sound","Notifications","Network","Storage","Account","Device OS","Power"};for(int i=0;i<8;i++){int bx=x+(i%4)*170,by=top+80+(i/4)*90;rect(bx,by,150,68,rgb(14,32,52));text(bx+10,by+26,a[i],2,rgb(230,240,250));}}
  else {char b[128];snprintf(b,sizeof(b),"%s",pages[page]);text(x,top+25,b,4,rgb(90,220,255));text(x,top+90,"SERVICE ACTIVE",3,rgb(220,235,245));text(x,top+135,"MTP2026 SYSTEM SERVICE",2,rgb(145,170,195));}
@@ -69,6 +69,9 @@ static void draw(){
 static void stop_browser(void){if(browser_pid>0){kill(browser_pid,SIGTERM);waitpid(browser_pid,NULL,WNOHANG);browser_pid=0;}}
 static void launch_browser(void){
  stop_browser();
+ if(fb.mem && fb.mem!=MAP_FAILED) munmap(fb.mem,fb.len);
+ fb.mem=NULL;
+ if(fb.fd>=0){close(fb.fd);fb.fd=-1;}
  browser_pid=fork();
  if(browser_pid==0){
   const char *url=getenv("MTP2026_BROWSER_URL");
@@ -76,13 +79,25 @@ static void launch_browser(void){
   execl("/usr/bin/mtp2026-browser","mtp2026-browser",url,(char*)NULL);
   _exit(127);
  }
+ if(browser_pid>0){ int status=0; waitpid(browser_pid,&status,0); browser_pid=0; }
+ fb.fd=open("/dev/fb0",O_RDWR);
+ if(fb.fd>=0){struct fb_var_screeninfo v;struct fb_fix_screeninfo f;if(ioctl(fb.fd,FBIOGET_VSCREENINFO,&v)==0&&ioctl(fb.fd,FBIOGET_FSCREENINFO,&f)==0){fb.w=v.xres;fb.h=v.yres;fb.bpp=v.bits_per_pixel;fb.stride=f.line_length;fb.len=(size_t)fb.stride*fb.h;fb.mem=mmap(NULL,fb.len,PROT_READ|PROT_WRITE,MAP_SHARED,fb.fd,0);if(fb.mem==MAP_FAILED)fb.mem=NULL;}}
+ draw();
 }
 static void select_next(int d){page=(page+d+page_count)%page_count;draw();}
 static void input_loop(){
  DIR*d=opendir("/dev/input");if(!d)return;char path[256];struct dirent*e;int fds[16],n=0;
  while((e=readdir(d))&&n<16){if(strncmp(e->d_name,"event",5)!=0)continue;snprintf(path,sizeof(path),"/dev/input/%s",e->d_name);int fd=open(path,O_RDONLY|O_NONBLOCK);if(fd>=0)fds[n++]=fd;}closedir(d);
  struct input_event ev;for(;;){if(!running)break;for(int i=0;i<n;i++){while(read(fds[i],&ev,sizeof(ev))==(ssize_t)sizeof(ev)){if(ev.type==EV_ABS){if(ev.code==ABS_X)pointer_x=(int)((long long)ev.value*fb.w/32767);else if(ev.code==ABS_Y)pointer_y=(int)((long long)ev.value*fb.h/32767);}
-if(ev.type==EV_KEY&&ev.value==1){if(ev.code==KEY_RIGHT||ev.code==KEY_DOWN||ev.code==BTN_A)select_next(1);else if(ev.code==KEY_LEFT||ev.code==KEY_UP||ev.code==BTN_B)select_next(-1);else if(ev.code==KEY_ENTER||ev.code==KEY_SPACE){page=cursor;draw();if(page==1&&cursor==4)launch_browser();}else if(ev.code==BTN_LEFT){int p=(pointer_y-66)/58;if(pointer_x<190&&p>=0&&p<page_count){page=p;draw();}}else if(ev.code==KEY_ESC){page=0;draw();}}}}usleep(12000);}
+if(ev.type==EV_KEY&&ev.value==1){
+ if(page==1 && (ev.code==KEY_RIGHT||ev.code==KEY_DOWN||ev.code==BTN_A)){app_cursor=(app_cursor+1)%6;draw();}
+ else if(page==1 && (ev.code==KEY_LEFT||ev.code==KEY_UP||ev.code==BTN_B)){app_cursor=(app_cursor+5)%6;draw();}
+ else if(page==1 && (ev.code==KEY_ENTER||ev.code==KEY_SPACE)){if(app_cursor==4)launch_browser();}
+ else if(ev.code==KEY_RIGHT||ev.code==KEY_DOWN)select_next(1);
+ else if(ev.code==KEY_LEFT||ev.code==KEY_UP)select_next(-1);
+ else if(ev.code==BTN_LEFT){int p=(pointer_y-66)/58;if(pointer_x<190&&p>=0&&p<page_count){page=p;draw();}else if(page==1 && pointer_x>=215 && pointer_y>=136){int col=(pointer_x-215)/220;int row=(pointer_y-136)/95;int idx=row*3+col;if(col>=0&&col<3&&row>=0&&row<2&&idx<6){app_cursor=idx;draw();if(idx==4)launch_browser();}}}
+ else if(ev.code==KEY_ESC){page=0;draw();}
+}}}usleep(12000);}
  stop_browser();for(int i=0;i<n;i++)close(fds[i]);
 }
 int main(void){
