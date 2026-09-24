@@ -24,6 +24,11 @@ export MTP2026_PROFILE_NAME="@PROFILE_NAME@"
 # launcher-managed contracts to every ARM64 profile while the profile-specific
 # UI/runtime remains different on the browser/native side.
 mkdir -p /run/mtp2026 /var/lib/mtp2026/apps /mnt/device-storage
+MTP2026_DATA_DEVICE="/dev/vdb"
+for arg in \$(cat /proc/cmdline 2>/dev/null || true); do
+  case "\$arg" in mtp2026.data_device=*) MTP2026_DATA_DEVICE="\${arg#mtp2026.data_device=}";; esac
+done
+echo "\$MTP2026_DATA_DEVICE" > /run/mtp2026/data-device
 # Read the non-secret VexaAccount identity metadata supplied by the native host
 # through QEMU fw_cfg. Provider access/refresh tokens are never placed here.
 IDENTITY_FWCFG="/sys/firmware/qemu_fw_cfg/by_name/opt/mtp2026/identity/raw"
@@ -32,13 +37,13 @@ if [ -r "$IDENTITY_FWCFG" ]; then
 fi
 # Persistent guest storage is supplied by the native QEMU host as virtio-blk.
 # Keep the initramfs usable when no persistent disk is attached (browser/CI boot).
-if [ -b /dev/vda ]; then
+if [ -b "\$MTP2026_DATA_DEVICE" ]; then
   if ! mountpoint -q /mnt/device-storage 2>/dev/null; then
-    mount -t ext4 /dev/vda /mnt/device-storage 2>/dev/null || true
+    mount -t ext4 "\$MTP2026_DATA_DEVICE" /mnt/device-storage 2>/dev/null || true
     if ! mountpoint -q /mnt/device-storage 2>/dev/null && command -v mkfs.ext2 >/dev/null 2>&1; then
       echo "Formatting new persistent guest storage..."
-      mkfs.ext2 -F /dev/vda >/dev/null 2>&1 || true
-      mount -t ext4 /dev/vda /mnt/device-storage 2>/dev/null || mount -t ext2 /dev/vda /mnt/device-storage 2>/dev/null || true
+      mkfs.ext2 -F "\$MTP2026_DATA_DEVICE" >/dev/null 2>&1 || true
+      mount -t ext4 "\$MTP2026_DATA_DEVICE" /mnt/device-storage 2>/dev/null || mount -t ext2 "\$MTP2026_DATA_DEVICE" /mnt/device-storage 2>/dev/null || true
     fi
   fi
   if mountpoint -q /mnt/device-storage 2>/dev/null; then
@@ -151,7 +156,7 @@ while true; do
     files)
       status files
       echo "File service: Desktop, Documents, Downloads, Pictures, Music, Games and Device Storage."
-      if [ -f /run/mtp2026/storage ]; then echo "Persistent storage: active (/mnt/device-storage)"; else echo "Persistent storage: not attached"; fi
+      if [ -f /run/mtp2026/storage ]; then echo "Persistent storage: active (\$MTP2026_DATA_DEVICE -> /mnt/device-storage)"; else echo "Persistent storage: not attached"; fi
       ;;
     notifications)
       status notifications
