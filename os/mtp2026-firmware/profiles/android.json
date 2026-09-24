@@ -1,0 +1,8 @@
+{
+  "id":"android","name":"MTP2026 Android OS","family":"Android-style","architecture":"arm64",
+  "firmware":"MTP2026 ARM64 Boot Firmware","bootloader":"U-Boot qemu_arm64_defconfig",
+  "machine":"qemu-aarch64-virt","cpu":8,"memoryGB":8,"storageGB":128,"gpu":"virtio-gpu",
+  "navigation":"gesture-or-three-button","layout":"mobile","identity":"VexaAccount","store":"VexaStore",
+  "applications":["MTP2026 Browser","VexaStore","WebApps","APK Handoff","Quick Settings","Account"],
+  "bootFlow":["firmware","boot-media","linux-kernel","initramfs","services","gui"]
+}
