@@ -157,8 +157,25 @@ jobs:
             qemu-img create -f qcow2 "$data" 256M >/dev/null
             log="/tmp/mtp2026-firmware-$profile.log"
             set +e
-            printf 'browser-test
-' | timeout 60s qemu-system-aarch64               -M virt -cpu cortex-a72 -m 1024 -display none -serial stdio               -bios "$dir/mtp2026-arm64-boot-firmware.bin"               -drive "if=none,format=raw,id=bootdisk,file=$PWD/$dir/mtp2026-$profile-boot-disk.img"               -device virtio-blk-device,drive=bootdisk               -drive "if=none,format=qcow2,id=data,file=$data"               -device virtio-blk-device,drive=data               -device virtio-gpu-pci -device virtio-keyboard-pci -device virtio-mouse-pci -device virtio-tablet-pci               -device virtio-net-device,netdev=net0 -netdev user,id=net0               -audiodev driver=none,id=mtp2026audio -device virtio-sound-device,audiodev=mtp2026audio > "$log" 2>&1
+            printf 'browser-test\n' | timeout 60s qemu-system-aarch64 \
+              -M virt \
+              -cpu cortex-a72 \
+              -m 1024 \
+              -display none \
+              -serial stdio \
+              -bios "$dir/mtp2026-arm64-boot-firmware.bin" \
+              -drive "if=none,format=raw,id=bootdisk,file=$PWD/$dir/mtp2026-$profile-boot-disk.img" \
+              -device virtio-blk-device,drive=bootdisk \
+              -drive "if=none,format=qcow2,id=data,file=$data" \
+              -device virtio-blk-device,drive=data \
+              -device virtio-gpu-pci \
+              -device virtio-keyboard-pci \
+              -device virtio-mouse-pci \
+              -device virtio-tablet-pci \
+              -device virtio-net-device,netdev=net0 \
+              -netdev user,id=net0 \
+              -audiodev driver=none,id=mtp2026audio \
+              -device virtio-sound-device,audiodev=mtp2026audio > "$log" 2>&1
             code=$?
             set -e
             cat "$log"
@@ -226,7 +243,7 @@ jobs:
                   'bootArgs': ['-M','virt','-cpu','cortex-a72','-m','1024','-append','console=ttyAMA0 rdinit=/init']
               }
           manifest = {
-              'schema': 'mtp2026-physical-arm64-test-v1',
+              'schema': 'mtp2026-physical-arm64-test-v2',
               'version': 'physical-test',
               'architecture': 'arm64',
               'machine': 'qemu-aarch64-virt',
@@ -267,7 +284,7 @@ jobs:
           import hashlib, json, pathlib, urllib.request
           root = pathlib.Path('/tmp/mtp2026-release-verify')
           manifest = json.loads((root / 'physical-test-manifest.json').read_text())
-          assert manifest['schema'] == 'mtp2026-physical-arm64-test-v1'
+          assert manifest['schema'] == 'mtp2026-physical-arm64-test-v2'
           assert manifest['architecture'] == 'arm64'
           assert set(manifest['guests']) == {'mtp2026', 'android', 'windows11', 'gaming'}
           for profile, guest in manifest['guests'].items():
