@@ -11,10 +11,13 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <signal.h>
+#include <sys/wait.h>
 
 typedef struct { int fd; int w,h,bpp,stride; uint8_t *mem; size_t len; } FB;
 static FB fb={0};
 static int page=0, cursor=0, running=1, pointer_x=0, pointer_y=0;
+static int browser_pid=0;
 static const char *profile="MTP2026";
 static const char *profile_name="MTP2026 Guest OS";
 static const char *pages[]={"Home","Apps","Files","Settings","Network","Notifications","Account","Power"};
@@ -63,13 +66,24 @@ static void draw(){
  else {char b[128];snprintf(b,sizeof(b),"%s",pages[page]);text(x,top+25,b,4,rgb(90,220,255));text(x,top+90,"SERVICE ACTIVE",3,rgb(220,235,245));text(x,top+135,"MTP2026 SYSTEM SERVICE",2,rgb(145,170,195));}
  rect(0,fb.h-34,fb.w,34,rgb(9,24,43));text(18,fb.h-25,"READY",2,rgb(120,230,170));text(fb.w-260,fb.h-25,"QEMU ARM64 GUEST",2,rgb(145,170,195));
 }
+static void stop_browser(void){if(browser_pid>0){kill(browser_pid,SIGTERM);waitpid(browser_pid,NULL,WNOHANG);browser_pid=0;}}
+static void launch_browser(void){
+ stop_browser();
+ browser_pid=fork();
+ if(browser_pid==0){
+  const char *url=getenv("MTP2026_BROWSER_URL");
+  if(!url||strncmp(url,"https://",8)!=0)url="https://vexaaccount-management.onrender.com";
+  execl("/usr/bin/mtp2026-browser","mtp2026-browser",url,(char*)NULL);
+  _exit(127);
+ }
+}
 static void select_next(int d){page=(page+d+page_count)%page_count;draw();}
 static void input_loop(){
  DIR*d=opendir("/dev/input");if(!d)return;char path[256];struct dirent*e;int fds[16],n=0;
  while((e=readdir(d))&&n<16){if(strncmp(e->d_name,"event",5)!=0)continue;snprintf(path,sizeof(path),"/dev/input/%s",e->d_name);int fd=open(path,O_RDONLY|O_NONBLOCK);if(fd>=0)fds[n++]=fd;}closedir(d);
  struct input_event ev;for(;;){if(!running)break;for(int i=0;i<n;i++){while(read(fds[i],&ev,sizeof(ev))==(ssize_t)sizeof(ev)){if(ev.type==EV_ABS){if(ev.code==ABS_X)pointer_x=(int)((long long)ev.value*fb.w/32767);else if(ev.code==ABS_Y)pointer_y=(int)((long long)ev.value*fb.h/32767);}
-if(ev.type==EV_KEY&&ev.value==1){if(ev.code==KEY_RIGHT||ev.code==KEY_DOWN||ev.code==BTN_A)select_next(1);else if(ev.code==KEY_LEFT||ev.code==KEY_UP||ev.code==BTN_B)select_next(-1);else if(ev.code==KEY_ENTER||ev.code==KEY_SPACE){page=cursor;draw();}else if(ev.code==BTN_LEFT){int p=(pointer_y-66)/58;if(pointer_x<190&&p>=0&&p<page_count){page=p;draw();}}else if(ev.code==KEY_ESC){page=0;draw();}}}}usleep(12000);}
- for(int i=0;i<n;i++)close(fds[i]);
+if(ev.type==EV_KEY&&ev.value==1){if(ev.code==KEY_RIGHT||ev.code==KEY_DOWN||ev.code==BTN_A)select_next(1);else if(ev.code==KEY_LEFT||ev.code==KEY_UP||ev.code==BTN_B)select_next(-1);else if(ev.code==KEY_ENTER||ev.code==KEY_SPACE){page=cursor;draw();if(page==1&&cursor==4)launch_browser();}else if(ev.code==BTN_LEFT){int p=(pointer_y-66)/58;if(pointer_x<190&&p>=0&&p<page_count){page=p;draw();}}else if(ev.code==KEY_ESC){page=0;draw();}}}}usleep(12000);}
+ stop_browser();for(int i=0;i<n;i++)close(fds[i]);
 }
 int main(void){
  profile=getenv("MTP2026_PROFILE")?: "mtp2026";profile_name=getenv("MTP2026_PROFILE_NAME")?: "MTP2026 Guest OS";
