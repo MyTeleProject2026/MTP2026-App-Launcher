@@ -233,6 +233,24 @@ else
   echo "No ARM64 browser runtime supplied; guest browser command will report MTP2026_BROWSER_ENGINE_NOT_INSTALLED."
 fi
 
+cat > "$ROOTFS/usr/bin/mtp2026-daemon" <<'EOF'
+#!/bin/sh
+set -eu
+SERVICE="${1:-}"
+case "$SERVICE" in
+  account|store|webapp|notifications|settings|files|device-os) ;;
+  *) echo "Unknown MTP2026 service: $SERVICE" >&2; exit 2 ;;
+esac
+mkdir -p /run/mtp2026
+printf '%s\n' "service=$SERVICE" "profile=\${MTP2026_PROFILE:-unknown}" "started=\$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "/run/mtp2026/$SERVICE.state"
+trap 'rm -f "/run/mtp2026/$SERVICE.state"; exit 0' TERM INT
+while :; do
+  printf '%s\n' "service=$SERVICE" "profile=\${MTP2026_PROFILE:-unknown}" "heartbeat=\$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "/run/mtp2026/$SERVICE.state"
+  sleep 5
+done
+EOF
+chmod +x "$ROOTFS/usr/bin/mtp2026-daemon"
+
 cat > "$ROOTFS/usr/bin/mtp2026-service" <<'EOF'
 #!/bin/sh
 set -eu
