@@ -45,7 +45,7 @@ jobs:
             build-essential bc bison flex libssl-dev libelf-dev \
             cpio curl gzip rsync tar python3 \
             gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
-            qemu-system-arm qemu-system-aarch64 file e2fsprogs
+            qemu-system-arm qemu-system-aarch64 qemu-utils file e2fsprogs
 
       - name: Build ARM64 Chromium-compatible browser runtime
         env:
@@ -143,6 +143,30 @@ jobs:
             grep -q 'MTP2026 BROWSER SMOKE TEST PASSED' "$log"
             if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
               echo "QEMU boot test failed for ${profile} with exit code ${code}" >&2
+              exit "$code"
+            fi
+          done
+
+      - name: Boot-test all four profiles through MTP2026 boot firmware
+        shell: bash
+        run: |
+          set -euo pipefail
+          for profile in mtp2026 android windows11 gaming; do
+            dir="os/mtp2026-linux-arm64/out/artifacts/$profile"
+            data="/tmp/mtp2026-$profile-data.qcow2"
+            qemu-img create -f qcow2 "$data" 256M >/dev/null
+            log="/tmp/mtp2026-firmware-$profile.log"
+            set +e
+            printf 'browser-test
+' | timeout 60s qemu-system-aarch64               -M virt -cpu cortex-a72 -m 1024 -display none -serial stdio               -bios "$dir/mtp2026-arm64-boot-firmware.bin"               -drive "if=none,format=raw,id=bootdisk,file=$PWD/$dir/mtp2026-$profile-boot-disk.img"               -device virtio-blk-device,drive=bootdisk               -drive "if=none,format=qcow2,id=data,file=$data"               -device virtio-blk-device,drive=data               -device virtio-gpu-pci -device virtio-keyboard-pci -device virtio-mouse-pci -device virtio-tablet-pci               -device virtio-net-device,netdev=net0 -netdev user,id=net0               -audiodev driver=none,id=mtp2026audio -device virtio-sound-device,audiodev=mtp2026audio > "$log" 2>&1
+            code=$?
+            set -e
+            cat "$log"
+            grep -q 'MTP2026 GUEST SYSTEM' "$log"
+            grep -q "MTP2026[$profile]>" "$log"
+            grep -q 'MTP2026 BROWSER SMOKE TEST PASSED' "$log"
+            if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
+              echo "Firmware boot test failed for $profile with exit code $code" >&2
               exit "$code"
             fi
           done
