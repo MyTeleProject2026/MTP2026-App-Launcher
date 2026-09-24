@@ -60,8 +60,24 @@ async function loadManifest() {
       } catch (_) {}
 
       if (!canonical && !remote) throw new Error('GUEST_MANIFEST_UNAVAILABLE');
-      const manifest = canonical && remote ? mergeManifests(canonical, remote) : (remote || canonical);
+      let manifest = canonical && remote ? mergeManifests(canonical, remote) : (remote || canonical);
       if (!manifest || typeof manifest !== 'object') throw new Error('GUEST_MANIFEST_INVALID');
+      // The physical-test release is rebuilt on every firmware change, so its
+      // published bundle digests are authoritative and must override stale
+      // static fallback hashes before native verification.
+      const physicalManifestUrl = manifest.physicalTestManifestUrl || 'https://github.com/MyTeleProject2026/MTP2026-App-Launcher/releases/download/mtp2026-physical-test/physical-test-manifest.json';
+      try {
+        const physical = await readJson(physicalManifestUrl);
+        if (physical?.guests) {
+          manifest = mergeManifests(manifest, { guests: Object.fromEntries(Object.entries(physical.guests).map(([id, guest]) => [id, {
+            imageSource: guest.imageSource,
+            kernelName: guest.kernelName,
+            initrdName: guest.initrdName,
+            firmwareName: guest.firmwareName,
+            bootDiskName: guest.bootDiskName
+          }]))});
+        }
+      } catch (_) {}
       manifest.runtimeState = hasUsablePhysicalSources(manifest) ? 'physical-sources-configured' : 'browser-shell';
       return manifest;
     })().catch(error => { manifestPromise = null; throw error; });
