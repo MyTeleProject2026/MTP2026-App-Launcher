@@ -133,7 +133,8 @@ jobs:
               -device virtio-net-pci,netdev=net0 -netdev user,id=net0 \
               -audiodev driver=none,id=mtp2026audio -device virtio-sound-pci,audiodev=mtp2026audio \
               -kernel "$image" -initrd "$initrd" \
-              -append 'console=ttyAMA0 rdinit=/init' > "$log" 2>&1
+              -append 'console=ttyAMA0 rdinit=/init' \
+              -serial stdio > "$log" 2>&1
             code=$?
             set -e
             cat "$log"
