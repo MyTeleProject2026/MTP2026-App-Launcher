@@ -86,6 +86,19 @@ jobs:
             file "$image" | grep -Eiq 'ARM aarch64|ARM64|Linux kernel'
           done
 
+      - name: Validate guest browser graphical integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          for profile in mtp2026 android windows11 gaming; do
+            initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
+            listing="$(gzip -dc "$initrd" | cpio -it 2>/dev/null)"
+            printf '%s\n' "$listing" | grep -qx './etc/mtp2026/browser.json'
+            printf '%s\n' "$listing" | grep -qx './usr/bin/mtp2026-ui'
+            printf '%s\n' "$listing" | grep -qx './usr/bin/mtp2026-browser'
+            printf '%s\n' "$listing" | grep -qx './usr/bin/chromium'
+            printf '%s\n' "$listing" | grep -qx './usr/lib/chromium/chromium'
+          done
       - name: Boot-test all guest profiles under AArch64 QEMU
         shell: bash
         run: |
