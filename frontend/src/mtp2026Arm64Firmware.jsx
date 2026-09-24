@@ -3,10 +3,10 @@ import { Cpu, HardDrive, MemoryStick, ShieldCheck, Terminal, Wifi, Zap, Power, A
 import { MTP2026_GUEST_PROFILES, normalizeMTP2026GuestProfile } from './mtp2026GuestProfiles.js';
 
 const ARM64 = {
-  mtp2026: { kernel:'MTP2026 Microkernel AArch64', firmware:'MTP UEFI 2026.09', board:'MTP2026 Mobile Reference Board', ram:'8 GB', storage:'64 GB virtual NVMe', cpu:'8-core ARM64', gpu:'MTP Graphics 2D/3D' },
-  android: { kernel:'MTP Android Kernel AArch64', firmware:'MTP Android Boot Firmware', board:'MTP2026 Android Reference Board', ram:'8 GB', storage:'128 GB virtual UFS', cpu:'8-core ARM64', gpu:'MTP Mobile GPU' },
-  windows11: { kernel:'MTP Desktop Kernel AArch64', firmware:'MTP Desktop UEFI', board:'MTP2026 Desktop Reference Board', ram:'16 GB', storage:'256 GB virtual NVMe', cpu:'8-core ARM64', gpu:'MTP Desktop GPU' },
-  gaming: { kernel:'MTP Gaming Kernel AArch64', firmware:'MTP Gaming Secure Firmware', board:'MTP2026 Gaming Reference Board', ram:'16 GB', storage:'512 GB virtual NVMe', cpu:'12-core ARM64', gpu:'MTP Gaming GPU' }
+  mtp2026: { kernel:'MTP2026 Microkernel AArch64', firmware:'MTP2026 ARM64 Boot Firmware', board:'MTP2026 Mobile Reference Board', ram:'8 GB', storage:'64 GB virtual NVMe', cpu:'8-core ARM64', gpu:'MTP Graphics 2D/3D' },
+  android: { kernel:'MTP Android Kernel AArch64', firmware:'MTP2026 ARM64 Boot Firmware', board:'MTP2026 Android Reference Board', ram:'8 GB', storage:'128 GB virtual UFS', cpu:'8-core ARM64', gpu:'MTP Mobile GPU' },
+  windows11: { kernel:'MTP Desktop Kernel AArch64', firmware:'MTP2026 ARM64 Boot Firmware', board:'MTP2026 Desktop Reference Board', ram:'16 GB', storage:'256 GB virtual NVMe', cpu:'8-core ARM64', gpu:'MTP Desktop GPU' },
+  gaming: { kernel:'MTP Gaming Kernel AArch64', firmware:'MTP2026 ARM64 Boot Firmware', board:'MTP2026 Gaming Reference Board', ram:'16 GB', storage:'512 GB virtual NVMe', cpu:'12-core ARM64', gpu:'MTP Gaming GPU' }
 };
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -56,9 +56,9 @@ export function MTP2026Arm64Firmware({ profileId='mtp2026', onReady }) {
       </div>
       <div className="mtp-arm64-main">
         <div className="mtp-arm64-orb"><Cpu/></div>
-        <div className="mtp-arm64-kicker">AARCH64 / UEFI-STYLE BOOT</div>
+        <div className="mtp-arm64-kicker">AARCH64 / MTP2026 BOOT FIRMWARE</div>
         <h1>Booting {profile.label}</h1>
-        <p>This browser session is starting the MTP2026 ARM64 device profile and its application environment. The browser provides the MTP2026 OS shell; a full guest kernel/firmware VM is used only when a native VM provider is available.</p>
+        <p>MTP2026 starts each selected profile through the same owned ARM64 boot contract. Native builds execute the real AArch64 Linux guest through MTP2026 Boot Firmware + QEMU; ordinary web deployments use the MTP2026 browser shell when a native VM is unavailable.</p>
         <div className="mtp-arm64-progress"><span style={{width:`${progress}%`}}/></div>
         <div className="mtp-arm64-percent">{progress}% <span>{stage.replace('-', ' ')}</span></div>
         <div className="mtp-arm64-specs">
