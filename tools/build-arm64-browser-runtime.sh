@@ -30,7 +30,7 @@ docker create --platform linux/arm64 --name "$NAME" "$IMAGE" bash -lc '
   set -e
   export DEBIAN_FRONTEND=noninteractive
   apt-get update
-  apt-get install -y --no-install-recommends chromium ca-certificates fonts-dejavu fonts-liberation
+  apt-get install -y --no-install-recommends chromium ca-certificates fonts-dejavu fonts-liberation libgbm1 libdrm2 libegl1 libgl1 mesa-dri-drivers
   rm -rf /var/lib/apt/lists/*
   mkdir -p /opt/mtp2026-browser-runtime
   cp -a /usr/bin/chromium /opt/mtp2026-browser-runtime/chromium-launcher
