@@ -6,6 +6,7 @@ case "$URL" in
   https://*) ;;
   *) echo "MTP2026 Browser requires an HTTPS URL" >&2; exit 2 ;;
 esac
+
 BROWSER=""
 for candidate in /usr/bin/chromium /usr/bin/chromium-browser /usr/bin/google-chrome-stable /usr/bin/google-chrome /usr/bin/webkit2gtk-browser; do
   if [ -x "$candidate" ]; then BROWSER="$candidate"; break; fi
@@ -16,6 +17,19 @@ if [ -z "$BROWSER" ]; then
   echo "The MTP2026 guest does not redistribute proprietary Google Chrome binaries." >&2
   exit 127
 fi
+
 PROFILE_DIR="/mnt/device-storage/Apps/.mtp2026-browser-profile"
 mkdir -p "$PROFILE_DIR"
-exec "$BROWSER" --user-data-dir="$PROFILE_DIR" --no-first-run --no-default-browser-check --disable-session-crashed-bubble --app="$URL"
+
+# The MTP2026 guest is currently a root-owned minimal ARM64 appliance. The
+# guest is isolated by QEMU; Chromium's namespace sandbox cannot initialize
+# against this minimal initramfs, so the launcher uses no-sandbox explicitly.
+# Direct Ozone/DRM is selected when the virtio-GPU DRM node exists.
+ARGS="--user-data-dir=$PROFILE_DIR --no-first-run --no-default-browser-check --disable-session-crashed-bubble --app=$URL"
+if [ -e /dev/dri/card0 ]; then
+  ARGS="$ARGS --ozone-platform=drm --use-gl=egl --disable-gpu-sandbox"
+fi
+ARGS="$ARGS --no-sandbox"
+
+# shellcheck disable=SC2086
+exec "$BROWSER" $ARGS
