@@ -197,6 +197,27 @@ cp "$ROOT/rootfs/mtp2026-browser" "$ROOTFS/usr/bin/mtp2026-browser"
 cp "$ROOT/rootfs/browser.json" "$ROOTFS/etc/mtp2026/browser.json"
 chmod +x "$ROOTFS/usr/bin/mtp2026-browser"
 
+# Embed a real ARM64 Chromium-compatible browser runtime when the build pipeline
+# supplies one. The browser binary is not a placeholder and is built from an
+# ARM64 Debian package environment by tools/build-arm64-browser-runtime.sh.
+BROWSER_RUNTIME_DIR="${MTP2026_BROWSER_RUNTIME_DIR:-}"
+if [ -n "$BROWSER_RUNTIME_DIR" ]; then
+  test -x "$BROWSER_RUNTIME_DIR/usr/bin/chromium" || {
+    echo "ARM64 browser runtime is missing chromium binary: $BROWSER_RUNTIME_DIR" >&2
+    exit 1
+  }
+  mkdir -p "$ROOTFS/usr/lib" "$ROOTFS/etc/ssl" "$ROOTFS/etc/fonts"
+  cp -a "$BROWSER_RUNTIME_DIR/usr/bin/chromium" "$ROOTFS/usr/bin/chromium"
+  cp -a "$BROWSER_RUNTIME_DIR/usr/lib/." "$ROOTFS/usr/lib/"
+  cp -a "$BROWSER_RUNTIME_DIR/etc/ssl/." "$ROOTFS/etc/ssl/"
+  if [ -d "$BROWSER_RUNTIME_DIR/etc/fonts" ]; then
+    cp -a "$BROWSER_RUNTIME_DIR/etc/fonts/." "$ROOTFS/etc/fonts/"
+  fi
+  printf '%s\\n' "browserRuntime=chromium-compatible-arm64" "source=debian-bookworm-arm64-package" > "$ROOTFS/etc/mtp2026/browser-runtime"
+else
+  echo "No ARM64 browser runtime supplied; guest browser command will report MTP2026_BROWSER_ENGINE_NOT_INSTALLED."
+fi
+
 cat > "$ROOTFS/usr/bin/mtp2026-service" <<'EOF'
 #!/bin/sh
 set -eu
