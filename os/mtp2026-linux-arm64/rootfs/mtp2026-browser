@@ -25,7 +25,7 @@ mkdir -p "$PROFILE_DIR"
 # guest is isolated by QEMU; Chromium's namespace sandbox cannot initialize
 # against this minimal initramfs, so the launcher uses no-sandbox explicitly.
 # Direct Ozone/DRM is selected when the virtio-GPU DRM node exists.
-ARGS="--user-data-dir=$PROFILE_DIR --no-first-run --no-default-browser-check --disable-session-crashed-bubble --app=$URL"
+ARGS="--user-data-dir=$PROFILE_DIR --no-first-run --no-default-browser-check --disable-session-crashed-bubble --kiosk --app=$URL --disable-features=Translate --noerrdialogs --disable-session-crashed-bubble"
 if [ -e /dev/dri/card0 ]; then
   ARGS="$ARGS --ozone-platform=drm --use-gl=egl --disable-gpu-sandbox"
 fi
