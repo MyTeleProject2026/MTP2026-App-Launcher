@@ -52,6 +52,8 @@ if [ -b "\$MTP2026_DATA_DEVICE" ]; then
   fi
 fi
 for service in account store webapp notifications settings files device-os; do
+  /usr/bin/mtp2026-daemon "$service" >/run/mtp2026/"$service".log 2>&1 &
+  printf '%s\n' "$!" > "/run/mtp2026/$service.pid"
   printf 'active\n' > "/run/mtp2026/$service"
 done
 
