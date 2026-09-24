@@ -1,0 +1,8 @@
+{
+  "id":"mtp2026","name":"MTP2026 Device OS","family":"MTP2026","architecture":"arm64",
+  "firmware":"MTP2026 ARM64 Boot Firmware","bootloader":"U-Boot qemu_arm64_defconfig",
+  "machine":"qemu-aarch64-virt","cpu":8,"memoryGB":8,"storageGB":64,"gpu":"virtio-gpu",
+  "navigation":"gesture","layout":"mobile","identity":"VexaAccount","store":"VexaStore",
+  "applications":["MTP2026 Browser","VexaStore","WebApps","Settings","Files","Notifications","Account"],
+  "bootFlow":["firmware","boot-media","linux-kernel","initramfs","services","gui"]
+}
