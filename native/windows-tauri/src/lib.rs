@@ -94,7 +94,7 @@ fn native_capabilities() -> NativeCapabilities { let c = native_capabilities::ca
 } }
 #[tauri::command]
 async fn set_device_mode(window: tauri::Window, mode: String) -> Result<(), String> { let size = match mode.as_str() {
-    "windows" | "desktop" | "gaming" => tauri::LogicalSize::new(1440.0, 900.0), "android" | "ios" => tauri::LogicalSize::new(900.0, 1440.0),
+    "desktop" | "gaming" => tauri::LogicalSize::new(1440.0, 900.0), "android" => tauri::LogicalSize::new(900.0, 1440.0),
     _ => return Err("Unsupported MTP2026 device mode".into()),
 }; window.set_size(tauri::Size::Logical(size)).map_err(|e| e.to_string()) }
 
