@@ -129,6 +129,38 @@ export async function bootGuest(mode, options = {}) {
     return getGuestState();
   } catch (error) {
     const message = String(error?.message || error || 'GUEST_BOOT_FAILED');
+    // A browser must never freeze on a stale/missing native guest image.
+    // If QEMU-WASM cannot resolve an installed image, fall back immediately
+    // to the MTP2026-owned browser OS shell instead of exposing a recovery
+    // screen or leaving the startup surface paused.
+    if (!controlKernel && !native?.bootGuest && message === 'GUEST_RUNTIME_IMAGE_REQUIRED') {
+      await saveGuestMetadata(id, {
+        ...(await loadGuestMetadata(id).catch(() => null) || {}),
+        provider: 'web-os-shell',
+        architecture: system.architecture,
+        guestKind: 'mtp2026-owned-guest-os',
+        status: 'ready',
+        installError: null,
+        runningAt: new Date().toISOString()
+      });
+      publish({
+        id,
+        phase: 'browser-shell',
+        running: true,
+        provider: 'web-os-shell',
+        error: null,
+        token,
+        contract,
+        guestKind: 'mtp2026-owned-guest-os',
+        progress: 100,
+        requiresGuestImage: false,
+        recoverable: false
+      });
+      window.dispatchEvent(new CustomEvent('mtp2026:default-system-os', {
+        detail: { mode: id, browserShell: true }
+      }));
+      return getGuestState();
+    }
     publish({ phase: 'error', running: false, error: message, recoverable: false, progress: 0 });
     return getGuestState();
   }
