@@ -36,6 +36,9 @@ jobs:
         working-directory: os
         run: cargo build
 
+      - name: Install Rust LLVM tools for ARM64 image conversion
+        run: rustup component add llvm-tools-preview
+
       - name: Build MTP2026 ARM64 kernel
         working-directory: os
         run: cargo build --manifest-path arm64-kernel/Cargo.toml --target aarch64-unknown-none
