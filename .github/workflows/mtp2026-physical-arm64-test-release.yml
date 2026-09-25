@@ -327,3 +327,5 @@ jobs:
       # Keep the physical-test workflow in the push path so runtime/source fixes rerun the complete release gate.
       # Full physical-release gate: build, boot-test, checksum, publish, then download/verify all four bundles.
       # Runtime package fixes are intentionally included in the push trigger.
+
+# Re-run full physical ARM64 release gate after host dependency fix.
