@@ -7,10 +7,10 @@ import { bootGuest, stopGuest } from './guestBootController.js';
 const GUEST_PROFILES = [
   MTP2026_GUEST_PROFILES.mtp2026,
   MTP2026_GUEST_PROFILES.android,
-  MTP2026_GUEST_PROFILES.windows11,
+  MTP2026_GUEST_PROFILES.desktop,
   MTP2026_GUEST_PROFILES.gaming
 ];
-const ICONS = { mtp2026: Smartphone, android: Smartphone, windows11: Monitor, gaming: Gamepad2 };
+const ICONS = { mtp2026: Smartphone, android: Smartphone, desktop: Monitor, gaming: Gamepad2 };
 const storageKey = id => `mtp2026:guest-apps:${id}`;
 const loadApps = id => { try { const v=JSON.parse(localStorage.getItem(storageKey(id))||'[]'); return Array.isArray(v)?v:[]; } catch { return []; } };
 const saveApps = (id, apps) => localStorage.setItem(storageKey(id), JSON.stringify(apps));
