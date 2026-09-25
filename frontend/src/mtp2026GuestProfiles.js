@@ -7,8 +7,8 @@ export const MTP2026_GUEST_PROFILES = Object.freeze({
   mtp2026: { id:'mtp2026', label:'MTP2026 Device OS', shortLabel:'MTP2026', family:'MTP2026', layout:'mobile', navigation:'gesture', accent:'#12c8ff', features:['MTP2026 Home','VexaAccount','VexaStore','Files','Control Center','Vexa Apps','WebApp/PWA Runtime','Android APK host'] },
   ios: { id:'mtp2026', alias:'ios', label:'MTP2026 Device OS', shortLabel:'MTP2026', family:'MTP2026', layout:'mobile', navigation:'gesture', accent:'#12c8ff', features:['MTP2026 Home','VexaAccount','VexaStore','Files','Control Center','Vexa Apps','In-App WebApp Runtime'] },
   android: { id:'android', label:'MTP2026 Android OS', shortLabel:'MTP Android', family:'MTP2026 Android', layout:'mobile', navigation:'three-button-or-gesture', accent:'#3ddc84', features:['Home','App Drawer','Quick Settings','VexaAccount','VexaStore','Android APK host','WebApp/PWA Runtime'] },
-  windows: { id:'windows11', alias:'windows', label:'MTP2026 Desktop OS', shortLabel:'MTP Desktop', family:'MTP2026 Desktop', layout:'desktop', navigation:'taskbar', accent:'#4aa8ff', features:['Desktop','Start Menu','Taskbar','File Explorer','VexaAccount','VexaStore','WebApp/PWA Runtime','Android APK host'] },
-  windows11: { id:'windows11', label:'MTP2026 Desktop OS', shortLabel:'MTP Desktop', family:'MTP2026 Desktop', layout:'desktop', navigation:'taskbar', accent:'#4aa8ff', features:['Desktop','Start Menu','Taskbar','File Explorer','VexaAccount','VexaStore','Native host handoff','In-App WebApp Runtime'] },
+  windows: { id:'desktop', alias:'windows', label:'MTP2026 Desktop OS', shortLabel:'MTP Desktop', family:'MTP2026 Desktop', layout:'desktop', navigation:'taskbar', accent:'#4aa8ff', features:['Desktop','Start Menu','Taskbar','File Explorer','VexaAccount','VexaStore','WebApp/PWA Runtime','Android APK host'] },
+  desktop: { id:'desktop', label:'MTP2026 Desktop OS', shortLabel:'MTP Desktop', family:'MTP2026 Desktop', layout:'desktop', navigation:'taskbar', accent:'#4aa8ff', features:['Desktop','Start Menu','Taskbar','File Explorer','VexaAccount','VexaStore','Native host handoff','In-App WebApp Runtime'] },
   gaming: { id:'gaming', label:'MTP2026 Gaming OS', shortLabel:'MTP Gaming', family:'MTP2026 Gaming', layout:'gaming', navigation:'controller', accent:'#ff3d81', features:['Game Hub','Performance Overlay','Controller Center','VexaAccount','VexaStore','Game Library','WebApp/PWA Runtime','Android APK host'] },
 });
 
@@ -26,7 +26,7 @@ export const MTP2026_APP_POLICY = Object.freeze({
 export function normalizeMTP2026GuestProfile(mode) {
   const value = String(mode || '').toLowerCase();
   if (value === 'ios') return MTP2026_GUEST_PROFILES.mtp2026;
-  if (value === 'windows') return MTP2026_GUEST_PROFILES.windows11;
+  if (value === 'windows') return MTP2026_GUEST_PROFILES.desktop;
   return MTP2026_GUEST_PROFILES[value] || MTP2026_GUEST_PROFILES.mtp2026;
 }
 export function getMTP2026GuestProfile(mode) { return normalizeMTP2026GuestProfile(mode); }
