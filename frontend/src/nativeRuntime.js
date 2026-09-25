@@ -36,14 +36,14 @@ export function getNativeCapabilities() {
 }
 
 export async function applyDeviceMode(mode) {
-  const normalized = mode === 'windows11' ? 'windows' : mode || 'android';
+  const normalized = mode === 'desktop' ? 'desktop' : mode || 'android';
   const result = await setNativeMode(normalized);
   window.dispatchEvent(new CustomEvent('mtp2026:device-mode', { detail: { mode: normalized } }));
   return result;
 }
 
 export async function boot(mode, options = {}) {
-  const normalized = mode === 'windows11' ? 'windows' : mode || 'android';
+  const normalized = mode === 'desktop' ? 'desktop' : mode || 'android';
   try {
     const { bootGuest } = await import('./guestBootController.js');
     const result = await bootGuest(normalized, options);
