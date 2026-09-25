@@ -17,8 +17,8 @@
     try {
       const data = await response.clone().json();
       if (data && data.deviceMode === 'windows') {
-        data.deviceMode = 'windows11';
-        return new Response(JSON.stringify(data), { status: response.status, headers: { 'Content-Type': response.headers.get('content-type') || 'application/json', 'X-MTP2026-Normalized':'windows11' } });
+        data.deviceMode = 'desktop';
+        return new Response(JSON.stringify(data), { status: response.status, headers: { 'Content-Type': response.headers.get('content-type') || 'application/json', 'X-MTP2026-Normalized':'desktop' } });
       }
     } catch (_) {}
     return response;
@@ -28,7 +28,7 @@
   function cachedResponse(entry) {
     let body = entry.body;
     if (entry.contentType?.includes('application/json')) {
-      try { const data = JSON.parse(body); if (data?.deviceMode === 'windows') { data.deviceMode = 'windows11'; body = JSON.stringify(data); } } catch (_) {}
+      try { const data = JSON.parse(body); if (data?.deviceMode === 'windows') { data.deviceMode = 'desktop'; body = JSON.stringify(data); } } catch (_) {}
     }
     return new Response(body,{status:entry.status || 200,headers:{'Content-Type':entry.contentType || 'application/json','X-MTP2026-Cache':'stale'}});
   }
