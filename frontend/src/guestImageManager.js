@@ -69,7 +69,7 @@ export async function installGuestImageFromBytes(id, bytes, metadata = {}) {
 export async function installGuestImageFromContract(id, metadata = {}, onProgress) {
   const contract = await getGuestImageContract(id);
   const source = await getGuestImageSource(id);
-  if (!source.configured || !source.url || !source.sha256) throw new Error(`GUEST_IMAGE_SOURCE_NOT_CONFIGURED_${id}`);
+  if (!source.configured || !source.url || !source.sha256) throw new Error('GUEST_RUNTIME_SOURCE_UNAVAILABLE');
   return downloadGuestImage(id, source.url, { ...metadata, sha256: source.sha256, sourceName: source.url }, onProgress);
 }
 
