@@ -79,7 +79,7 @@ profile_features() {
   case "@PROFILE@" in
     mtp2026) echo "Device OS: mobile gestures, Control Center, notifications, VexaStore, WebApps" ;;
     android) echo "Android OS: mobile launcher, gesture/three-button navigation, Quick Settings, APK host handoff" ;;
-    windows11) echo "Desktop OS: desktop workspace, Start/taskbar, files, keyboard/mouse, native package handoff" ;;
+    desktop) echo "Desktop OS: desktop workspace, Start/taskbar, files, keyboard/mouse, native package handoff" ;;
     gaming) echo "Gaming OS: Game Hub, controller navigation, performance mode, game library, native game handoff" ;;
     *) echo "Profile: @PROFILE@" ;;
   esac
