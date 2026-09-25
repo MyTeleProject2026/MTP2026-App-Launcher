@@ -9,15 +9,15 @@ const VEXASTORE_API = 'https://api-vexastore.onrender.com/api';
 const VEXASTORE_ORIGIN = 'https://www.vexastore.2bd.net';
 const MTP_API = (window.__MTP_API_BASE__ || 'https://mtp2026-app-launcher-backend.onrender.com/api').replace(/\/$/, '');
 const REGISTRY_KEY = 'mtp2026-installed-vexastore-apps-v6';
-const VALID_MODES = new Set(['mtp2026', 'ios', 'android', 'windows', 'windows11', 'gaming']);
-const GUEST_MODES = ['mtp2026', 'android', 'windows11', 'gaming'];
+const VALID_MODES = new Set(['mtp2026', 'ios', 'android', 'windows', 'desktop', 'gaming']);
+const GUEST_MODES = ['mtp2026', 'android', 'desktop', 'gaming'];
 
 function getRegistry() { try { return JSON.parse(localStorage.getItem(REGISTRY_KEY) || '{}'); } catch (_) { return {}; } }
 function saveRegistry(registry) { localStorage.setItem(REGISTRY_KEY, JSON.stringify(registry)); }
 function normalizeMode(value) {
   const mode = String(value || '').toLowerCase();
   if (mode === 'ios') return 'mtp2026';
-  if (mode === 'windows') return 'windows11';
+  if (mode === 'windows') return 'desktop';
   return VALID_MODES.has(mode) ? mode : 'mtp2026';
 }
 function currentMode() { return normalizeMode(document.documentElement.dataset.mtpDeviceMode || localStorage.getItem('mtp2026-default-system-os') || 'mtp2026'); }
@@ -120,7 +120,7 @@ export async function installManualWebApp(payload = {}) {
 
 function nativePackageForMode(manifest, mode) {
   const packages = manifest?.nativePackages || {};
-  if (mode === 'windows11') return packages.windows11 || packages.windows || null;
+  if (mode === 'desktop') return packages.desktop || packages.windows || null;
   return packages[mode] || null;
 }
 
@@ -144,9 +144,9 @@ export async function installVexaStoreApp(manifest, requestedMode = null) {
   emitInstallStatus('starting', { slug: appSlug, requestedMode: requestedMode || null });
 
   const native = nativePackageForMode(manifest, mode);
-  if (native?.url && (mode === 'android' || mode === 'windows11' || mode === 'gaming')) {
+  if (native?.url && (mode === 'android' || mode === 'desktop' || mode === 'gaming')) {
     const host = window.MTP2026NativePlatform?.nativeHost?.();
-    if ((mode === 'android' && host === 'android') || (mode === 'windows11' && host === 'windows') || (mode === 'gaming' && (host === 'windows' || host === 'android'))) {
+    if ((mode === 'android' && host === 'android') || (mode === 'desktop' && host === 'windows') || (mode === 'gaming' && (host === 'windows' || host === 'android'))) {
       const result = await installNativePackage(native, mode);
       emitInstallStatus('completed', { slug: appSlug, result });
       return result;
