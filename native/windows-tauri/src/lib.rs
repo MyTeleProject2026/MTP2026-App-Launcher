@@ -141,7 +141,8 @@ async fn boot_guest(app: tauri::AppHandle, id: String, bundle_url: String, bundl
     command.args(["-M", "virt", "-cpu", "cortex-a72", "-m", "2048", "-bios"]).arg(&firmware)
         .args(["-drive"]).arg(boot_drive)
         .args(["-device", "virtio-blk-device,drive=bootdisk"])
-        .args(["-drive", "if=virtio,format=qcow2"]).arg(&disk)
+        .args(["-drive"]).arg(format!("if=none,id=datadisk,format=qcow2,file={}", disk.to_string_lossy()))
+        .args(["-device", "virtio-blk-pci,drive=datadisk"])
         .args(["-netdev", "user,id=net0", "-device", "virtio-net-pci,netdev=net0"])
         // Graphical guest path: virtio-gpu exposes the guest framebuffer and
         // virtio input devices provide keyboard/mouse/controller-style events.
