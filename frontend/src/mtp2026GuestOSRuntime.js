@@ -130,7 +130,7 @@ function bind(root) {
 function renderMode() {
   const root = layer();
   const mode = getMode();
-  root.querySelector('[data-desktop-bar]').style.display = mode === 'windows11' ? 'flex' : 'none';
+  root.querySelector('[data-desktop-bar]').style.display = mode === 'desktop' ? 'flex' : 'none';
   root.querySelector('[data-game-hud]').classList.toggle('open', mode === 'gaming');
   if (mode !== 'gaming') root.querySelector('[data-game-hud]').classList.remove('open');
   if (mode === 'android' || mode === 'mtp2026') {
