@@ -7,7 +7,7 @@ final class MTP2026NativeCapabilities: NSObject {
     func apply(mode: String, controller: UIViewController) {
         let mask: UIInterfaceOrientationMask
         switch mode {
-        case "windows", "windows11": mask = .landscape
+        case "desktop": mask = .landscape
         case "gaming": mask = .allButUpsideDown
         case "android", "ios": mask = .portrait
         default: return
