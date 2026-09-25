@@ -28,6 +28,6 @@ jobs:
           node --check frontend/src/mtp2026OsPackageRuntime.js
           node --check frontend/src/guestSystemRegistry.js
       - name: Validate guest manifest
-        run: node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync('frontend/public/arm64/guest-manifest.json','utf8')); if(m.schema!=='mtp2026-guest-runtime-v6') process.exit(1); for(const id of ['mtp2026','android','ios','windows11','gaming']) { if(!m.guests[id]) throw new Error('missing guest '+id); if(m.guests[id].architecture!=='arm64') throw new Error('guest '+id+' is not arm64'); if(!m.guests[id].installSlot) throw new Error('guest '+id+' missing install slot'); } console.log('MTP2026 guest manifest OK');"
+        run: node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync('frontend/public/arm64/guest-manifest.json','utf8')); if(m.schema!=='mtp2026-guest-runtime-v8') process.exit(1); for(const id of ['mtp2026','android','desktop','gaming']) { if(!m.guests[id]) throw new Error('missing guest '+id); if(m.guests[id].architecture!=='arm64') throw new Error('guest '+id+' is not arm64'); if(!m.guests[id].installSlot) throw new Error('guest '+id+' missing install slot'); } console.log('MTP2026 guest manifest OK');"
       - name: Validate profile source
         run: bash -n os/mtp2026-guest-profiles/build-all.sh
