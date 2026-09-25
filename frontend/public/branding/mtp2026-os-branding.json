@@ -21,7 +21,7 @@
   "guestProfiles": [
     { "id": "mtp2026", "label": "MTP2026 Device OS", "layout": "mobile" },
     { "id": "android", "label": "MTP2026 Android OS", "layout": "mobile" },
-    { "id": "windows11", "label": "MTP2026 Desktop OS", "layout": "desktop" },
+    { "id": "desktop", "label": "MTP2026 Desktop OS", "layout": "desktop" },
     { "id": "gaming", "label": "MTP2026 Gaming OS", "layout": "gaming" }
   ],
   "applicationContract": {
