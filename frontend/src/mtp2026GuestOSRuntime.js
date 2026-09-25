@@ -12,7 +12,7 @@ const SETTINGS_KEY = 'mtp2026-guest-settings-v1';
 const esc = value => String(value ?? '').replace(/[&<>\"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '\"':'&quot;', "'":'&#39;' }[c]));
 const getMode = () => {
   const mode = document.documentElement.dataset.mtpDeviceMode || localStorage.getItem('mtp2026-default-system-os') || 'android';
-  return mode === 'windows' ? 'windows11' : mode === 'ios' ? 'mtp2026' : mode;
+  return mode === 'windows' ? 'desktop' : mode === 'ios' ? 'mtp2026' : mode;
 };
 const apps = () => { try { return JSON.parse(localStorage.getItem(APPS_KEY) || '[]'); } catch (_) { return []; } };
 const settings = () => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch (_) { return {}; } };
