@@ -129,7 +129,7 @@ app.get('/api/guest-runtime-manifest', async (_req, res) => {
     // four-profile contract. Release metadata may override individual values,
     // but missing image URLs/SHA-256 values are filled from the repository
     // contract before the launcher sees the response.
-    const required = ['mtp2026', 'android', 'windows11', 'gaming'];
+    const required = ['mtp2026', 'android', 'desktop', 'gaming'];
     const mergeProfile = (base = {}, overlay = {}) => ({
       ...base,
       ...overlay,
