@@ -10,11 +10,11 @@
   let bootTimer = null;
   const STORAGE_KEY = 'mtp2026-web-os-files-v1';
   const MODE_KEY = 'mtp2026-default-system-os';
-  const MODES = new Set(['mtp2026', 'android', 'windows11', 'gaming']);
-  const MODE_ALIASES = Object.freeze({ ios:'mtp2026', 'ios-device':'mtp2026', windows:'windows11' });
+  const MODES = new Set(['mtp2026', 'android', 'desktop', 'gaming']);
+  const MODE_ALIASES = Object.freeze({ ios:'mtp2026', 'ios-device':'mtp2026', windows:'desktop' });
   const esc = value => String(value ?? '').replace(/[&<>\"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '\"':'&quot;', "'":'&#39;' }[c]));
   const normalizeMode = mode => { const value=String(mode||''); const normalized=MODE_ALIASES[value]||value; return MODES.has(normalized) ? normalized : 'android'; };
-  const modeLabel = mode => ({ mtp2026:'MTP2026 Device OS', android:'MTP2026 Android OS', windows11:'MTP2026 Desktop OS', gaming:'MTP2026 Gaming OS' }[normalizeMode(mode)]);
+  const modeLabel = mode => ({ mtp2026:'MTP2026 Device OS', android:'MTP2026 Android OS', desktop:'MTP2026 Desktop OS', gaming:'MTP2026 Gaming OS' }[normalizeMode(mode)]);
   function getMode() { try { return normalizeMode(localStorage.getItem(MODE_KEY) || 'android'); } catch (_) { return 'android'; } }
   function readFiles() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch (_) { return {}; } }
   function writeFiles(files) { localStorage.setItem(STORAGE_KEY, JSON.stringify(files)); }
