@@ -7,16 +7,25 @@ UBOOT_VERSION="${MTP2026_UBOOT_VERSION:-v2025.01}"
 JOBS="${JOBS:-$(nproc)}"
 mkdir -p "$SRC" "$OUT"
 if [ -s "$OUT/mtp2026-arm64-boot-firmware.bin" ]; then exit 0; fi
+
+# U-Boot qemu_arm64 builds host tooling as part of the normal target build.
+# Fail early with a useful diagnostic when the host GnuTLS development files
+# are missing instead of producing a late mkeficapsule compiler failure.
+if ! command -v pkg-config >/dev/null 2>&1 || ! pkg-config --exists gnutls; then
+  echo "MTP2026 firmware build requires libgnutls28-dev (gnutls.pc)." >&2
+  exit 1
+fi
+
 tarball="$SRC/u-boot.tar.gz"
-if [ ! -f "$tarball" ]; then curl -L --fail --retry 3 -o "$tarball" "https://github.com/u-boot/u-boot/archive/refs/tags/${UBOOT_VERSION}.tar.gz"; fi
+if [ ! -f "$tarball" ]; then
+  curl -L --fail --retry 3 -o "$tarball" "https://github.com/u-boot/u-boot/archive/refs/tags/${UBOOT_VERSION}.tar.gz"
+fi
 if [ ! -d "$SRC/u-boot-${UBOOT_VERSION#v}" ]; then tar -xzf "$tarball" -C "$SRC"; fi
 UBOOT="$SRC/u-boot-${UBOOT_VERSION#v}"
 export CROSS_COMPILE="${CROSS_COMPILE:-aarch64-linux-gnu-}"
 make -C "$UBOOT" qemu_arm64_defconfig
+
 if [ -x "$UBOOT/scripts/config" ]; then
-  # MTP2026 boots through QEMU virt + U-Boot + VirtIO boot media.
-  # EFI capsule tooling is not part of this boot path. Disable the optional
-  # host utility so the firmware build does not depend on GnuTLS headers.
   "$UBOOT/scripts/config" --disable CONFIG_TOOLS_MKEFICAPSULE || true
   "$UBOOT/scripts/config" --disable CONFIG_EFI_CAPSULE_FIRMWARE_MANAGEMENT || true
   "$UBOOT/scripts/config" --enable CONFIG_BOOTSTD_FULL || true
@@ -29,6 +38,7 @@ if [ -x "$UBOOT/scripts/config" ]; then
   grep -Eq '^CONFIG_BOOTSTD_FULL=y$' "$UBOOT/.config"
   grep -Eq '^CONFIG_BOOTMETH_EXTLINUX=y$' "$UBOOT/.config"
 fi
+
 make -C "$UBOOT" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE"
 cp "$UBOOT/u-boot.bin" "$OUT/mtp2026-arm64-boot-firmware.bin"
 cat > "$OUT/firmware-manifest.json" <<EOF
