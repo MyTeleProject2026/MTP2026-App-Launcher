@@ -1,9 +1,10 @@
 /* MTP2026 guest-system registry.
  *
- * The four selectable profiles are MTP2026-owned Web-OS personalities.
- * They share the ARM64 control/runtime foundation but do NOT require a
- * requires a verified ARM64 guest bundle before the OS is considered installed or
- * bootable. Browser-only rendering is never treated as a real guest boot.
+ * The four selectable profiles are MTP2026-owned ARM64 guest OS personalities.
+ * They share the MTP2026 Linux/firmware/runtime foundation. Browser deployments
+ * may launch the corresponding MTP2026 shell directly; native ARM64 execution
+ * uses the MTP2026-owned guest bundle. Browser rendering is never mislabeled as
+ * a native guest boot.
  *
  * Legacy ios/windows IDs are accepted only as compatibility aliases and are not selectable profiles.
  */
