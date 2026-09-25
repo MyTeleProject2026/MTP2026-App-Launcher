@@ -101,7 +101,7 @@ export async function getGuestImageSource(id) {
   const source = contract?.imageSource || {};
   const fallback = BUILT_IN_GUEST_IMAGE_SOURCES[id] || {};
   const url = source.url || contract.imageUrl || contract.kernelUrl || fallback.url || null;
-  const sha256 = source.sha256 || contract.bundleSha256 || fallback.sha256 || null;
+  const sha256 = source.sha256 || contract.bundleSha256 || null;
   return { ...fallback, ...source, url: url ? String(url) : null, sha256, configured: Boolean(url && sha256), fallback: Boolean(!source.url && fallback.url) };
 }
 export async function validateGuestImageContract(id, metadata = {}) {
