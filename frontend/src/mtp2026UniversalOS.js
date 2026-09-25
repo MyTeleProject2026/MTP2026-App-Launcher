@@ -10,8 +10,8 @@ const PROFILES = Object.freeze({
   mtp2026: { name: 'MTP2026 Device OS', layout: 'mobile', nav: 'gesture', storeLabel: 'VexaStore' },
   ios: { name: 'MTP2026 Device OS', alias: 'mtp2026', layout: 'mobile', nav: 'gesture', storeLabel: 'VexaStore' },
   android: { name: 'MTP2026 Android OS', layout: 'mobile', nav: 'gesture', storeLabel: 'VexaStore' },
-  windows: { name: 'MTP2026 Desktop OS', alias: 'windows11', layout: 'desktop', nav: 'taskbar', storeLabel: 'VexaStore' },
-  windows11: { name: 'MTP2026 Desktop OS', layout: 'desktop', nav: 'taskbar', storeLabel: 'VexaStore' },
+  windows: { name: 'MTP2026 Desktop OS', alias: 'desktop', layout: 'desktop', nav: 'taskbar', storeLabel: 'VexaStore' },
+  desktop: { name: 'MTP2026 Desktop OS', layout: 'desktop', nav: 'taskbar', storeLabel: 'VexaStore' },
   gaming: { name: 'MTP2026 Gaming OS', layout: 'gaming', nav: 'controller', storeLabel: 'VexaStore' },
 });
 
@@ -20,7 +20,7 @@ let runningApp = null;
 function normalize(mode) {
   const value = String(mode || '').toLowerCase();
   if (value === 'ios') return 'mtp2026';
-  if (value === 'windows') return 'windows11';
+  if (value === 'windows') return 'desktop';
   return PROFILES[value] ? value : 'mtp2026';
 }
 function currentProfile() { return normalize(document.documentElement.dataset.mtpDeviceMode || localStorage.getItem(PROFILE_KEY) || 'mtp2026'); }
