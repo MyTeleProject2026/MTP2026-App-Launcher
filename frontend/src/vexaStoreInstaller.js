@@ -9,7 +9,7 @@ const VEXASTORE_API = 'https://api-vexastore.onrender.com/api';
 const VEXASTORE_ORIGIN = 'https://www.vexastore.2bd.net';
 const MTP_API = (window.__MTP_API_BASE__ || 'https://mtp2026-app-launcher-backend.onrender.com/api').replace(/\/$/, '');
 const REGISTRY_KEY = 'mtp2026-installed-vexastore-apps-v6';
-const VALID_MODES = new Set(['mtp2026', 'ios', 'android', 'windows', 'desktop', 'gaming']);
+const VALID_MODES = new Set(['mtp2026', 'android', 'desktop', 'gaming']);
 const GUEST_MODES = ['mtp2026', 'android', 'desktop', 'gaming'];
 
 function getRegistry() { try { return JSON.parse(localStorage.getItem(REGISTRY_KEY) || '{}'); } catch (_) { return {}; } }
