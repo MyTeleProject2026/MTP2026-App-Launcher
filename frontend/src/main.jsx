@@ -68,6 +68,26 @@ function LoginScreen({ error, onGuest }) {
   </main>;
 }
 
+class LauncherErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error, info) {
+    console.error('[MTP2026] Launcher render error:', error, info);
+    window.dispatchEvent(new CustomEvent('mtp2026:launcher-render-error', { detail: { error: String(error?.message || error) } }));
+  }
+  render() {
+    if (this.state.error) return <main style={{minHeight:'100vh',display:'grid',placeItems:'center',padding:24,background:'#070811',color:'#f6f7ff',fontFamily:'Inter,ui-sans-serif,system-ui,sans-serif'}}>
+      <section style={{width:'min(620px,100%)',padding:28,border:'1px solid rgba(139,92,246,.35)',borderRadius:20,background:'rgba(18,22,40,.9)',boxShadow:'0 24px 80px rgba(0,0,0,.45)'}}>
+        <div style={{fontSize:12,letterSpacing:'.14em',fontWeight:800,color:'#22d3ee'}}>MTP2026 APP LAUNCHER</div>
+        <h1 style={{margin:'8px 0 10px'}}>Launcher UI failed to render</h1>
+        <p style={{color:'#aab5ca'}}>The authenticated session is still protected. Reload the launcher to restart the UI.</p>
+        <button type="button" onClick={() => window.location.reload()} style={{padding:'11px 16px',border:0,borderRadius:10,cursor:'pointer',fontWeight:800}}>Reload launcher</button>
+      </section>
+    </main>;
+    return this.props.children;
+  }
+}
+
 function App() {
   const [guestProfile, setGuestProfile] = useState(null); const [apps, setApps] = useState([]); const [recentApps, setRecentApps] = useState([]); const [notifications, setNotifications] = useState([]); const [settings, setSettings] = useState(defaults); const [profile, setProfile] = useState(null); const [logged, setLogged] = useState(false); const [view, setView] = useState('launcher'); const [filter, setFilter] = useState('all'); const [query, setQuery] = useState(''); const [url, setUrl] = useState(''); const [error, setError] = useState(''); const [syncing, setSyncing] = useState(false); const [loading, setLoading] = useState(false); const [menu, setMenu] = useState(false); const [sidebar, setSidebar] = useState(false); const [showAdd, setShowAdd] = useState(false); const [showSettings, setShowSettings] = useState(false); const [showNotifications, setShowNotifications] = useState(false); const [showProfile, setShowProfile] = useState(false); const [installPrompt, setInstallPrompt] = useState(null); const [selectedApp, setSelectedApp] = useState(null); const [workspaceApp, setWorkspaceApp] = useState(null); const [workspaceFull, setWorkspaceFull] = useState(false); const workspaceRef = useRef(null);
   const load = async (silent = false) => { if (!logged) return; if (!silent) setSyncing(true); try { const [library, recent, prefs, notes] = await Promise.all([fetch(`${API}/apps`, { credentials: 'include' }), fetch(`${API}/apps/recent`, { credentials: 'include' }), fetch(`${API}/settings`, { credentials: 'include' }), fetch(`${API}/notifications?limit=50`, { credentials: 'include' })]); if ([library, recent, prefs, notes].some(r => r.status === 401)) { await doLogout(false); throw new Error('Your VexaAccount session has expired. Please sign in again.'); } setApps(await json(library)); if (recent.ok) setRecentApps(await recent.json()); if (prefs.ok) setSettings({ ...defaults, ...(await prefs.json()) }); if (notes.ok) setNotifications(await notes.json()); setError(''); } catch (e) { setError(e.message); } finally { setSyncing(false); } };
@@ -103,5 +123,5 @@ function App() {
 }
 const mtp2026Root = document.getElementById('root');
 if (!mtp2026Root) throw new Error('MTP2026_ROOT_NOT_FOUND');
-createRoot(mtp2026Root).render(<App />);
+createRoot(mtp2026Root).render(<LauncherErrorBoundary><App /></LauncherErrorBoundary>);
 window.dispatchEvent(new CustomEvent('mtp2026:react-ready'));
