@@ -54,34 +54,34 @@
 }
 
 /* Windows 11: desktop-like grid and full-width workspace. */
-.app-shell.device-windows {
+.app-shell.device-desktop {
   min-height: 100dvh;
 }
 
-.app-shell.device-windows .main {
+.app-shell.device-desktop .main {
   min-height: 100dvh;
 }
 
-.app-shell.device-windows .grid {
+.app-shell.device-desktop .grid {
   grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
   gap: 18px;
 }
 
-.app-shell.device-windows .grid .card {
+.app-shell.device-desktop .grid .card {
   min-height: 142px;
   height: 142px;
   border-radius: 14px;
   background: rgba(255,255,255,.035);
 }
 
-.app-shell.device-windows .grid .card .app-icon {
+.app-shell.device-desktop .grid .card .app-icon {
   width: 58px;
   height: 58px;
   flex-basis: 58px;
   border-radius: 14px;
 }
 
-.app-shell.device-windows .grid .card h3 {
+.app-shell.device-desktop .grid .card h3 {
   font-size: 11px;
 }
 
@@ -129,21 +129,21 @@
 }
 
 /* Application workspace is the runtime surface, not a metadata card. */
-.app-workspace.device-windows {
+.app-workspace.device-desktop {
   width: 100vw !important;
   height: 100dvh !important;
   inset: 0 !important;
   border-radius: 0 !important;
 }
 
-.app-workspace.device-windows .workspace-frame-wrap,
-.app-workspace.device-windows .workspace-frame {
+.app-workspace.device-desktop .workspace-frame-wrap,
+.app-workspace.device-desktop .workspace-frame {
   width: 100%;
   height: 100%;
   min-height: 0;
 }
 
-.app-workspace.device-windows .workspace-frame-wrap {
+.app-workspace.device-desktop .workspace-frame-wrap {
   flex: 1 1 auto;
 }
 
@@ -194,11 +194,11 @@
 }
 
 @media (orientation: portrait) and (max-width: 900px) {
-  .app-shell.device-windows .main {
+  .app-shell.device-desktop .main {
     display: none;
   }
-  .app-shell.device-windows::after {
-    content: 'Rotate your device to landscape to use Windows 11 mode';
+  .app-shell.device-desktop::after {
+    content: 'Rotate your device to landscape to use MTP2026 Desktop OS';
     position: fixed;
     inset: 0;
     z-index: 9999;
