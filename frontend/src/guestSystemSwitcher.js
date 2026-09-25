@@ -6,7 +6,7 @@
   const MODES = Object.freeze({
     mtp2026: 'MTP2026 Device OS',
     android: 'MTP2026 Android OS',
-    windows11: 'MTP2026 Desktop OS',
+    desktop: 'MTP2026 Desktop OS',
     gaming: 'MTP2026 Gaming OS',
   });
 
