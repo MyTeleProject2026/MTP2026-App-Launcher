@@ -2,7 +2,7 @@
 import { getGuestSystem, normalizeGuestSystem } from './guestSystemRegistry.js';
 import { getGuestImageContract } from './guestRuntimeManifest.js';
 import { loadGuestMetadata, saveGuestMetadata } from './guestStorage.js';
-import { bootArm64Guest, stopArm64Guest } from './arm64GuestRuntime.js';
+import { bootArm64Guest, stopArm64Guest, installGuestImage } from './arm64GuestRuntime.js';
 import { qemuWasmCapabilities } from './qemuWasmGuestRuntime.js';
 const listeners=new Set(); let state=Object.freeze({id:null,phase:'idle',running:false,provider:'none',error:null});
 function publish(next){state=Object.freeze({...state,...next});for(const listener of listeners){try{listener(state);}catch(_){}}window.dispatchEvent(new CustomEvent('mtp2026:guest-state',{detail:state}));return state;}
