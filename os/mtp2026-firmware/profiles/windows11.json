@@ -1,8 +1,0 @@
-{
-  "id":"windows11","name":"MTP2026 Desktop OS","family":"Desktop-style","architecture":"arm64",
-  "firmware":"MTP2026 ARM64 Boot Firmware","bootloader":"U-Boot qemu_arm64_defconfig",
-  "machine":"qemu-aarch64-virt","cpu":8,"memoryGB":16,"storageGB":256,"gpu":"virtio-gpu",
-  "navigation":"taskbar","layout":"desktop","identity":"VexaAccount","store":"VexaStore",
-  "applications":["MTP2026 Browser","VexaStore","WebApps","Files","Settings","Notifications","Account"],
-  "bootFlow":["firmware","boot-media","linux-kernel","initramfs","services","gui"]
-}
