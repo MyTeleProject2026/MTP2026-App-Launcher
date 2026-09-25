@@ -55,9 +55,25 @@ if [ "$STATUS" != "0" ]; then
 fi
 docker cp "$NAME:/opt/mtp2026-browser-runtime" "$TMP/runtime"
 
+# Docker's directory-copy layout differs across Docker versions. Normalize it
+# before consuming the extracted runtime so the CI gate is deterministic.
+RUNTIME_DIR="$TMP/runtime/mtp2026-browser-runtime"
+if [ ! -f "$RUNTIME_DIR/chromium-launcher" ]; then
+  mkdir -p "$TMP/normalized-runtime"
+  docker cp "$NAME:/opt/mtp2026-browser-runtime/." "$TMP/normalized-runtime" 2>/dev/null || true
+  if [ -f "$TMP/normalized-runtime/chromium-launcher" ]; then
+    RUNTIME_DIR="$TMP/normalized-runtime"
+  fi
+fi
+if [ ! -f "$RUNTIME_DIR/chromium-launcher" ]; then
+  echo "ARM64 browser runtime extraction did not contain chromium-launcher." >&2
+  find "$TMP" -maxdepth 5 -type f -printf '%p\\n' >&2 || true
+  exit 1
+fi
+
 rm -rf "$OUT"
 mkdir -p "$OUT/usr/bin" "$OUT/usr/lib" "$OUT/lib" "$OUT/etc/ssl" "$OUT/etc/fonts" "$OUT/usr/share"
-cp -a "$TMP/runtime/mtp2026-browser-runtime/chromium-launcher" "$OUT/usr/bin/chromium"
+cp -a "$RUNTIME_DIR/chromium-launcher" "$OUT/usr/bin/chromium"
 cp -a "$TMP/runtime/mtp2026-browser-runtime/chromium" "$OUT/usr/lib/chromium"
 cp -a "$TMP/runtime/mtp2026-browser-runtime/chromium-share" "$OUT/usr/share/chromium"
 cp -a "$TMP/runtime/mtp2026-browser-runtime/aarch64-linux-gnu/." "$OUT/usr/lib/"
