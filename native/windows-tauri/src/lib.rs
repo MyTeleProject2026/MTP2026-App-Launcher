@@ -51,18 +51,18 @@ fn extract_bundle(bundle: &PathBuf, directory: &PathBuf) -> Result<(), String> {
 }
 fn profile_name(id: &str) -> Result<&'static str, String> { match id {
     "mtp2026" => Ok("mtp2026-mtp2026-arm64-linux.Image"), "android" => Ok("mtp2026-android-arm64-linux.Image"),
-    "windows11" => Ok("mtp2026-windows11-arm64-linux.Image"), "gaming" => Ok("mtp2026-gaming-arm64-linux.Image"),
+    "desktop" => Ok("mtp2026-desktop-arm64-linux.Image"), "gaming" => Ok("mtp2026-gaming-arm64-linux.Image"),
     _ => Err("UNSUPPORTED_MTP2026_GUEST_PROFILE".into()),
 } }
 fn initrd_name(id: &str) -> Result<&'static str, String> { match id {
     "mtp2026" => Ok("mtp2026-mtp2026-initramfs.cpio.gz"), "android" => Ok("mtp2026-android-initramfs.cpio.gz"),
-    "windows11" => Ok("mtp2026-windows11-initramfs.cpio.gz"), "gaming" => Ok("mtp2026-gaming-initramfs.cpio.gz"),
+    "desktop" => Ok("mtp2026-desktop-initramfs.cpio.gz"), "gaming" => Ok("mtp2026-gaming-initramfs.cpio.gz"),
     _ => Err("UNSUPPORTED_MTP2026_GUEST_PROFILE".into()),
 } }
 fn firmware_name() -> &'static str { "mtp2026-arm64-boot-firmware.bin" }
 fn boot_disk_name(id: &str) -> Result<String, String> {
     match id {
-        "mtp2026" | "android" | "windows11" | "gaming" => Ok(format!("mtp2026-{}-boot-disk.img", id)),
+        "mtp2026" | "android" | "desktop" | "gaming" => Ok(format!("mtp2026-{}-boot-disk.img", id)),
         _ => Err("UNSUPPORTED_MTP2026_GUEST_PROFILE".into()),
     }
 }
@@ -72,7 +72,7 @@ fn ensure_persistent_disk(app: &tauri::AppHandle, id: &str) -> Result<PathBuf, S
     let size = match id {
         "mtp2026" => "64G",
         "android" => "128G",
-        "windows11" => "256G",
+        "desktop" => "256G",
         "gaming" => "512G",
         _ => return Err("UNSUPPORTED_MTP2026_GUEST_PROFILE".into()),
     };
@@ -94,7 +94,7 @@ fn native_capabilities() -> NativeCapabilities { let c = native_capabilities::ca
 } }
 #[tauri::command]
 async fn set_device_mode(window: tauri::Window, mode: String) -> Result<(), String> { let size = match mode.as_str() {
-    "windows" | "gaming" => tauri::LogicalSize::new(1440.0, 900.0), "android" | "ios" => tauri::LogicalSize::new(900.0, 1440.0),
+    "windows" | "desktop" | "gaming" => tauri::LogicalSize::new(1440.0, 900.0), "android" | "ios" => tauri::LogicalSize::new(900.0, 1440.0),
     _ => return Err("Unsupported MTP2026 device mode".into()),
 }; window.set_size(tauri::Size::Logical(size)).map_err(|e| e.to_string()) }
 
