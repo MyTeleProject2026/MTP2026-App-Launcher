@@ -1,5 +1,7 @@
 /* MTP2026 guest runtime manifest loader. */
 
+import { API } from './auth.js';
+
 const STATIC_MANIFEST_URL = '/arm64/guest-manifest.json';
 const CANONICAL_GUEST_IDS = Object.freeze(['mtp2026', 'android', 'desktop', 'gaming']);
 
@@ -56,12 +58,16 @@ async function loadManifest() {
       let remote = null;
 
       try { canonical = await readJson(STATIC_MANIFEST_URL); } catch (_) {}
+      // Backend boot metadata lives on the API origin. The frontend Render
+      // service uses SPA fallback for unknown paths, so calling /api/... on
+      // this origin can return index.html with HTTP 200 instead of JSON.
       try {
-        const response = await fetch('/api/guest-runtime-manifest', {
+        const response = await fetch(`${API}/guest-runtime-manifest`, {
           cache: 'no-store',
-          credentials: 'same-origin'
+          credentials: 'include'
         });
-        if (response.ok) remote = await response.json();
+        const contentType = response.headers.get('content-type') || '';
+        if (response.ok && contentType.includes('application/json')) remote = await response.json();
       } catch (_) {}
 
       if (!canonical && !remote) throw new Error('GUEST_MANIFEST_UNAVAILABLE');
