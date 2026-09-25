@@ -60,7 +60,6 @@ jobs:
           node --check frontend/src/startupOrchestrator.js
           node --check frontend/src/systemBootExperience.js
           node --check frontend/src/experience.js
-          node --check frontend/src/experienceLoader.js
           node --check frontend/src/mtp2026DeviceOS.js
           node --check frontend/src/mtp2026Branding.js
           node --check frontend/src/vexaStoreInstaller.js
@@ -100,5 +99,17 @@ jobs:
         run: npm run integration:generate -- --app ci-fixture --output /tmp/mtp-generated --framework all
       - name: Verify generated integration fixture
         run: npm run integration:verify -- --dir /tmp/mtp-generated
+      - name: Verify removed legacy guest recovery/runtime markers
+        run: |
+          if grep -R -n --exclude-dir=node_modules --exclude-dir=.git \
+            -e 'REAL_GUEST_IMAGE_NOT_INSTALLED' \
+            -e 'GUEST_IMAGE_SOURCE_NOT_CONFIGURED' \
+            -e 'experienceLoader' frontend/src frontend/index.html; then
+            echo "::error::Obsolete guest runtime/recovery code or deleted experience loader reference remains."
+            exit 1
+          fi
+          test ! -e frontend/src/experienceLoader.js
+          echo "Legacy guest runtime markers and experience loader are absent"
+
       - name: Build frontend
         run: npm run frontend:build
