@@ -103,7 +103,7 @@ export async function validateGuestImageContract(id, metadata = {}) {
   if (metadata.guestId && metadata.guestId !== id) throw new Error('GUEST_IMAGE_ID_MISMATCH');
   if (metadata.architecture && metadata.architecture !== 'arm64') throw new Error('GUEST_IMAGE_ARCHITECTURE_MISMATCH');
   const source = await getGuestImageSource(id);
-  if (contract.imageRequired && (!source.url || !source.sha256)) throw new Error('GUEST_RUNTIME_SOURCE_UNAVAILABLE');
+  if (contract.imageRequired && (!source.url || !source.sha256)) throw new Error('MTP2026_GUEST_BUNDLE_UNAVAILABLE');
   const expected = String(source.sha256 || '').toLowerCase();
   if (expected && metadata.sha256 && String(metadata.sha256).toLowerCase() !== expected) throw new Error('GUEST_IMAGE_SHA256_MISMATCH');
   return contract;
