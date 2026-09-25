@@ -7,7 +7,7 @@ BUILD_ROOT="${ROOT}/mtp2026-linux-arm64"
 # Four user-facing profiles are canonical. The legacy ios alias may still be
 # explicitly requested by older physical-test workflows, but is never exposed
 # as a fifth selectable MTP2026 OS.
-BUILD_PROFILES="${MTP2026_BUILD_PROFILES:-mtp2026 android windows11 gaming}"
+BUILD_PROFILES="${MTP2026_BUILD_PROFILES:-mtp2026 android desktop gaming}"
 BROWSER_RUNTIME="${ROOT}/mtp2026-linux-arm64/out/browser-runtime"
 
 # Build one real ARM64 Chromium-compatible runtime and bake it into every guest image.
@@ -51,13 +51,13 @@ cat > "$MANIFEST" <<'EOF'
     "qemuWasmAarch64": {"type":"github-source","repository":"ktock/qemu-wasm","url":"https://github.com/ktock/qemu-wasm","role":"browser-AArch64-system-emulator"},
     "androidGsiReference": {"type":"official-source-reference","url":"https://developer.android.com/topic/generic-system-image/releases","role":"optional-user-obtained-Android-ARM64-reference-media","bundled":false},
     "gamingBatocera": {"type":"published-github-project-reference","repository":"batocera-linux/batocera.linux","url":"https://github.com/batocera-linux/batocera.linux","role":"optional-ARM64-gaming-Linux-reference","bundled":false},
-    "windows11Arm64Reference": {"type":"official-source-reference","url":"https://www.microsoft.com/software-download/windows11arm64","role":"optional-user-obtained-licensed-Windows-ARM64-reference","bundled":false},
+    "desktopArm64Reference": {"type":"official-source-reference","url":"https://www.microsoft.com/software-download/desktoparm64","role":"optional-user-obtained-licensed-Windows-ARM64-reference","bundled":false},
     "appleIOSReference": {"type":"platform-restricted-reference","role":"Apple-authorized/native-environment-only","bundled":false}
   },
   "guests": {
     "mtp2026": {"id":"mtp2026","name":"MTP2026 Device OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":true,"runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"linux-arm64-guest","installSlot":"mtp2026","runtimeSource":"mtp2026Arm64","profileFamily":"MTP2026","profileLayout":"mobile","navigation":"gesture","accountProvider":"VexaAccount","appStore":"VexaStore","appRuntime":"webapp-registry-plus-native-host-installer"},
     "android": {"id":"android","name":"MTP2026 Android OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":true,"runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"linux-arm64-guest","installSlot":"android","runtimeSource":"mtp2026Arm64","externalOsReference":"Android ARM64 GSI","externalOsReferenceUrl":"https://developer.android.com/topic/generic-system-image/releases","profileFamily":"Android-style","profileLayout":"mobile","navigation":"gesture-or-three-button","accountProvider":"VexaAccount","appStore":"VexaStore","appRuntime":"webapp-registry-plus-host-package-installer"},
-    "windows11": {"id":"windows11","name":"MTP2026 Desktop OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":true,"runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"linux-arm64-guest","installSlot":"windows11","runtimeSource":"mtp2026Arm64","externalOsReference":"Microsoft Windows 11 ARM64","externalOsReferenceUrl":"https://www.microsoft.com/software-download/windows11arm64","profileFamily":"Desktop-style","profileLayout":"desktop","navigation":"taskbar","accountProvider":"VexaAccount","appStore":"VexaStore","notMicrosoftFirmware":true,"appRuntime":"webapp-registry-plus-host-installer"},
+    "desktop": {"id":"desktop","name":"MTP2026 Desktop OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":true,"runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"linux-arm64-guest","installSlot":"desktop","runtimeSource":"mtp2026Arm64","externalOsReference":"Microsoft MTP2026 Desktop ARM64","externalOsReferenceUrl":"https://www.microsoft.com/software-download/desktoparm64","profileFamily":"Desktop-style","profileLayout":"desktop","navigation":"taskbar","accountProvider":"VexaAccount","appStore":"VexaStore","notMicrosoftFirmware":true,"appRuntime":"webapp-registry-plus-host-installer"},
     "gaming": {"id":"gaming","name":"MTP2026 Gaming OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":true,"runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"linux-arm64-guest","installSlot":"gaming","runtimeSource":"mtp2026Arm64","externalOsReference":"ARM64 gaming Linux reference","externalOsReferenceUrl":"https://github.com/batocera-linux/batocera.linux","profileFamily":"Gaming-style","profileLayout":"gaming","navigation":"controller","accountProvider":"VexaAccount","appStore":"VexaStore","appRuntime":"webapp-registry-plus-host-installer"}
   }
 }
