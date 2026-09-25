@@ -10,7 +10,7 @@ const hasTauri = () => Boolean(window.__TAURI_INTERNALS__);
 const hasIOSBridge = () => Boolean(window.webkit?.messageHandlers?.mtp2026);
 const cap = () => window.Capacitor || null;
 const browserNotification = () => typeof window !== 'undefined' && 'Notification' in window ? window.Notification : null;
-const validModes = new Set(['mtp2026', 'android', 'ios', 'windows', 'windows11', 'gaming']);
+const validModes = new Set(['mtp2026', 'android', 'desktop', 'gaming']);
 
 let invokePromise;
 async function invoke(command, args) {
@@ -21,7 +21,7 @@ async function invoke(command, args) {
 
 export function nativeHost() {
   const capacitor = cap();
-  if (hasTauri()) return 'windows';
+  if (hasTauri()) return 'desktop';
   if (capacitor?.getPlatform) return capacitor.getPlatform();
   if (hasIOSBridge()) return 'ios';
   return 'web';
@@ -44,7 +44,7 @@ export function nativeCapabilities() {
 }
 
 export async function setNativeMode(mode) {
-  const normalized = mode === 'windows11' ? 'windows' : mode === 'mtp2026' ? 'mtp2026' : mode;
+  const normalized = mode === 'mtp2026' ? 'mtp2026' : mode;
   if (!validModes.has(mode) || !validModes.has(normalized)) throw new Error('Unsupported MTP2026 device mode');
   let nativeResult = null;
   if (hasTauri()) nativeResult = await invoke('set_device_mode', { mode: normalized });
