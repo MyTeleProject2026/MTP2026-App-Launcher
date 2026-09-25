@@ -1,6 +1,7 @@
 /* MTP2026 guest runtime manifest loader. */
 
 const STATIC_MANIFEST_URL = '/arm64/guest-manifest.json';
+const CANONICAL_GUEST_IDS = Object.freeze(['mtp2026','android','desktop','gaming']);
 
 let manifestPromise = null;
 
@@ -24,7 +25,7 @@ function mergeGuestProfile(base = {}, overlay = {}) {
 }
 
 function mergeManifests(base, overlay) {
-  const ids = Object.keys({ ...(base.guests || {}), ...(overlay.guests || {}) });
+  const ids = CANONICAL_GUEST_IDS.filter(id => base.guests?.[id] || overlay.guests?.[id]);
   return {
     ...base,
     ...overlay,
@@ -35,7 +36,7 @@ function mergeManifests(base, overlay) {
 
 function hasUsablePhysicalSources(manifest) {
   const guests = manifest?.guests || {};
-  return ['mtp2026', 'android', 'windows11', 'gaming'].every(id => Boolean(guests[id]?.imageSource?.url && guests[id]?.imageSource?.sha256));
+  return CANONICAL_GUEST_IDS.every(id => Boolean(guests[id]?.imageSource?.url && guests[id]?.imageSource?.sha256));
 }
 
 async function loadManifest() {
