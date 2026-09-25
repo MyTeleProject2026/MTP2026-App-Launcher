@@ -9,12 +9,12 @@
  */
 
 const ROOT = 'mtp2026-guest-packages-v1';
-const MODES = new Set(['mtp2026', 'android', 'windows11', 'gaming']);
+const MODES = new Set(['mtp2026', 'android', 'desktop', 'gaming']);
 
 function modeOf(value) {
   const raw = String(value || document.documentElement.dataset.mtpDeviceMode || localStorage.getItem('mtp2026-default-system-os') || 'mtp2026').toLowerCase();
   if (raw === 'ios') return 'mtp2026';
-  if (raw === 'windows') return 'windows11';
+  if (raw === 'windows') return 'desktop';
   return MODES.has(raw) ? raw : 'mtp2026';
 }
 
