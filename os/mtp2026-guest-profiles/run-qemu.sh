@@ -8,8 +8,8 @@ IMAGE="${BUILD_ROOT}/out/artifacts/${PROFILE}/mtp2026-${PROFILE}-arm64-linux.Ima
 INITRD="${BUILD_ROOT}/out/artifacts/${PROFILE}/mtp2026-${PROFILE}-initramfs.cpio.gz"
 
 case "$PROFILE" in
-  mtp2026|android|ios|windows11|gaming) ;;
-  *) echo "Usage: $0 {mtp2026|android|ios|windows11|gaming}" >&2; exit 2 ;;
+  mtp2026|android|ios|desktop|gaming) ;;
+  *) echo "Usage: $0 {mtp2026|android|ios|desktop|gaming}" >&2; exit 2 ;;
 esac
 
 if [ ! -f "$IMAGE" ] || [ ! -f "$INITRD" ]; then
