@@ -13,15 +13,15 @@ BROWSER_RUNTIME="${ROOT}/mtp2026-linux-arm64/out/browser-runtime"
 # Build one real ARM64 Chromium-compatible runtime and bake it into every guest image.
 # CI enables this explicitly; local builds can disable it with MTP2026_BUILD_BROWSER_RUNTIME=0.
 if [ "${MTP2026_BUILD_BROWSER_RUNTIME:-1}" = "1" ]; then
-  bash "${ROOT}/tools/build-arm64-browser-runtime.sh" "$BROWSER_RUNTIME"
+  bash "${ROOT}/../tools/build-arm64-browser-runtime.sh" "$BROWSER_RUNTIME"
 fi
 
-bash "${ROOT}/tools/build-mtp2026-firmware.sh" "${BUILD_ROOT}/out/firmware"
+bash "${ROOT}/../tools/build-mtp2026-firmware.sh" "${BUILD_ROOT}/out/firmware"
 
 for profile in ${BUILD_PROFILES}; do
   echo "=== Building ${profile} ==="
   MTP2026_PROFILE="$profile" MTP2026_BROWSER_RUNTIME_DIR="$BROWSER_RUNTIME" bash "${BUILD_ROOT}/build.sh"
-  bash "${ROOT}/tools/build-mtp2026-boot-disk.sh" "$profile"
+  bash "${ROOT}/../tools/build-mtp2026-boot-disk.sh" "$profile"
 done
 
 MANIFEST="${BUILD_ROOT}/out/artifacts/mtp2026-arm64-guest-manifest.json"
