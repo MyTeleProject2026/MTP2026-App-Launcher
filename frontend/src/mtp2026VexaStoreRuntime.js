@@ -19,7 +19,7 @@ const REGISTRY_KEY = 'mtp2026-installed-vexastore-apps-v3';
 function mode() {
   const value = document.documentElement.dataset.mtpDeviceMode || localStorage.getItem(MODE_KEY) || 'android';
   if (value === 'ios') return 'mtp2026';
-  return value === 'windows' ? 'windows11' : value;
+  return value === 'windows' ? 'desktop' : value;
 }
 
 function registry() {
@@ -96,7 +96,7 @@ async function installWebApp(payload) {
     source: app.source || 'Manual HTTPS WebApp',
     installMode: 'mtp2026-webapp',
     guestMode: mode(),
-    guestModes: ['mtp2026', 'android', 'windows11', 'gaming'],
+    guestModes: ['mtp2026', 'android', 'desktop', 'gaming'],
     installedAt: current[id]?.installedAt || new Date().toISOString(),
   };
   saveRegistry(current);
