@@ -12,8 +12,8 @@ const KERNEL_READY_ADDR = 0x6000;
 const BOOT_MAGIC = 0x4D54503230323641n;
 const KERNEL_READY_MAGIC = 0x4D5450324B524E4Cn;
 const MACHINE_VERSION = 1;
-const MODES = new Set(['mtp2026', 'android', 'windows11', 'gaming']);
-const MODE_ALIASES = Object.freeze({ ios: 'mtp2026', 'ios-device': 'mtp2026', windows: 'windows11' });
+const MODES = new Set(['mtp2026', 'android', 'desktop', 'gaming']);
+const MODE_ALIASES = Object.freeze({ ios: 'mtp2026', 'ios-device': 'mtp2026', windows: 'desktop' });
 
 function movz(rd, imm16, hw = 0) { return 0xD2800000 | ((hw & 3) << 21) | ((imm16 & 0xffff) << 5) | (rd & 31); }
 function movk(rd, imm16, hw = 0) { return 0xF2800000 | ((hw & 3) << 21) | ((imm16 & 0xffff) << 5) | (rd & 31); }
@@ -24,7 +24,7 @@ function modeProfile(mode) {
   const profiles = {
     mtp2026: { label: 'MTP2026 Device OS', orientation: 'portrait', viewport: [412, 915], touch: true, gamepad: false },
     android: { label: 'MTP2026 Android OS', orientation: 'portrait', viewport: [412, 915], touch: true, gamepad: false },
-    windows11: { label: 'MTP2026 Desktop OS', orientation: 'landscape', viewport: [1440, 900], touch: false, gamepad: false },
+    desktop: { label: 'MTP2026 Desktop OS', orientation: 'landscape', viewport: [1440, 900], touch: false, gamepad: false },
     gaming: { label: 'MTP2026 Gaming OS', orientation: 'responsive', viewport: [1280, 720], touch: true, gamepad: true },
   };
   return profiles[normalizeMode(mode)];
