@@ -11,12 +11,12 @@ const STORE_ORIGIN = 'https://www.vexastore.2bd.net';
 const STORE_API = 'https://api-vexastore.onrender.com/api';
 const MTP_API = (window.__MTP_API_BASE__ || 'https://mtp2026-app-launcher-backend.onrender.com/api').replace(/\/$/, '');
 const REGISTRY_KEY = 'mtp2026-os-package-registry-v1';
-const MODES = ['mtp2026', 'android', 'windows11', 'gaming'];
+const MODES = ['mtp2026', 'android', 'desktop', 'gaming'];
 
 function currentMode() {
   const raw = String(document.documentElement.dataset.mtpDeviceMode || localStorage.getItem('mtp2026-default-system-os') || 'mtp2026').toLowerCase();
   if (raw === 'ios') return 'mtp2026';
-  if (raw === 'windows') return 'windows11';
+  if (raw === 'windows') return 'desktop';
   return MODES.includes(raw) ? raw : 'mtp2026';
 }
 
@@ -115,7 +115,7 @@ export async function installMTPPackage(manifest, requestedMode = null) {
     if (pending) return { success: true, mode, webAppInstalled: Boolean(web?.url), native: pending, app: manifest.app, reason: 'ANDROID_PACKAGE_DOWNLOADED_PENDING_GUEST_RUNTIME' };
   }
 
-  if (mode === 'windows11' && manifest.nativePackages?.windows?.url) {
+  if (mode === 'desktop' && manifest.nativePackages?.windows?.url) {
     const host = window.MTP2026NativePlatform?.nativeHost?.();
     if (host === 'windows' && typeof window.MTP2026NativePlatform?.nativeInstallPackage === 'function') {
       const nativeResult = await nativeInstall(manifest.nativePackages.windows, mode);
