@@ -4,9 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_ROOT="${ROOT}/mtp2026-linux-arm64"
 
-# Four user-facing profiles are canonical. The legacy ios alias may still be
-# explicitly requested by older physical-test workflows, but is never exposed
-# as a fifth selectable MTP2026 OS.
+# Four canonical MTP2026 profiles. No proprietary iOS, Windows, or stock Android firmware is built or exposed.
 BUILD_PROFILES="${MTP2026_BUILD_PROFILES:-mtp2026 android desktop gaming}"
 BROWSER_RUNTIME="${ROOT}/mtp2026-linux-arm64/out/browser-runtime"
 
