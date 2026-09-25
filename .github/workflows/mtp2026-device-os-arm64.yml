@@ -46,15 +46,8 @@ jobs:
             log="/tmp/mtp2026-${profile}.log"
             echo "=== Booting ${profile} ==="
             set +e
-            timeout 35s qemu-system-aarch64 \
-              -M virt \
-              -cpu cortex-a72 \
-              -m 1024 \
-              -nographic \
-              -kernel "$image" \
-              -initrd "$initrd" \
-              -append 'console=ttyAMA0 rdinit=/init' \
-              > "$log" 2>&1
+            timeout 35s qemu-system-aarch64 -M virt -cpu cortex-a72 -m 1024 -nographic \
+              -kernel "$image" -initrd "$initrd" -append 'console=ttyAMA0 rdinit=/init' > "$log" 2>&1
             code=$?
             set -e
             cat "$log"
