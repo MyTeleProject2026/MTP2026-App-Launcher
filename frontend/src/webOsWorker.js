@@ -13,7 +13,7 @@ const BOOT_MAGIC = 0x4D54503230323641n;
 const KERNEL_READY_MAGIC = 0x4D5450324B524E4Cn;
 const MACHINE_VERSION = 1;
 const MODES = new Set(['mtp2026', 'android', 'desktop', 'gaming']);
-const MODE_ALIASES = Object.freeze({ ios: 'mtp2026', 'ios-device': 'mtp2026', windows: 'desktop' });
+const MODE_ALIASES = Object.freeze({ ios: 'mtp2026', windows: 'desktop' });
 
 function movz(rd, imm16, hw = 0) { return 0xD2800000 | ((hw & 3) << 21) | ((imm16 & 0xffff) << 5) | (rd & 31); }
 function movk(rd, imm16, hw = 0) { return 0xF2800000 | ((hw & 3) << 21) | ((imm16 & 0xffff) << 5) | (rd & 31); }
