@@ -13,7 +13,7 @@ export const DEVICE_MODES = {
 export const MTP2026_ARM64_BOOT_GITHUB_URL = 'https://github.com/MyTeleProject2026/MTP2026-App-Launcher/tree/main/os/arm64-kernel';
 
 export function getDeviceMode(mode) {
-  const aliases = { ios: 'mtp2026', 'ios-device': 'mtp2026', windows: 'desktop' };
+  const aliases = { ios: 'mtp2026', windows: 'desktop' };
   const normalized = aliases[mode] || mode;
   return DEVICE_MODES[normalized] ? normalized : 'android';
 }
