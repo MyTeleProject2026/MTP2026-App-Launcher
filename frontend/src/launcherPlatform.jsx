@@ -6,14 +6,14 @@ import { setNativeMode } from './nativePlatformApi.js';
 export const DEVICE_MODES = {
   mtp2026: { label: 'MTP2026 Device OS', icon: Smartphone, orientation: 'portrait' },
   android: { label: 'MTP2026 Android OS', icon: Smartphone, orientation: 'portrait' },
-  windows11: { label: 'MTP2026 Desktop OS', icon: Monitor, orientation: 'landscape' },
+  desktop: { label: 'MTP2026 Desktop OS', icon: Monitor, orientation: 'landscape' },
   gaming: { label: 'MTP2026 Gaming OS', icon: Gamepad2, orientation: 'responsive' }
 };
 
 export const MTP2026_ARM64_BOOT_GITHUB_URL = 'https://github.com/MyTeleProject2026/MTP2026-App-Launcher/tree/main/os/arm64-kernel';
 
 export function getDeviceMode(mode) {
-  const aliases = { ios: 'mtp2026', 'ios-device': 'mtp2026', windows: 'windows11' };
+  const aliases = { ios: 'mtp2026', 'ios-device': 'mtp2026', windows: 'desktop' };
   const normalized = aliases[mode] || mode;
   return DEVICE_MODES[normalized] ? normalized : 'android';
 }
