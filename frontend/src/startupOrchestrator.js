@@ -13,6 +13,8 @@ function selected() { try { const value = normalizeMode(sessionStorage.getItem(S
 function saveMode(mode) { const value = normalizeMode(mode); if (!value) return; try { localStorage.setItem(MODE_KEY, value); sessionStorage.setItem(SESSION_SELECTION, value); } catch (_) {} }
 function currentMode() { try { return normalizeMode(localStorage.getItem(MODE_KEY)); } catch (_) { return null; } }
 function pickerMode(value) { return normalizeMode(value); }
+let reactReady = false;
+function hidePicker() { const picker = document.getElementById('mtp-os-picker'); if (picker) { picker.classList.add('mtp-os-hidden'); setTimeout(() => picker.remove(), 320); } }
 
 function ensurePicker() {
   let picker = document.getElementById('mtp-os-picker');
@@ -64,11 +66,12 @@ async function run() {
     // A fresh launcher session must choose again; do not auto-boot a previous mode.
     return;
   }
-  const picker = document.getElementById('mtp-os-picker'); if (picker) picker.classList.add('mtp-os-hidden');
+  if (reactReady) hidePicker();
   document.documentElement.dataset.mtpDefaultSystem = inProgress;
   await continueAfterSelection(inProgress);
 }
 
 window.MTP2026Startup = Object.freeze({ run, currentMode, ensurePicker, normalizeMode });
+window.addEventListener('mtp2026:react-ready', () => { reactReady = true; if (selected()) hidePicker(); }, { once: true });
 window.addEventListener('mtp2026:startup-recheck', event => { const mode = event.detail?.mode; if (mode) void continueAfterSelection(mode); });
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => void run(), { once: true }); else void run();
