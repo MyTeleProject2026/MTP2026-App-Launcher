@@ -101,4 +101,7 @@ function App() {
     {showNotifications && <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && setShowNotifications(false)}><div className="modal notifications-modal"><div className="modal-head"><div><h2>Notifications</h2><p>{unread ? `${unread} unread notification${unread === 1 ? '' : 's'}` : 'You are all caught up.'}</p></div><button className="close" onClick={() => setShowNotifications(false)}><X/></button></div><div className="notification-actions"><button onClick={markAllRead}>Mark all read</button></div><div className="notification-list">{notifications.length ? notifications.map(n => <button key={n.id} className={`notification-item ${n.readAt ? 'read' : ''}`} onClick={() => markRead(n.id)}><div><b>{n.title}</b><p>{n.message}</p><small>{new Date(n.createdAt).toLocaleString()}</small></div>{!n.readAt && <span className="unread-dot"/>}</button>) : <div className="empty-state"><div className="empty-icon"><Bell/></div><h3>No notifications</h3><p>System and launcher events will appear here.</p></div>}</div></div></div>}
   </div>;
 }
-createRoot(document.getElementById('root')).render(<App />);
+const mtp2026Root = document.getElementById('root');
+if (!mtp2026Root) throw new Error('MTP2026_ROOT_NOT_FOUND');
+createRoot(mtp2026Root).render(<App />);
+window.dispatchEvent(new CustomEvent('mtp2026:react-ready'));
