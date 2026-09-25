@@ -11,15 +11,12 @@ JOBS="${JOBS:-$(nproc)}"
 LINUX_VERSION="6.16"
 BUSYBOX_VERSION="1.36.1"
 
-# Four user-facing MTP2026-owned ARM64 guest systems. The ios value remains
-# only as a backwards-compatible alias for older physical-test automation.
+# Four canonical MTP2026-owned ARM64 guest systems. There is no proprietary Windows/iOS/Android firmware bundled in these images.
 case "$PROFILE" in
   mtp2026)
     PROFILE_NAME="MTP2026 Device OS"; PROFILE_FAMILY="MTP2026"; PROFILE_LAYOUT="mobile"; PROFILE_NAV="gesture"; PROFILE_CLASS="device" ;;
   android)
     PROFILE_NAME="MTP2026 Android OS"; PROFILE_FAMILY="Android-style"; PROFILE_LAYOUT="mobile"; PROFILE_NAV="gesture-or-three-button"; PROFILE_CLASS="android" ;;
-  ios)
-    PROFILE_NAME="MTP2026 Device OS"; PROFILE_FAMILY="MTP2026"; PROFILE_LAYOUT="mobile"; PROFILE_NAV="gesture"; PROFILE_CLASS="device" ;;
   desktop)
     PROFILE_NAME="MTP2026 Desktop OS"; PROFILE_FAMILY="Desktop-style"; PROFILE_LAYOUT="desktop"; PROFILE_NAV="taskbar"; PROFILE_CLASS="desktop" ;;
   gaming)
