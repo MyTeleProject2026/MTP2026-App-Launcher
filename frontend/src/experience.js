@@ -40,7 +40,7 @@ import './mtp2026DeviceOS.js';
     document.body.classList.toggle('mtp-windows-desktop', isWindows);
     document.body.classList.toggle('mtp-mobile-device', !isWindows);
     document.body.classList.toggle('mtp-gaming-device', mode === 'gaming');
-    if (!userGesture) return;
+    if (!userGesture) { updateOrientationNotice(mode); return; }
     try {
       if (isWindows || mode === 'gaming') { if (!document.fullscreenElement && document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {}); }
       if (screen.orientation?.lock) { if (isWindows) await screen.orientation.lock('landscape').catch(() => {}); else if (isPortrait) await screen.orientation.lock('portrait').catch(() => {}); }
