@@ -5,7 +5,7 @@ import { MTP2026_GUEST_PROFILES, normalizeMTP2026GuestProfile } from './mtp2026G
 const ARM64 = {
   mtp2026: { kernel:'MTP2026 Microkernel AArch64', firmware:'MTP2026 ARM64 Boot Firmware', board:'MTP2026 Mobile Reference Board', ram:'8 GB', storage:'64 GB virtual NVMe', cpu:'8-core ARM64', gpu:'MTP Graphics 2D/3D' },
   android: { kernel:'MTP Android Kernel AArch64', firmware:'MTP2026 ARM64 Boot Firmware', board:'MTP2026 Android Reference Board', ram:'8 GB', storage:'128 GB virtual UFS', cpu:'8-core ARM64', gpu:'MTP Mobile GPU' },
-  windows11: { kernel:'MTP Desktop Kernel AArch64', firmware:'MTP2026 ARM64 Boot Firmware', board:'MTP2026 Desktop Reference Board', ram:'16 GB', storage:'256 GB virtual NVMe', cpu:'8-core ARM64', gpu:'MTP Desktop GPU' },
+  desktop: { kernel:'MTP Desktop Kernel AArch64', firmware:'MTP2026 ARM64 Boot Firmware', board:'MTP2026 Desktop Reference Board', ram:'16 GB', storage:'256 GB virtual NVMe', cpu:'8-core ARM64', gpu:'MTP Desktop GPU' },
   gaming: { kernel:'MTP Gaming Kernel AArch64', firmware:'MTP2026 ARM64 Boot Firmware', board:'MTP2026 Gaming Reference Board', ram:'16 GB', storage:'512 GB virtual NVMe', cpu:'12-core ARM64', gpu:'MTP Gaming GPU' }
 };
 
