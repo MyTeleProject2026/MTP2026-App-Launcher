@@ -5,8 +5,8 @@
 const API = (import.meta.env.VITE_API_BASE_URL || 'https://mtp2026-app-launcher-backend.onrender.com/api').replace(/\/$/, '');
 const MODE_KEY = 'mtp2026-default-system-os';
 const SESSION_SELECTION = 'mtp2026-selection-in-progress';
-const MODES = Object.freeze({ mtp2026: 'MTP2026 Device OS', android: 'MTP2026 Android OS', windows11: 'MTP2026 Desktop OS', gaming: 'MTP2026 Gaming OS' });
-const MODE_ALIASES = Object.freeze({ ios: 'mtp2026', 'ios-device': 'mtp2026', windows: 'windows11' });
+const MODES = Object.freeze({ mtp2026: 'MTP2026 Device OS', android: 'MTP2026 Android OS', desktop: 'MTP2026 Desktop OS', gaming: 'MTP2026 Gaming OS' });
+const MODE_ALIASES = Object.freeze({ ios: 'mtp2026', 'ios-device': 'mtp2026', windows: 'desktop', windows11: 'desktop' });
 
 function normalizeMode(value) { const mode = MODE_ALIASES[value] || value; return MODES[mode] ? mode : null; }
 function selected() { try { const value = normalizeMode(sessionStorage.getItem(SESSION_SELECTION)); return value || null; } catch (_) { return null; } }
