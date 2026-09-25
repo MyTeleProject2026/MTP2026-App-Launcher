@@ -48,11 +48,7 @@ cat > "$MANIFEST" <<'EOF'
   },
   "runtimeSources": {
     "mtp2026Arm64": {"type":"repository-source","repository":"MyTeleProject2026/MTP2026-App-Launcher","url":"https://github.com/MyTeleProject2026/MTP2026-App-Launcher","role":"MTP2026-owned-AArch64-Linux-guest-foundation"},
-    "qemuWasmAarch64": {"type":"github-source","repository":"ktock/qemu-wasm","url":"https://github.com/ktock/qemu-wasm","role":"browser-AArch64-system-emulator"},
-    "androidGsiReference": {"type":"official-source-reference","url":"https://developer.android.com/topic/generic-system-image/releases","role":"optional-user-obtained-Android-ARM64-reference-media","bundled":false},
-    "gamingBatocera": {"type":"published-github-project-reference","repository":"batocera-linux/batocera.linux","url":"https://github.com/batocera-linux/batocera.linux","role":"optional-ARM64-gaming-Linux-reference","bundled":false},
-    "desktopArm64Reference": {"type":"official-source-reference","url":"https://www.microsoft.com/software-download/desktoparm64","role":"optional-user-obtained-licensed-Windows-ARM64-reference","bundled":false},
-    "appleIOSReference": {"type":"platform-restricted-reference","role":"Apple-authorized/native-environment-only","bundled":false}
+    "qemuWasmAarch64": {"type":"github-source","repository":"ktock/qemu-wasm","url":"https://github.com/ktock/qemu-wasm","role":"browser-AArch64-system-emulator"}
   },
   "guests": {
     "mtp2026": {"id":"mtp2026","name":"MTP2026 Device OS","architecture":"arm64","imageKind":"mtp2026-owned-arm64-linux-profile","imageRequired":true,"runtimeBackend":"qemu-aarch64-virt-or-native-qemu","bootProtocol":"linux-arm64-guest","installSlot":"mtp2026","runtimeSource":"mtp2026Arm64","profileFamily":"MTP2026","profileLayout":"mobile","navigation":"gesture","accountProvider":"VexaAccount","appStore":"VexaStore","appRuntime":"webapp-registry-plus-native-host-installer"},
