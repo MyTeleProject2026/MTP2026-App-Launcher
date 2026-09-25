@@ -4,7 +4,7 @@
   window.__MTP2026_DESKTOP_EXPERIENCE__ = true;
 
   const esc = value => String(value ?? '').replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
-  const isDesktop = () => document.documentElement.dataset.mtpDeviceMode === 'windows11' || document.documentElement.dataset.mtpDeviceMode === 'windows';
+  const isDesktop = () => document.documentElement.dataset.mtpDeviceMode === 'desktop' || document.documentElement.dataset.mtpDeviceMode === 'windows';
   const root = () => document.getElementById('mtp2026-guest-shell');
   const apps = () => {
     try { return JSON.parse(localStorage.getItem('mtp2026-installed-vexastore-apps-v3') || '[]'); } catch (_) { return []; }
