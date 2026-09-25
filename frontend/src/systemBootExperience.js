@@ -2,7 +2,7 @@
   if (window.__MTP_SYSTEM_BOOT_EXPERIENCE__) return;
   window.__MTP_SYSTEM_BOOT_EXPERIENCE__ = true;
   const API = (import.meta.env?.VITE_API_BASE_URL || 'https://mtp2026-app-launcher-backend.onrender.com/api').replace(/\/$/, '');
-  const labels = {android:'MTP2026 Android OS',ios:'MTP2026 Device OS',windows:'MTP2026 Desktop OS',desktop:'MTP2026 Desktop OS',gaming:'MTP2026 Gaming OS'};
+  const labels = {mtp2026:'MTP2026 Device OS',android:'MTP2026 Android OS',desktop:'MTP2026 Desktop OS',gaming:'MTP2026 Gaming OS'};
   let splash = null;
   let timer = null;
   let selectedMode = null;
