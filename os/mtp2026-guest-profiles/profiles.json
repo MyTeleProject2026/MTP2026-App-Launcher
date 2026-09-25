@@ -21,16 +21,6 @@
       "browser": "MTP2026 Browser",
       "source": "MTP2026-App-Launcher"
     },
-    "ios": {
-      "id": "ios",
-      "name": "MTP2026 Device OS",
-      "uiFamily": "mtp2026-mobile",
-      "account": "VexaAccount",
-      "store": "VexaStore",
-      "browser": "MTP2026 Browser",
-      "source": "MTP2026-App-Launcher",
-      "proprietaryBase": false
-    },
     "desktop": {
       "id": "desktop",
       "name": "MTP2026 Desktop OS",
