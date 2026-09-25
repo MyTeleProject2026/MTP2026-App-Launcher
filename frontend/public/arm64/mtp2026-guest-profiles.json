@@ -5,8 +5,7 @@
   "profiles": [
     {"id":"mtp2026","name":"MTP2026 Device OS","orientation":"portrait","uxFamily":"mtp2026-mobile","account":"VexaAccount","store":"VexaStore","browser":"MTP2026 Browser"},
     {"id":"android","name":"MTP2026 Android OS","orientation":"portrait","uxFamily":"android-mobile","account":"VexaAccount","store":"VexaStore","browser":"MTP2026 Browser","openSourceReference":"https://github.com/jqssun/android-lineage-qemu"},
-    {"id":"ios","name":"MTP2026 Device OS","orientation":"portrait","uxFamily":"mtp2026-mobile","account":"VexaAccount","store":"VexaStore","browser":"MTP2026 Browser","notAppleFirmware":true},
-    {"id":"windows11","name":"MTP2026 Desktop OS","orientation":"landscape","uxFamily":"windows-desktop","account":"VexaAccount","store":"VexaStore","browser":"MTP2026 Browser","notMicrosoftFirmware":true},
+    {"id":"desktop","name":"MTP2026 Desktop OS","orientation":"landscape","uxFamily":"desktop","account":"VexaAccount","store":"VexaStore","browser":"MTP2026 Browser"},
     {"id":"gaming","name":"MTP2026 Gaming OS","orientation":"responsive","uxFamily":"gaming-desktop","account":"VexaAccount","store":"VexaStore","browser":"MTP2026 Browser"}
   ]
 }
