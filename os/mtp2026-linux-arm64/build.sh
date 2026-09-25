@@ -20,7 +20,7 @@ case "$PROFILE" in
     PROFILE_NAME="MTP2026 Android OS"; PROFILE_FAMILY="Android-style"; PROFILE_LAYOUT="mobile"; PROFILE_NAV="gesture-or-three-button"; PROFILE_CLASS="android" ;;
   ios)
     PROFILE_NAME="MTP2026 Device OS"; PROFILE_FAMILY="MTP2026"; PROFILE_LAYOUT="mobile"; PROFILE_NAV="gesture"; PROFILE_CLASS="device" ;;
-  windows11)
+  desktop)
     PROFILE_NAME="MTP2026 Desktop OS"; PROFILE_FAMILY="Desktop-style"; PROFILE_LAYOUT="desktop"; PROFILE_NAV="taskbar"; PROFILE_CLASS="desktop" ;;
   gaming)
     PROFILE_NAME="MTP2026 Gaming OS"; PROFILE_FAMILY="Gaming-style"; PROFILE_LAYOUT="gaming"; PROFILE_NAV="controller"; PROFILE_CLASS="gaming" ;;
