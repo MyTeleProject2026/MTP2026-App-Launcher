@@ -93,14 +93,21 @@ jobs:
           test -f os/mtp2026-linux-arm64/out/browser-runtime/lib/ld-linux-aarch64.so.1
           test -f os/mtp2026-linux-arm64/out/browser-runtime/MANIFEST
           grep -q 'MTP2026 ARM64 Chromium-compatible runtime' os/mtp2026-linux-arm64/out/browser-runtime/MANIFEST
+          tmp_root="$(mktemp -d)"
+          trap 'rm -rf "$tmp_root"' EXIT
           for profile in mtp2026 android desktop gaming; do
             initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
-            gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './usr/bin/chromium'
-            gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './usr/bin/mtp2026-browser'
-            gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './usr/bin/mtp2026-ui'
-            gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './usr/bin/mtp2026-daemon'
-            gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './etc/mtp2026/browser.json'
-            gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './etc/mtp2026/browser-runtime'
+            guest_dir="$tmp_root/$profile"
+            mkdir -p "$guest_dir"
+            gzip -dc "$initrd" | (cd "$guest_dir" && cpio -idm --quiet)
+            test -x "$guest_dir/usr/bin/chromium"
+            test -x "$guest_dir/usr/bin/mtp2026-browser"
+            test -x "$guest_dir/usr/bin/mtp2026-ui"
+            test -x "$guest_dir/usr/bin/mtp2026-daemon"
+            test -f "$guest_dir/etc/mtp2026/browser.json"
+            test -f "$guest_dir/etc/mtp2026/browser-runtime"
+            test -x "$guest_dir/usr/lib/chromium/chromium"
+            echo "Embedded ARM64 browser/GUI runtime verified for $profile"
           done
 
       - name: Validate MTP2026 firmware and boot media
