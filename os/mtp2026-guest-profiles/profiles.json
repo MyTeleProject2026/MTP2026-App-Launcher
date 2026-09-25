@@ -31,10 +31,10 @@
       "source": "MTP2026-App-Launcher",
       "proprietaryBase": false
     },
-    "windows11": {
-      "id": "windows11",
+    "desktop": {
+      "id": "desktop",
       "name": "MTP2026 Desktop OS",
-      "uiFamily": "windows-desktop",
+      "uiFamily": "desktop",
       "account": "VexaAccount",
       "store": "VexaStore",
       "browser": "MTP2026 Browser",
