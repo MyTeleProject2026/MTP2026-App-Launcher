@@ -10,7 +10,7 @@ export const DEVICE_MODES = {
   gaming: { label: 'MTP2026 Gaming OS', icon: Gamepad2, orientation: 'responsive' }
 };
 
-export const MTP2026_ARM64_BOOT_GITHUB_URL = 'https://github.com/MyTeleProject2026/MTP2026-App-Launcher/tree/main/os/arm64-kernel';
+export const MTP2026_ARM64_BOOT_GITHUB_URL = 'https://github.com/MyTeleProject2026/MTP2026-App-Launcher/tree/main/os/mtp2026-linux-arm64';
 
 export function getDeviceMode(mode) {
   const aliases = { ios: 'mtp2026', windows: 'desktop' };
