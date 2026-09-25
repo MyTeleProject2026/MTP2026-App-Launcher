@@ -80,7 +80,7 @@ jobs:
 
       - name: Build all four MTP2026 physical-test guest profiles
         env:
-          MTP2026_BUILD_PROFILES: mtp2026 android windows11 gaming
+          MTP2026_BUILD_PROFILES: mtp2026 android desktop gaming
           MTP2026_BUILD_BROWSER_RUNTIME: "1"
         run: bash os/mtp2026-guest-profiles/build-all.sh
 
@@ -93,7 +93,7 @@ jobs:
           test -f os/mtp2026-linux-arm64/out/browser-runtime/lib/ld-linux-aarch64.so.1
           test -f os/mtp2026-linux-arm64/out/browser-runtime/MANIFEST
           grep -q 'MTP2026 ARM64 Chromium-compatible runtime' os/mtp2026-linux-arm64/out/browser-runtime/MANIFEST
-          for profile in mtp2026 android windows11 gaming; do
+          for profile in mtp2026 android desktop gaming; do
             initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
             gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './usr/bin/chromium'
             gzip -dc "$initrd" | cpio -it 2>/dev/null | grep -qx './usr/bin/mtp2026-browser'
@@ -109,7 +109,7 @@ jobs:
           set -euo pipefail
           test -s os/mtp2026-linux-arm64/out/firmware/mtp2026-arm64-boot-firmware.bin
           grep -q '"owner":"MTP2026"' os/mtp2026-linux-arm64/out/firmware/firmware-manifest.json
-          for profile in mtp2026 android windows11 gaming; do
+          for profile in mtp2026 android desktop gaming; do
             dir="os/mtp2026-linux-arm64/out/artifacts/$profile"
             test -s "$dir/mtp2026-arm64-boot-firmware.bin"
             test -s "$dir/mtp2026-$profile-boot-disk.img"
@@ -121,7 +121,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for profile in mtp2026 android windows11 gaming; do
+          for profile in mtp2026 android desktop gaming; do
             image="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-arm64-linux.Image"
             initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
             test -s "$image"
@@ -133,7 +133,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for profile in mtp2026 android windows11 gaming; do
+          for profile in mtp2026 android desktop gaming; do
             initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
             listing="$(gzip -dc "$initrd" | cpio -it 2>/dev/null)"
             printf '%s\n' "$listing" | grep -qx './etc/mtp2026/browser.json'
@@ -146,7 +146,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for profile in mtp2026 android windows11 gaming; do
+          for profile in mtp2026 android desktop gaming; do
             image="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-arm64-linux.Image"
             initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
             log="/tmp/mtp2026-${profile}.log"
@@ -177,7 +177,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for profile in mtp2026 android windows11 gaming; do
+          for profile in mtp2026 android desktop gaming; do
             dir="os/mtp2026-linux-arm64/out/artifacts/$profile"
             data="/tmp/mtp2026-$profile-data.qcow2"
             qemu-img create -f qcow2 "$data" 256M >/dev/null
@@ -220,7 +220,7 @@ jobs:
           set -euo pipefail
           rm -rf release
           mkdir -p release
-          for profile in mtp2026 android windows11 gaming; do
+          for profile in mtp2026 android desktop gaming; do
             dir="os/mtp2026-linux-arm64/out/artifacts/${profile}"
             tar -C "$dir" -czf "release/mtp2026-${profile}-arm64-guest.tar.gz" \
               "mtp2026-${profile}-arm64-linux.Image" \
@@ -236,7 +236,7 @@ jobs:
           import hashlib, json, pathlib
           root = pathlib.Path('release')
           profiles = {}
-          for profile in ('mtp2026', 'android', 'windows11', 'gaming'):
+          for profile in ('mtp2026', 'android', 'desktop', 'gaming'):
               image = pathlib.Path(f'os/mtp2026-linux-arm64/out/artifacts/{profile}/mtp2026-{profile}-arm64-linux.Image')
               initrd = pathlib.Path(f'os/mtp2026-linux-arm64/out/artifacts/{profile}/mtp2026-{profile}-initramfs.cpio.gz')
               firmware = pathlib.Path(f'os/mtp2026-linux-arm64/out/artifacts/{profile}/mtp2026-arm64-boot-firmware.bin')
@@ -290,7 +290,7 @@ jobs:
           gh release create mtp2026-physical-test \
             release/mtp2026-mtp2026-arm64-guest.tar.gz \
             release/mtp2026-android-arm64-guest.tar.gz \
-            release/mtp2026-windows11-arm64-guest.tar.gz \
+            release/mtp2026-desktop-arm64-guest.tar.gz \
             release/mtp2026-gaming-arm64-guest.tar.gz \
             release/SHA256SUMS.txt \
             release/physical-test-manifest.json \
@@ -312,7 +312,7 @@ jobs:
           manifest = json.loads((root / 'physical-test-manifest.json').read_text())
           assert manifest['schema'] == 'mtp2026-physical-arm64-test-v2'
           assert manifest['architecture'] == 'arm64'
-          assert set(manifest['guests']) == {'mtp2026', 'android', 'windows11', 'gaming'}
+          assert set(manifest['guests']) == {'mtp2026', 'android', 'desktop', 'gaming'}
           for profile, guest in manifest['guests'].items():
               url = guest['imageSource']['url']
               with urllib.request.urlopen(url, timeout=60) as response:
