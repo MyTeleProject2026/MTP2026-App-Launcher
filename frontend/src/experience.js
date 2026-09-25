@@ -33,7 +33,7 @@ import './mtp2026DeviceOS.js';
 
   async function requestPlatformMode(mode, { userGesture = false } = {}) {
     const root = document.documentElement;
-    const isWindows = mode === 'windows11';
+    const isWindows = mode === 'desktop';
     const isPortrait = mode === 'android' || mode === 'ios';
     root.dataset.mtpDeviceMode = mode;
     document.body.dataset.mtpDeviceMode = mode;
@@ -51,11 +51,11 @@ import './mtp2026DeviceOS.js';
 
   function updateOrientationNotice(mode) {
     let notice = document.querySelector('.mtp-orientation-notice');
-    const needsLandscape = mode === 'windows11' && orientationGuidanceEnabled;
+    const needsLandscape = mode === 'desktop' && orientationGuidanceEnabled;
     const portrait = window.matchMedia('(orientation: portrait)').matches;
     if (!needsLandscape || !portrait) { notice?.remove(); return; }
     if (!notice) { notice = document.createElement('div'); notice.className = 'mtp-orientation-notice'; document.body.appendChild(notice); }
-    notice.innerHTML = '<div class="mtp-orientation-card"><div class="mtp-rotate-device">↻</div><b>Rotate your device</b><span>Windows 11 mode uses the full landscape desktop workspace. Rotate your device horizontally to continue.</span><button type="button">I rotated my device</button></div>';
+    notice.innerHTML = '<div class="mtp-orientation-card"><div class="mtp-rotate-device">↻</div><b>Rotate your device</b><span>MTP2026 Desktop OS mode uses the full landscape desktop workspace. Rotate your device horizontally to continue.</span><button type="button">I rotated my device</button></div>';
     notice.querySelector('button').onclick = () => { requestPlatformMode(mode, { userGesture: true }); };
   }
 
@@ -76,9 +76,9 @@ import './mtp2026DeviceOS.js';
   }
 
   function applyMode(mode, userGesture = false) {
-    const allowed = ['android','ios','windows11','gaming'];
+    const allowed = ['android','mtp2026','desktop','gaming'];
     const value = allowed.includes(mode) ? mode : 'android';
-    if (userGesture && value === 'windows11') orientationGuidanceEnabled = true;
+    if (userGesture && value === 'desktop') orientationGuidanceEnabled = true;
     requestPlatformMode(value, { userGesture });
     if (userGesture) updateOrientationNotice(value);
     else if (!orientationGuidanceEnabled) document.querySelector('.mtp-orientation-notice')?.remove();
@@ -88,7 +88,7 @@ import './mtp2026DeviceOS.js';
 
   function openDeviceSettings() {
     const current = document.documentElement.dataset.mtpDeviceMode || 'android';
-    const root = modal('Device & OS Mode', `<p class="mtp-muted">Choose the experience MTP2026 should use on this device. The launcher changes its layout, viewport behavior and supported orientation/fullscreen behavior.</p><div class="mtp-mode-grid">${[['android','Android','Portrait-first mobile OS-style launcher','⌂'],['ios','iOS','Portrait-first iOS-style launcher','◉'],['windows11','Windows 11','Landscape desktop OS-style workspace','▣'],['gaming','Gaming','Immersive portrait or landscape gaming launcher','◆']].map(([id,name,desc,icon]) => `<button class="mtp-mode-card ${id === current ? 'active' : ''}" data-mode="${id}"><span class="mtp-mode-icon">${icon}</span><span><b>${name}</b><small>${desc}</small></span>${id === current ? '<strong>✓</strong>' : ''}</button>`).join('')}</div><div class="mtp-mode-note"><b>Device behavior</b><span>Windows 11 mode uses a real browser fullscreen request and landscape orientation lock when the device/browser permits it. Android and iOS request portrait when supported. Unsupported browsers show the required rotate state instead of faking rotation.</span></div>`, `<button class="mtp-secondary" data-close>Close</button>`);
+    const root = modal('Device & OS Mode', `<p class="mtp-muted">Choose the experience MTP2026 should use on this device. The launcher changes its layout, viewport behavior and supported orientation/fullscreen behavior.</p><div class="mtp-mode-grid">${[['android','Android','Portrait-first mobile OS-style launcher','⌂'],['mtp2026','Device','MTP2026 Device OS','◉'],['desktop','MTP2026 Desktop OS','Landscape desktop OS-style workspace','▣'],['gaming','Gaming','Immersive portrait or landscape gaming launcher','◆']].map(([id,name,desc,icon]) => `<button class="mtp-mode-card ${id === current ? 'active' : ''}" data-mode="${id}"><span class="mtp-mode-icon">${icon}</span><span><b>${name}</b><small>${desc}</small></span>${id === current ? '<strong>✓</strong>' : ''}</button>`).join('')}</div><div class="mtp-mode-note"><b>Device behavior</b><span>MTP2026 Desktop OS mode uses a real browser fullscreen request and landscape orientation lock when the device/browser permits it. Android and iOS request portrait when supported. Unsupported browsers show the required rotate state instead of faking rotation.</span></div>`, `<button class="mtp-secondary" data-close>Close</button>`);
     root.querySelector('[data-close]').onclick = () => root.remove();
     root.querySelectorAll('[data-mode]').forEach(button => button.onclick = async () => {
       if (busy) return;
