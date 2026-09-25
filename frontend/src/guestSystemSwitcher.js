@@ -12,7 +12,6 @@
 
   function openPicker() {
     try { sessionStorage.removeItem('mtp2026-selection-in-progress'); } catch (_) {}
-    try { window.MTP2026GuestRecovery?.close?.(); } catch (_) {}
     try {
       const picker = window.MTP2026Startup?.ensurePicker?.();
       if (picker) {
@@ -38,7 +37,6 @@
   }
 
   function scan() {
-    document.querySelectorAll('.mtp2026-guest-recovery-actions').forEach(node => addButton(node, 'recovery'));
     document.querySelectorAll('.mtp-system-boot-actions').forEach(node => addButton(node, 'boot'));
   }
 
