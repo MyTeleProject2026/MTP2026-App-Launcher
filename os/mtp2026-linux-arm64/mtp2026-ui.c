@@ -65,7 +65,7 @@ const char *a_device[]={"VexaStore","WebApps","Files","Settings","Browser","Devi
 const char *a_android[]={"VexaStore","WebApps","Files","Settings","Browser","APK Host"};
 const char *a_desktop[]={"VexaStore","WebApps","Files","Settings","Browser","Desktop"};
 const char *a_gaming[]={"VexaStore","WebApps","Games","Settings","Browser","Game Hub"};
-const char **a=(strcmp(profile,"android")==0)?a_android:(strcmp(profile,"windows11")==0)?a_desktop:(strcmp(profile,"gaming")==0)?a_gaming:a_device;
+const char **a=(strcmp(profile,"android")==0)?a_android:(strcmp(profile,"desktop")==0)?a_desktop:(strcmp(profile,"gaming")==0)?a_gaming:a_device;
 for(int i=0;i<6;i++){int bx=x+(i%3)*220,by=top+80+(i/3)*95;rect(bx,by,195,72,i==app_cursor?rgb(25,70,105):rgb(14,32,52));text(bx+15,by+28,a[i],2,rgb(230,240,250));}}
  else if(page==2){text(x,top+25,"FILES",4,rgb(90,220,255));const char*a[]={"Desktop","Documents","Downloads","Pictures","Music","Games","Apps","Device Storage"};for(int i=0;i<8;i++){int bx=x+(i%4)*170,by=top+80+(i/4)*90;rect(bx,by,150,68,rgb(14,32,52));text(bx+10,by+26,a[i],2,rgb(230,240,250));}}
  else if(page==3){text(x,top+25,"SETTINGS",4,rgb(90,220,255));const char*a[]={"Display","Sound","Notifications","Network","Storage","Account","Device OS","Power"};for(int i=0;i<8;i++){int bx=x+(i%4)*170,by=top+80+(i/4)*90;rect(bx,by,150,68,rgb(14,32,52));text(bx+10,by+26,a[i],2,rgb(230,240,250));}}
