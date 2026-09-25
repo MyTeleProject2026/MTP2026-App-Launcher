@@ -42,7 +42,7 @@ export const GUEST_SYSTEMS = Object.freeze({
     ...COMMON,
     id: 'desktop', name: 'MTP2026 Desktop OS', class: 'desktop', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: true, optionalNativeImage: false,
     installSlot: 'desktop', bootProtocol: 'mtp2026-desktop-arm64-webos', profileBrand: 'MTP2026 Desktop OS', profileFamily: 'Desktop-style',
-    profileLayout: 'desktop', navigation: 'taskbar', notMicrosoftFirmware: true,
+    profileLayout: 'desktop', navigation: 'taskbar',
     nativePackagePolicy: 'MTP2026 WebApp runtime. MTP2026 Desktop packages run through the MTP2026 native guest/runtime contract.'
   }),
   gaming: Object.freeze({
@@ -56,7 +56,7 @@ export const GUEST_SYSTEMS = Object.freeze({
 });
 
 export function normalizeGuestSystem(value) {
-  const id = value === 'windows' || value === 'windows11' ? 'desktop' : value === 'ios' || value === 'ios-device' ? 'mtp2026' : value;
+  const id = value === 'windows' ? 'desktop' : value === 'ios' || value === 'ios-device' ? 'mtp2026' : value;
   return GUEST_SYSTEMS[id] ? id : 'android';
 }
 
@@ -91,6 +91,5 @@ export function getGuestRequirements(value) {
     externalReference: system.externalReference || null,
     nativePackagePolicy: system.nativePackagePolicy,
     notAppleFirmware: Boolean(system.notAppleFirmware),
-    notMicrosoftFirmware: Boolean(system.notMicrosoftFirmware),
   };
 }
