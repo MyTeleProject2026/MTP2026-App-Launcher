@@ -63,8 +63,8 @@ async function bootNativeGuest({ id, guestContract }) {
   const source = await getGuestImageSource(id);
   const bundleUrl = source.url;
   const bundleSha256 = source.sha256;
-  if (!bundleUrl) throw new Error(`GUEST_IMAGE_SOURCE_NOT_CONFIGURED_${id}`);
-  if (!bundleSha256) throw new Error(`GUEST_IMAGE_SHA256_NOT_CONFIGURED_${id}`);
+  if (!bundleUrl) throw new Error('GUEST_RUNTIME_SOURCE_UNAVAILABLE');
+  if (!bundleSha256) throw new Error('GUEST_RUNTIME_SOURCE_UNAVAILABLE');
   // VexaAccount provider tokens never enter the guest. Only the authenticated
   // session identity/profile is bridged to the native guest as short-lived
   // metadata, allowing Account Center features without exposing secrets.
