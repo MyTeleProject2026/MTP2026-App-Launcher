@@ -38,13 +38,12 @@ export const GUEST_SYSTEMS = Object.freeze({
     nativePackagePolicy: 'MTP2026 WebApp runtime by default. Android APK installation is available only through a real/native Android host PackageInstaller.',
   }),
 
-  windows11: Object.freeze({
+  desktop: Object.freeze({
     ...COMMON,
-    id: 'windows11', name: 'MTP2026 Desktop OS', class: 'desktop', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: true, optionalNativeImage: false,
-    installSlot: 'windows11', bootProtocol: 'mtp2026-desktop-arm64-webos', profileBrand: 'MTP2026 Desktop OS', profileFamily: 'Desktop-style',
+    id: 'desktop', name: 'MTP2026 Desktop OS', class: 'desktop', imageKind: 'mtp2026-owned-arm64-linux-profile', requiresImage: true, optionalNativeImage: false,
+    installSlot: 'desktop', bootProtocol: 'mtp2026-desktop-arm64-webos', profileBrand: 'MTP2026 Desktop OS', profileFamily: 'Desktop-style',
     profileLayout: 'desktop', navigation: 'taskbar', notMicrosoftFirmware: true,
-    externalReference: 'https://www.microsoft.com/software-download/windows11arm64',
-    nativePackagePolicy: 'MTP2026 WebApp runtime. Licensed Windows packages require a user-owned licensed Windows host/VM.',
+    nativePackagePolicy: 'MTP2026 WebApp runtime. MTP2026 Desktop packages run through the MTP2026 native guest/runtime contract.'
   }),
   gaming: Object.freeze({
     ...COMMON,
@@ -57,7 +56,7 @@ export const GUEST_SYSTEMS = Object.freeze({
 });
 
 export function normalizeGuestSystem(value) {
-  const id = value === 'windows' ? 'windows11' : value === 'ios' || value === 'ios-device' ? 'mtp2026' : value;
+  const id = value === 'windows' || value === 'windows11' ? 'desktop' : value === 'ios' || value === 'ios-device' ? 'mtp2026' : value;
   return GUEST_SYSTEMS[id] ? id : 'android';
 }
 
