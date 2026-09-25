@@ -1,6 +1,6 @@
 /* MTP2026 native/runtime compatibility layer.
  * This keeps the existing MTP2026Runtime API stable while connecting the
- * startup orchestrator to the real guest boot controller and recovery UI.
+ * startup orchestrator to the real guest boot controller.
  * Native APK and Web/PWA implementations remain separate underneath.
  */
 
@@ -12,7 +12,6 @@ import {
   notifyNative,
 } from './nativePlatformApi.js';
 
-import './guestRecovery.js';
 import './guestSystemSwitcher.js';
 import './mtp2026Branding.js';
 import './vexaStoreInstaller.js';
@@ -52,8 +51,7 @@ export async function boot(mode, options = {}) {
     return result;
   } catch (error) {
     const message = String(error?.message || error || 'GUEST_BOOT_FAILED');
-    window.dispatchEvent(new CustomEvent('mtp2026:guest-boot-error', { detail: { id: normalized, error: message, recoverable: true } }));
-    return { id: normalized, phase: 'error', running: false, error: message, recoverable: true };
+    return { id: normalized, phase: 'error', running: false, error: message, recoverable: false };
   }
 }
 
