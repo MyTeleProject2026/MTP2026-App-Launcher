@@ -4,7 +4,7 @@ This directory defines the four MTP2026 guest experiences that run on the same o
 
 - `mtp2026` — MTP2026 Device OS
 - `android` — MTP2026 Android OS
-- `windows11` — MTP2026 Desktop OS
+- `desktop` — MTP2026 Desktop OS
 - `gaming` — MTP2026 Gaming OS
 
 These are **MTP2026-owned operating-system experiences**, not copies or redistributions of Apple iOS, Microsoft Windows, Android trademarked firmware, or ASUS/ROG firmware. The profile names describe the UX family the shell targets.
