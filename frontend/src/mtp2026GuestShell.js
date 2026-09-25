@@ -6,17 +6,17 @@ const STORE_URL = 'https://www.vexastore.2bd.net/';
 const GUEST_MODES = [
   { id: 'mtp2026', label: 'MTP2026 Device OS', note: 'MTP2026-owned device shell' },
   { id: 'android', label: 'MTP2026 Android OS', note: 'MTP2026 Android-compatible shell' },
-  { id: 'windows11', label: 'MTP2026 Desktop OS', note: 'MTP2026 desktop shell' },
+  { id: 'desktop', label: 'MTP2026 Desktop OS', note: 'MTP2026 desktop shell' },
   { id: 'gaming', label: 'MTP2026 Gaming OS', note: 'MTP2026 gaming shell' },
 ];
 
 function esc(v) { return String(v ?? '').replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c])); }
-function mode() { const value = document.documentElement.dataset.mtpDeviceMode || localStorage.getItem('mtp2026-default-system-os') || 'android'; return value === 'windows' ? 'windows11' : value === 'ios' ? 'mtp2026' : value; }
+function mode() { const value = document.documentElement.dataset.mtpDeviceMode || localStorage.getItem('mtp2026-default-system-os') || 'android'; return value === 'windows' ? 'desktop' : value === 'ios' ? 'mtp2026' : value; }
 function openUrl(url) { try { window.MTP2026NativePlatform?.nativeOpenExternal?.(url); } catch (_) { window.open(url, '_blank', 'noopener,noreferrer'); } }
 function openAccount() { window.dispatchEvent(new CustomEvent('mtp2026:open-account')); }
 function installed() { return getInstalledVexaApps().slice(0, 24); }
 function applyMode(nextMode) {
-  const normalized = nextMode === 'windows' ? 'windows11' : nextMode === 'ios' ? 'mtp2026' : nextMode;
+  const normalized = nextMode === 'windows' ? 'desktop' : nextMode === 'ios' ? 'mtp2026' : nextMode;
   const apply = window.MTP2026Runtime?.applyDeviceMode;
   if (typeof apply === 'function') return apply(normalized);
   localStorage.setItem('mtp2026-default-system-os', normalized);
