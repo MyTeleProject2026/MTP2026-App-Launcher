@@ -28,14 +28,14 @@ jobs:
 
       - name: Build all MTP2026 ARM64 guest profiles
         env:
-          MTP2026_BUILD_PROFILES: mtp2026 android windows11 gaming
+          MTP2026_BUILD_PROFILES: mtp2026 android desktop gaming
         run: bash os/mtp2026-guest-profiles/build-all.sh
 
       - name: Boot every MTP2026 profile under QEMU
         shell: bash
         run: |
           set -euo pipefail
-          for profile in mtp2026 android windows11 gaming; do
+          for profile in mtp2026 android desktop gaming; do
             image="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-arm64-linux.Image"
             initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
             log="/tmp/mtp2026-${profile}.log"
