@@ -12,7 +12,6 @@ on:
       - 'frontend/src/arm64GuestRuntime.js'
       - 'frontend/src/guestBootController.js'
       - 'frontend/src/guestRuntimeManifest.js'
-      - 'frontend/src/guestRecovery.js'
       - 'native/windows-tauri/**'
       - '.github/workflows/mtp2026-physical-arm64-test-release.yml'
 
