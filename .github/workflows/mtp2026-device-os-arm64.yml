@@ -8,6 +8,7 @@ on:
       - 'os/mtp2026-guest-profiles/**'
       - '.github/workflows/mtp2026-device-os-arm64.yml'
       - 'package.json'
+      - 'tools/build-mtp2026-firmware.sh'
 
 jobs:
   build-and-boot:
