@@ -133,74 +133,283 @@ static void draw_splash(void){
   text(cx-145,cy+130,phase%2?"STARTING SERVICES":"LOADING ARM64 GUEST",1,C_MUTED);
   rect(cx-180,cy+165,360,6,0x273347);rect(cx-180,cy+165,(phase%6+1)*60,6,C_ACCENT);
 }
+
+static uint32_t profile_accent(void){
+  if(strcmp(profile,"android")==0) return 0x63d9a5;
+  if(strcmp(profile,"gaming")==0) return 0xff6b8a;
+  if(strcmp(profile,"desktop")==0) return 0x4cc9f0;
+  return 0x8b7cff;
+}
+static const char *profile_title(void){
+  if(strcmp(profile,"android")==0) return "MTP2026 ANDROID OS";
+  if(strcmp(profile,"gaming")==0) return "MTP2026 GAMING OS";
+  if(strcmp(profile,"desktop")==0) return "MTP2026 DESKTOP OS";
+  return "MTP2026 DEVICE OS";
+}
+static const char *profile_tagline(void){
+  if(strcmp(profile,"android")==0) return "MOBILE • APK HOST • WEBAPPS • GESTURES";
+  if(strcmp(profile,"gaming")==0) return "GAME HUB • CONTROLLER • PERFORMANCE";
+  if(strcmp(profile,"desktop")==0) return "DESKTOP • TASKBAR • KEYBOARD • MOUSE";
+  return "MOBILE • TOUCH • CONTROL CENTER • WEBAPPS";
+}
+static void run_background(const char *cmd){
+  pid_t p=fork(); if(p==0){setsid(); execl("/bin/sh","sh","-c",cmd,(char*)NULL); _exit(127);}
+}
+static void launch_browser(const char *url){ launch_url(url); }
+static void app_action(int id){
+  switch(id){
+    case 0: launch_browser("https://www.vexastore.2bd.net/"); break;
+    case 1: launch_browser(NULL); break;
+    case 2: launch_browser("https://mtp2026-app-launcher.onrender.com/"); break;
+    case 3: launch_browser("https://vexaaccount-management.onrender.com/"); break;
+    case 4: run_background("mkdir -p /mnt/device-storage/{Desktop,Documents,Downloads,Pictures,Music,Games,Apps}; ls -la /mnt/device-storage >/run/mtp2026/files-action.log 2>&1"); break;
+    case 5: run_background("date -u +%Y-%m-%dT%H:%M:%SZ >/run/mtp2026/settings.state"); break;
+    case 6: run_background("ifconfig eth0 up 2>/dev/null || true; udhcpc -q -n -i eth0 >/run/mtp2026/network-action.log 2>&1 || true"); break;
+    case 7: run_background("echo notification-opened >/run/mtp2026/notifications.state"); break;
+    case 8: run_background("sync"); break;
+    case 9: run_background("poweroff -f"); break;
+  }
+}
+static void draw_header(const char *title){
+  uint32_t a=profile_accent();
+  rect(0,0,fb.w,58,rgb(9,18,30)); text(20,17,title,3,a);
+  text(fb.w-285,21,"VEXAACCOUNT  ONLINE",1,C_GOOD);
+}
+static void draw_button(int x,int y,int w,int h,const char *label,int active){
+  uint32_t a=profile_accent();
+  rect(x,y,w,h,active?rgb(35,62,82):rgb(24,34,47));
+  border(x,y,w,h,active?a:rgb(54,67,83));
+  int tw=(int)strlen(label)*6; text(x+(w-tw)/2,y+h/2-4,label,1,C_TEXT);
+}
+static void draw_mobile_nav(void){
+  int y=fb.h-68; uint32_t a=profile_accent();
+  rect(0,y,fb.w,68,rgb(8,17,29));
+  const char *n[]={"HOME","APPS","FILES","SET","ACCOUNT"};
+  for(int i=0;i<5;i++){int x=i*fb.w/5; if(i==page-1)rect(x+8,y+7,fb.w/5-16,54,rgb(25,48,64)); text(x+18,y+23,n[i],1,i==page-1?a:C_TEXT);}
+  if(strcmp(profile,"android")==0){ text(18,y+49,"◀",1,C_MUTED); text(fb.w/2-8,y+49,"●",1,C_MUTED); text(fb.w-28,y+49,"□",1,C_MUTED); }
+  else { text(fb.w-105,y+49,"QUICK",1,C_MUTED); text(fb.w-48,y+49,"⏻",1,C_MUTED); }
+}
+static void draw_desktop_taskbar(void){
+  int y=fb.h-64; rect(0,y,fb.w,64,0x161c27); rect(0,y,fb.w,2,profile_accent());
+  int cx=fb.w/2; const char *n[]={"START","STORE","FILES","WEB","GAME"};
+  for(int i=0;i<5;i++){int x=cx-155+i*50; draw_button(x,y+9,42,43,n[i],0);}
+  text(fb.w-150,y+24,"NET  SOUND",1,C_MUTED);
+}
+static void draw_home(void){
+  uint32_t a=profile_accent();
+  if(strcmp(profile,"desktop")==0){ draw_desktop(); return; }
+  rect(0,0,fb.w,fb.h,rgb(5,10,20)); draw_header(profile_title());
+  text(25,84,profile_tagline(),1,C_MUTED);
+  rect(24,110,fb.w-48,118,rgb(14,29,44)); border(24,110,fb.w-48,118,a);
+  text(45,132,"VEXAACCOUNT",2,a); text(45,166,"CONNECTED CLOUD IDENTITY",2,C_TEXT);
+  text(45,198,"VEXASTORE • WEBAPPS • SYNC READY",1,C_GOOD);
+  int y=250,w=(fb.w-68)/2;
+  const char *b1=strcmp(profile,"gaming")==0?"GAME HUB":"APPLICATIONS";
+  const char *b2=strcmp(profile,"android")==0?"APK HOST":"WEBAPPS";
+  draw_button(24,y,w,64,b1,0); draw_button(44+w,y,w,64,b2,0);
+  draw_button(24,y+82,w,64,"FILES",0); draw_button(44+w,y+82,w,64,"SETTINGS",0);
+  draw_button(24,y+164,w,64,"NOTIFICATIONS",0); draw_button(44+w,y+164,w,64,"POWER",0);
+  if(strcmp(profile,"android")==0 || strcmp(profile,"mtp2026")==0) draw_mobile_nav();
+}
+static void draw_apps(void){
+  uint32_t a=profile_accent(); rect(0,0,fb.w,fb.h,rgb(5,10,20)); draw_header("APPLICATIONS");
+  text(24,83,strcmp(profile,"gaming")==0?"GAME HUB":"MTP2026 APPLICATION CENTER",2,C_TEXT);
+  const char *apps[]={"VEXASTORE","BROWSER","WEBAPPS","VEXAACCOUNT",
+                      strcmp(profile,"android")?"FILES":"APK HOST",
+                      "SETTINGS","NETWORK","NOTIFICATIONS"};
+  for(int i=0;i<8;i++){int col=i%2,row=i/2;int x=24+col*((fb.w-68)/2+20),y=112+row*78,w=(fb.w-68)/2;
+    draw_button(x,y,w,62,apps[i],cursor==i);
+  }
+  text(24,fb.h-90,"ENTER / TAP opens the selected service",1,C_MUTED);
+  if(strcmp(profile,"android")==0 || strcmp(profile,"mtp2026")==0) draw_mobile_nav();
+  else if(strcmp(profile,"gaming")==0) draw_desktop_taskbar();
+}
+static void draw_files(void){
+  rect(0,0,fb.w,fb.h,rgb(7,12,20)); draw_header("FILES");
+  text(24,82,"MTP2026 DEVICE STORAGE",2,C_TEXT);
+  const char *dirs[]={"DESKTOP","DOCUMENTS","DOWNLOADS","PICTURES","MUSIC","GAMES","APPS","DEVICE STORAGE"};
+  for(int i=0;i<8;i++){int col=i%2,row=i/2,x=24+col*((fb.w-68)/2+20),y=112+row*72,w=(fb.w-68)/2;
+    draw_button(x,y,w,56,dirs[i],cursor==i);
+  }
+  if(strcmp(profile,"desktop")==0) draw_desktop_taskbar(); else draw_mobile_nav();
+}
+static void draw_settings_page(void){
+  rect(0,0,fb.w,fb.h,rgb(7,12,20)); draw_header("SETTINGS");
+  const char *items[]={"DISPLAY","ORIENTATION","NETWORK","SOUND","NOTIFICATIONS","ACCOUNT","STORAGE","POWER"};
+  for(int i=0;i<8;i++){int col=i%2,row=i/2,x=24+col*((fb.w-68)/2+20),y=84+row*72,w=(fb.w-68)/2;
+    draw_button(x,y,w,56,items[i],cursor==i);
+  }
+  int y=382; text(25,y,"PROFILE",1,C_MUTED); text(100,y,profile_title(),1,C_TEXT);
+  text(25,y+25,"ARCHITECTURE",1,C_MUTED); text(100,y+25,"ARM64 / QEMU VIRT",1,C_TEXT);
+  text(25,y+50,"IDENTITY",1,C_MUTED); text(100,y+50,"VEXAACCOUNT",1,C_TEXT);
+  draw_mobile_nav();
+}
+static void draw_network(void){
+  rect(0,0,fb.w,fb.h,rgb(6,13,22)); draw_header("NETWORK");
+  text(24,86,"VIRTIO NETWORK",3,profile_accent());
+  text(24,130,"INTERFACE",1,C_MUTED); text(140,130,"eth0",2,C_TEXT);
+  text(24,164,"DHCP",1,C_MUTED); text(140,164,"USER NETWORK",2,C_TEXT);
+  text(24,198,"STATUS",1,C_MUTED); text(140,198,"PRESS ENTER TO REFRESH",1,C_GOOD);
+  draw_button(24,235,fb.w-48,58,"CONNECT / REFRESH NETWORK",1);
+  draw_button(24,305,fb.w-48,58,"OPEN VEXAACCOUNT BROWSER",0);
+  draw_button(24,375,fb.w-48,58,"BACK TO HOME",0);
+}
+static void draw_notifications(void){
+  rect(0,0,fb.w,fb.h,rgb(7,12,20)); draw_header("NOTIFICATIONS");
+  text(24,85,"MTP2026 NOTIFICATION CENTER",2,C_TEXT);
+  rect(24,112,fb.w-48,70,rgb(18,31,43)); text(42,132,"SYSTEM",1,profile_accent());
+  text(42,157,"Guest services are running",1,C_TEXT);
+  rect(24,194,fb.w-48,70,rgb(18,31,43)); text(42,214,"ACCOUNT",1,profile_accent());
+  text(42,239,"VexaAccount identity is available",1,C_TEXT);
+  rect(24,276,fb.w-48,70,rgb(18,31,43)); text(42,296,"STORE",1,profile_accent());
+  text(42,321,"VexaStore application catalog ready",1,C_TEXT);
+  draw_button(24,365,fb.w-48,58,"CLEAR / ACKNOWLEDGE",0);
+}
+static void draw_account(void){
+  rect(0,0,fb.w,fb.h,rgb(6,13,22)); draw_header("VEXAACCOUNT");
+  rect(24,90,fb.w-48,118,rgb(16,31,44)); border(24,90,fb.w-48,118,profile_accent());
+  text(44,112,"VEXAACCOUNT",3,profile_accent()); text(44,153,"IDENTITY AUTHORITY",2,C_TEXT);
+  text(44,184,"SESSION: LAUNCHER-MANAGED",1,C_GOOD);
+  draw_button(24,235,fb.w-48,60,"OPEN ACCOUNT",1);
+  draw_button(24,305,fb.w-48,60,"REFRESH SESSION",0);
+  draw_button(24,375,fb.w-48,60,"BACK TO HOME",0);
+}
+static void draw_power(void){
+  rect(0,0,fb.w,fb.h,rgb(6,13,22)); draw_header("POWER");
+  text(24,90,"MTP2026 POWER CONTROLS",2,C_TEXT);
+  draw_button(24,135,fb.w-48,65,"REBOOT GUEST",0);
+  draw_button(24,215,fb.w-48,65,"POWER OFF GUEST",0);
+  draw_button(24,295,fb.w-48,65,"SYNC STORAGE",0);
+  draw_button(24,375,fb.w-48,65,"BACK TO HOME",0);
+}
 static void draw(void){
   if(!fb.mem)return;
   if(strcmp(profile,"desktop")==0){
-    if(desktop_view==0)draw_lock(); else if(desktop_view==1)draw_desktop(); else if(desktop_view==2)draw_start(); else if(desktop_view==3)draw_explorer(); else draw_settings();
+    if(desktop_view==0)draw_lock();
+    else if(desktop_view==1)draw_desktop();
+    else if(desktop_view==2)draw_start();
+    else if(desktop_view==3)draw_explorer();
+    else draw_settings();
     return;
   }
-  rect(0,0,fb.w,fb.h,rgb(5,10,20));int top=56,side=190;const char *pages[]={"Home","Apps","Files","Settings","Network","Notifications","Account","Power"};
-  rect(0,0,fb.w,top,rgb(9,24,43));text(22,18,"MTP2026",4,C_ACCENT);text(250,23,profile_name,2,C_TEXT);
-  rect(0,top,side,fb.h-top,rgb(8,18,31));
-  for(int i=0;i<8;i++){int y=top+10+i*58;rect(10,y,side-20,48,i==page?rgb(25,70,105):rgb(13,31,50));text(25,y+17,pages[i],2,C_TEXT);}
-  int x=side+25;text(x,top+25,pages[page],4,C_ACCENT);text(x,top+85,"MTP2026 GUEST SYSTEM",3,C_TEXT);text(x,top+135,"VEXAACCOUNT  •  VEXASTORE",2,C_MUTED);
-  text(x,top+205,"PRESS ENTER TO OPEN SELECTED SECTION",2,C_GOOD);
-  rect(0,fb.h-34,fb.w,34,rgb(9,24,43));text(18,fb.h-25,"READY",2,C_GOOD);text(fb.w-260,fb.h-25,"QEMU ARM64 GUEST",2,C_MUTED);
+  switch(page){
+    case 0: draw_home(); break;
+    case 1: draw_apps(); break;
+    case 2: draw_files(); break;
+    case 3: draw_settings_page(); break;
+    case 4: draw_network(); break;
+    case 5: draw_notifications(); break;
+    case 6: draw_account(); break;
+    default: draw_power(); break;
+  }
 }
-static void desktop_action(int idx){
-  if(desktop_view==2){
-    if(idx==0)launch_url("https://www.vexastore.2bd.net/");
-    else if(idx==1)launch_url(NULL);
-    else if(idx==2)desktop_view=3;
-    else if(idx==3)desktop_view=4;
-    else if(idx==4)action("ifconfig eth0 up 2>/dev/null || true; udhcpc -q -n -i eth0 2>/run/mtp2026/network-action.log || true");
-    else if(idx==5)launch_url("https://vexaaccount-management.onrender.com/");
-    else if(idx==6)action("poweroff -f");
-    else if(idx==7)launch_url("https://mtp2026-app-launcher.onrender.com/");
-  } else if(desktop_view==3){
+static int page_from_touch(void){
+  int navh=68;
+  if((strcmp(profile,"android")==0 || strcmp(profile,"mtp2026")==0) && pointer_y>=fb.h-navh){
+    int i=pointer_x/(fb.w/5); return i==0?0:i==1?1:i==2?2:i==3?3:6;
+  }
+  return -1;
+}
+static int button_from_touch(int p){
+  if(p==1 || p==2){
+    int y0=(p==1)?112:112, step=78;
+    if(pointer_y>=y0 && pointer_y<y0+4*step+62){
+      int row=(pointer_y-y0)/step,col=pointer_x<fb.w/2?0:1;
+      int id=row*2+col; return id<8?id:-1;
+    }
+  }
+  if(p==3){int y0=84,step=72;if(pointer_y>=y0&&pointer_y<y0+4*step+56){int row=(pointer_y-y0)/step,col=pointer_x<fb.w/2?0:1;return row*2+col;}}
+  return -1;
+}
+static void guest_action(int id){
+  if(page==1){ app_action(id); return; }
+  if(page==2){
     const char *dirs[]={"Desktop","Documents","Downloads","Pictures","Music","Games","Apps","."};
-    char cmd[256];snprintf(cmd,sizeof(cmd),"mkdir -p /mnt/device-storage/%s >/dev/null 2>&1; ls -la /mnt/device-storage/%s > /run/mtp2026/files-action.log 2>&1",dirs[idx%8],dirs[idx%8]);action(cmd);
-  } else if(desktop_view==4){
-    if(idx==2)action("ifconfig eth0 up 2>/dev/null || true; udhcpc -q -n -i eth0 2>/run/mtp2026/network-action.log || true");
-    else if(idx==5)launch_url("https://vexaaccount-management.onrender.com/");
-    else if(idx==0)action("printf 'display=auto\\n' >> /run/mtp2026/settings.state");
-    else action("date -u +%Y-%m-%dT%H:%M:%SZ > /run/mtp2026/settings.state");
+    if(id>=0&&id<8){char cmd[320];snprintf(cmd,sizeof(cmd),"mkdir -p /mnt/device-storage/%s; ls -la /mnt/device-storage/%s >/run/mtp2026/files-action.log 2>&1",dirs[id],dirs[id]);run_background(cmd);}
+    return;
+  }
+  if(page==3){
+    if(id==0)run_background("printf 'display=auto\\n' >/run/mtp2026/settings.state");
+    else if(id==1)run_background("printf 'orientation=landscape\\n' >/run/mtp2026/settings.state");
+    else if(id==2)run_background("ifconfig eth0 up 2>/dev/null || true; udhcpc -q -n -i eth0 >/run/mtp2026/network-action.log 2>&1 || true");
+    else if(id==4)run_background("printf 'notifications=enabled\\n' >/run/mtp2026/settings.state");
+    else if(id==5)launch_browser("https://vexaaccount-management.onrender.com/");
+    else if(id==6)run_background("df -h >/run/mtp2026/storage.state");
+    else if(id==7)page=7;
+    return;
+  }
+  if(page==4){
+    if(id==0)run_background("ifconfig eth0 up 2>/dev/null || true; udhcpc -q -n -i eth0 >/run/mtp2026/network-action.log 2>&1 || true");
+    else if(pointer_y>295)launch_browser("https://vexaaccount-management.onrender.com/");
+    return;
+  }
+  if(page==5){run_background("printf 'acknowledged=%s\\n' \"$(date -u +%FT%TZ)\" >/run/mtp2026/notifications.state");return;}
+  if(page==6){if(id==0)launch_browser("https://vexaaccount-management.onrender.com/");else if(id==1)launch_browser("https://mtp2026-app-launcher.onrender.com/");return;}
+  if(page==7){
+    if(id==0)run_background("reboot -f");
+    else if(id==1)run_background("poweroff -f");
+    else if(id==2)run_background("sync");
+    else page=0;
   }
 }
 static void input_loop(void){
-  DIR*d=opendir("/dev/input");if(!d)return;char path[256];struct dirent*e;int fds[16],n=0;
-  while((e=readdir(d))&&n<16){if(strncmp(e->d_name,"event",5))continue;snprintf(path,sizeof(path),"/dev/input/%s",e->d_name);int fd=open(path,O_RDONLY|O_NONBLOCK);if(fd>=0)fds[n++]=fd;}closedir(d);
-  struct input_event ev;
+  DIR*d=opendir("/dev/input"); if(!d)return;
+  char path[256]; struct dirent*e; int fds[32],n=0;
+  while((e=readdir(d))&&n<32){
+    if(strncmp(e->d_name,"event",5))continue;
+    snprintf(path,sizeof(path),"/dev/input/%s",e->d_name);
+    int fd=open(path,O_RDONLY|O_NONBLOCK); if(fd>=0)fds[n++]=fd;
+  }
+  closedir(d); struct input_event ev;
   while(running){
     if(strcmp(profile,"desktop")==0 && desktop_view==0 && time(NULL)-boot_time<3){draw_splash();usleep(150000);continue;}
     for(int i=0;i<n;i++)while(read(fds[i],&ev,sizeof(ev))==(ssize_t)sizeof(ev)){
-      if(ev.type==EV_ABS){if(ev.code==ABS_X)pointer_x=(int)((long long)ev.value*fb.w/32767);else if(ev.code==ABS_Y)pointer_y=(int)((long long)ev.value*fb.h/32767);}
-      if(ev.type!=EV_KEY||ev.value!=1)continue;
-      if(strcmp(profile,"desktop")==0){
-        if(desktop_view==0){if(ev.code==KEY_ENTER||ev.code==KEY_SPACE||ev.code==BTN_A){desktop_view=1;cursor=0;draw();}continue;}
-        if(ev.code==KEY_ESC){desktop_view=1;cursor=0;draw();continue;}
-        if(ev.code==KEY_LEFT||ev.code==KEY_UP){cursor=(cursor+((desktop_view==2)?7:((desktop_view==3)?7:8)))%((desktop_view==2)?8:((desktop_view==3)?8:9));draw();continue;}
-        if(ev.code==KEY_RIGHT||ev.code==KEY_DOWN){cursor=(cursor+1)%((desktop_view==2)?8:((desktop_view==3)?8:9));draw();continue;}
-        if(ev.code==KEY_ENTER||ev.code==KEY_SPACE||ev.code==BTN_A){desktop_action(cursor);draw();continue;}
-        if(ev.code==BTN_LEFT){
-          int ty=fb.h-64;
-          if(pointer_y>=ty){int cx=fb.w/2;if(pointer_x>=cx-155&&pointer_x<cx-113){desktop_view=2;cursor=0;draw();continue;}if(pointer_x>=cx-105&&pointer_x<cx-63){desktop_view=2;cursor=3;draw();continue;}if(pointer_x>=cx-55&&pointer_x<cx-13){desktop_view=3;cursor=0;draw();continue;}if(pointer_x>=cx-5&&pointer_x<cx+37){launch_url(NULL);continue;}}
-          if(desktop_view==1 && pointer_x<110 && pointer_y>=72 && pointer_y<520){int idx=(pointer_y-72)/90;if(idx==0)desktop_view=3;else if(idx==1)launch_url("https://www.vexastore.2bd.net/");else if(idx==2)launch_url(NULL);else if(idx==3)desktop_view=3;draw();}
-          else if(desktop_view==2 && pointer_x>0){int x=(fb.w-620)/2,y=fb.h-64-470-20;if(pointer_x>=x+30&&pointer_x<x+590&&pointer_y>=y+160&&pointer_y<y+344){int col=(pointer_x-x-30)/140,row=(pointer_y-y-160)/92;cursor=row*4+col;desktop_action(cursor);draw();}}
-        }
-        continue;
+      if(ev.type==EV_ABS){
+        if(ev.code==ABS_X||ev.code==ABS_MT_POSITION_X)pointer_x=(int)((long long)ev.value*fb.w/32767);
+        else if(ev.code==ABS_Y||ev.code==ABS_MT_POSITION_Y)pointer_y=(int)((long long)ev.value*fb.h/32767);
       }
-      if(ev.code==KEY_ESC){page=0;cursor=0;draw();continue;}
-      if(ev.code==KEY_RIGHT||ev.code==KEY_DOWN){page=(page+1)%8;draw();continue;}
-      if(ev.code==KEY_LEFT||ev.code==KEY_UP){page=(page+7)%8;draw();continue;}
-      if(ev.code==KEY_ENTER||ev.code==KEY_SPACE||ev.code==BTN_A){
-        if(page==1)launch_url(cursor==0?"https://www.vexastore.2bd.net/":NULL);
-        else if(page==2){action("mkdir -p /mnt/device-storage >/dev/null 2>&1; ls -la /mnt/device-storage > /run/mtp2026/files-action.log 2>&1");}
-        else if(page==3)action("date -u +%Y-%m-%dT%H:%M:%SZ > /run/mtp2026/settings.state");
-        else if(page==4)action("ifconfig eth0 up 2>/dev/null || true; udhcpc -q -n -i eth0 2>/run/mtp2026/network-action.log || true");
-        else if(page==6)launch_url("https://vexaaccount-management.onrender.com/");
-        else if(page==7)action("poweroff -f");
-        draw();
+      if(ev.type==EV_KEY && ev.value==1){
+        if(strcmp(profile,"desktop")==0){
+          if(desktop_view==0){if(ev.code==KEY_ENTER||ev.code==KEY_SPACE||ev.code==BTN_A||ev.code==BTN_LEFT){desktop_view=1;cursor=0;draw();}continue;}
+          if(ev.code==KEY_ESC){desktop_view=1;cursor=0;draw();continue;}
+          if(ev.code==KEY_LEFT||ev.code==KEY_UP){cursor=(cursor+((desktop_view==2)?7:((desktop_view==3)?7:8)))%((desktop_view==2)?8:((desktop_view==3)?8:9));draw();continue;}
+          if(ev.code==KEY_RIGHT||ev.code==KEY_DOWN){cursor=(cursor+1)%((desktop_view==2)?8:((desktop_view==3)?8:9));draw();continue;}
+          if(ev.code==KEY_ENTER||ev.code==KEY_SPACE||ev.code==BTN_A){desktop_action(cursor);draw();continue;}
+          if(ev.code==BTN_LEFT){
+            int ty=fb.h-64;
+            if(pointer_y>=ty){int cx=fb.w/2;
+              if(pointer_x>=cx-155&&pointer_x<cx-113){desktop_view=2;cursor=0;draw();continue;}
+              if(pointer_x>=cx-105&&pointer_x<cx-63){launch_url("https://www.vexastore.2bd.net/");continue;}
+              if(pointer_x>=cx-55&&pointer_x<cx-13){desktop_view=3;cursor=0;draw();continue;}
+              if(pointer_x>=cx-5&&pointer_x<cx+37){launch_url(NULL);continue;}
+            }
+            if(desktop_view==1&&pointer_x<115&&pointer_y>=72&&pointer_y<520){
+              int idx=(pointer_y-72)/90;if(idx==0)desktop_view=3;else if(idx==1)launch_url("https://www.vexastore.2bd.net/");else if(idx==2)launch_url(NULL);else if(idx==3)desktop_view=3;draw();
+            } else if(desktop_view==2&&pointer_x>0){
+              int x=(fb.w-620)/2,y=fb.h-64-470-20;
+              if(pointer_x>=x+30&&pointer_x<x+590&&pointer_y>=y+160&&pointer_y<y+344){int col=(pointer_x-x-30)/140,row=(pointer_y-y-160)/92;cursor=row*4+col;desktop_action(cursor);draw();}
+            }
+          }
+          continue;
+        }
+        if(ev.code==KEY_ESC){page=0;cursor=0;draw();continue;}
+        if(ev.code==KEY_RIGHT||ev.code==KEY_DOWN){cursor=(cursor+1)%8;draw();continue;}
+        if(ev.code==KEY_LEFT||ev.code==KEY_UP){cursor=(cursor+7)%8;draw();continue;}
+        if(ev.code==KEY_ENTER||ev.code==KEY_SPACE||ev.code==BTN_A){
+          if(page==0){page=(cursor%7)+1;cursor=0;}
+          else guest_action(cursor);
+          draw();continue;
+        }
+        if(ev.code==BTN_LEFT){
+          int np=page_from_touch(); if(np>=0){page=np;cursor=0;draw();continue;}
+          int id=button_from_touch(page); if(id>=0){cursor=id;guest_action(id);draw();continue;}
+          if(page==0){
+            int col=pointer_x<fb.w/2?0:1,row=(pointer_y-250)/82;
+            if(pointer_y>=250&&row>=0&&row<3){int id=row*2+col;page=(id==0)?1:(id==1)?1:(id==2)?2:(id==3)?3:(id==4)?5:7;cursor=0;draw();}
+          } else if(page==4 && pointer_y>=235&&pointer_y<293){guest_action(0);draw();}
+          else if(page==6 && pointer_y>=235&&pointer_y<300){launch_browser("https://vexaaccount-management.onrender.com/");}
+          else if(page==7){int id=(pointer_y-135)/80;if(id>=0&&id<4){guest_action(id);draw();}}
+        }
       }
     }
     usleep(12000);
