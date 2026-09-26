@@ -121,7 +121,7 @@ static void run_selected(void){
   } else if(page==4){
     action("ifconfig eth0 up 2>/dev/null || true; udhcpc -q -n -i eth0 2>/run/mtp2026/network-action.log || true; cat /proc/net/dev > /run/mtp2026/network.state");
   } else if(page==5){
-    service_toggle("notifications");action("printf '%s\\n' "ack=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> /run/mtp2026/notifications.state");
+    service_toggle("notifications");action("date -u +%Y-%m-%dT%H:%M:%SZ > /run/mtp2026/notifications.state");
   } else if(page==6) launch_url("https://vexaaccount-management.onrender.com/");
   else if(page==7){ if(cursor%2==0) action("reboot -f"); else action("poweroff -f"); }
   draw();
