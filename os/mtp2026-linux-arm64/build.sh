@@ -251,18 +251,36 @@ chmod +x "$ROOTFS/usr/bin/mtp2026-daemon"
 cat > "$ROOTFS/usr/bin/mtp2026-service" <<'EOF'
 #!/bin/sh
 set -eu
-SERVICE="${2:-}"
 ACTION="${1:-status}"
+SERVICE="${2:-}"
 case "$SERVICE" in
-  account|store|webapp|notifications|settings|files|device-os)
-    case "$ACTION" in
-      status) echo "mtp2026-$SERVICE: active (launcher-managed)" ;;
-      start|restart) echo "mtp2026-$SERVICE: launcher-managed; request accepted" ;;
-      stop) echo "mtp2026-$SERVICE: launcher-managed; stop requested" ;;
-      *) echo "usage: mtp2026-service {status|start|stop|restart} <service>" >&2; exit 2 ;;
-    esac ;;
-    ;;
+  account|store|webapp|notifications|settings|files|device-os) ;;
   *) echo "Unknown MTP2026 service: $SERVICE" >&2; exit 2 ;;
+esac
+STATE="/run/mtp2026/$SERVICE"
+PID="/run/mtp2026/$SERVICE.pid"
+LOG="/run/mtp2026/$SERVICE.log"
+start_service() {
+  if [ -f "$PID" ] && kill -0 "$(cat "$PID" 2>/dev/null)" 2>/dev/null; then
+    printf 'mtp2026-%s: active\\n' "$SERVICE"; return 0
+  fi
+  /usr/bin/mtp2026-daemon "$SERVICE" >>"$LOG" 2>&1 &
+  echo "$!" > "$PID"
+  printf 'active\\n' > "$STATE"
+  printf 'mtp2026-%s: active\\n' "$SERVICE"
+}
+stop_service() {
+  if [ -f "$PID" ]; then kill "$(cat "$PID" 2>/dev/null)" 2>/dev/null || true; fi
+  rm -f "$PID" "$STATE"
+  printf 'mtp2026-%s: inactive\\n' "$SERVICE"
+}
+case "$ACTION" in
+  status)
+    if [ -f "$PID" ] && kill -0 "$(cat "$PID" 2>/dev/null)" 2>/dev/null; then printf 'mtp2026-%s: active\\n' "$SERVICE"; else printf 'mtp2026-%s: inactive\\n' "$SERVICE"; fi ;;
+  start) start_service ;;
+  restart) stop_service >/dev/null; start_service ;;
+  stop) stop_service ;;
+  *) echo "usage: mtp2026-service {status|start|stop|restart} <service>" >&2; exit 2 ;;
 esac
 EOF
 chmod +x "$ROOTFS/usr/bin/mtp2026-service"
