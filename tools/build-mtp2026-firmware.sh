@@ -43,14 +43,13 @@ if [ -x "$UBOOT/scripts/config" ]; then
   "$UBOOT/scripts/config" --enable CONFIG_VIRTIO_BLK || true
   make -C "$UBOOT" olddefconfig
 
-  # qemu_arm64 firmware does not need UEFI capsule tooling. Some U-Boot
-  # releases still schedule mkeficapsule despite the Kconfig symbol being
-  # disabled; remove every host-tool registration before compiling.
-  sed -i '/mkeficapsule/d' "$UBOOT/tools/Makefile"
-  sed -i '/mkeficapsule/d' "$UBOOT/tools/Makefile.lib" 2>/dev/null || true
+  # qemu_arm64 firmware does not require UEFI capsule tooling. Keep the
+  # generated U-Boot makefiles intact. Deleting matching lines from the
+  # tools Makefile can leave continuation recipes without a target and
+  # produces "recipe commences before first target" on U-Boot 2025.01.
   grep -Eq '^CONFIG_BOOTSTD_FULL=y$' "$UBOOT/.config"
   grep -Eq '^CONFIG_BOOTMETH_EXTLINUX=y$' "$UBOOT/.config"
-  ! grep -qi 'mkeficapsule' "$UBOOT/tools/Makefile"
+  ! grep -Eq '^CONFIG_TOOLS_MKEFICAPSULE=y$' "$UBOOT/.config"
 fi
 
 make -C "$UBOOT" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE" CONFIG_TOOLS_MKEFICAPSULE=n
