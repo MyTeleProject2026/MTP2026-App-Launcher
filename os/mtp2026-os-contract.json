@@ -55,7 +55,6 @@
       "desktop": "host-package-installer",
       "gaming": "host-package-installer",
       "mtp2026": "webapp-registry",
-      "iosAlias": "mtp2026"
     }
   },
   "storage": {
