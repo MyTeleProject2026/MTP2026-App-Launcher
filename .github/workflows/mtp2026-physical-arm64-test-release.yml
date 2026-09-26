@@ -96,12 +96,15 @@ jobs:
           for profile in mtp2026 android desktop gaming; do
             initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
             test -s "$initrd"
-            listing="$(gzip -dc "$initrd" | cpio -it 2>/dev/null)"
+            listing_file="$(mktemp)"
+            gzip -dc "$initrd" | cpio -it >"$listing_file" 2>/dev/null
+            listing="$(cat "$listing_file")"
             check_entry() {
               local path="$1"
-              if ! printf '%s\n' "$listing" | grep -Fqx "./$path" && ! printf '%s\n' "$listing" | grep -Fqx "$path"; then
+              if ! grep -Fqx "./$path" "$listing_file" && ! grep -Fqx "$path" "$listing_file"; then
                 echo "::error::Missing initramfs entry '$path' for $profile"
                 printf '%s\n' "$listing" | grep -E 'chromium|mtp2026/(browser|profile|capabilities)|mtp2026-ui|mtp2026-daemon' | head -80 || true
+                rm -f "$listing_file"
                 exit 1
               fi
             }
@@ -112,6 +115,7 @@ jobs:
             check_entry "etc/mtp2026/browser.json"
             check_entry "etc/mtp2026/browser-runtime"
             check_entry "usr/lib/chromium/chromium"
+            rm -f "$listing_file"
             echo "Embedded ARM64 browser/GUI runtime verified for $profile"
           done
 
