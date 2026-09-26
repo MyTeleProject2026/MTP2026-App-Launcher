@@ -57,6 +57,33 @@ jobs:
             if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then exit "$code"; fi
           done
 
+      - name: Boot every profile through MTP2026 firmware
+        shell: bash
+        run: |
+          set -euo pipefail
+          for profile in mtp2026 android desktop gaming; do
+            artifact="os/mtp2026-linux-arm64/out/artifacts/${profile}"
+            firmware="${artifact}/mtp2026-arm64-boot-firmware.bin"
+            bootdisk="${artifact}/mtp2026-${profile}-boot-disk.img"
+            data="/tmp/mtp2026-${profile}-data.qcow2"
+            log="/tmp/mtp2026-${profile}-firmware.log"
+            qemu-img create -f qcow2 "$data" 1G >/dev/null
+            echo "=== Firmware booting ${profile} ==="
+            set +e
+            timeout 45s qemu-system-aarch64 -M virt -cpu cortex-a72 -m 1024 -nographic \
+              -bios "$firmware" \
+              -drive "if=none,id=bootdisk,format=raw,file=$bootdisk" -device virtio-blk-pci,drive=bootdisk \
+              -drive "if=none,id=datadisk,format=qcow2,file=$data" -device virtio-blk-pci,drive=datadisk \
+              -device virtio-net-pci,netdev=net0 -netdev user,id=net0 \
+              > "$log" 2>&1
+            code=$?
+            set -e
+            cat "$log"
+            grep -q 'MTP2026 GUEST SYSTEM' "$log"
+            grep -q "MTP2026\\[${profile}\\]>" "$log"
+            if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then exit "$code"; fi
+          done
+
       - name: Publish build manifest
         run: |
           cp os/mtp2026-linux-arm64/out/artifacts/mtp2026-arm64-guest-manifest.json os/mtp2026-linux-arm64/out/artifacts/guest-manifest.json
