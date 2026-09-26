@@ -2,8 +2,7 @@
 
 MTP2026 now has two complementary real operating-system tracks:
 
-1. **`os/kernel`** — the experimental MTP2026-owned bare-metal kernel track. This is where MTP2026 can eventually own its own kernel, scheduler, memory manager, drivers and native system ABI.
-2. **`os/mtp2026-linux-arm64`** — the production-oriented ARM64 operating-system track. It boots a real upstream ARM64 Linux kernel with a MTP2026-owned userspace/initramfs and is the recommended path toward a usable daily-driver MTP2026 Device OS.
+1. **`os/mtp2026-linux-arm64`**** — the production-oriented ARM64 operating-system track. It boots a real upstream ARM64 Linux kernel with a MTP2026-owned userspace/initramfs and is the recommended path toward a usable daily-driver MTP2026 Device OS.
 
 The existing React/Vite launcher and native shells remain the control-plane/application-development layer. They are not falsely classified as an operating-system kernel.
 
@@ -36,20 +35,6 @@ The ARM64 OS builder uses the public upstream Linux and BusyBox GitHub repositor
 
 ## Experimental MTP2026-owned kernel track
 
-The Rust kernel under `os/kernel` remains the long-term research path toward a MTP2026-owned kernel. The current milestone provides:
-
-- Rust `no_std` / `no_main` kernel code;
-- bootloader-compatible kernel entry;
-- BIOS and UEFI image generation;
-- bootloader memory-map/framebuffer access;
-- serial output;
-- physical frame allocation;
-- interrupt setup;
-- scheduler/thread primitives;
-- timer and syscall ABI foundations;
-- QEMU debug-exit verification.
-
-The ARM64 kernel under `os/arm64-kernel` is the low-level AArch64 boot-contract track. It currently validates exception vectors, timer, GIC contract and ARM64 boot information.
 
 ## Full MTP2026 Device OS roadmap
 
