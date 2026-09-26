@@ -29,6 +29,12 @@ for arg in $(cat /proc/cmdline 2>/dev/null || true); do
   case "$arg" in mtp2026.data_device=*) MTP2026_DATA_DEVICE="${arg#mtp2026.data_device=}";; esac
 done
 echo "$MTP2026_DATA_DEVICE" > /run/mtp2026/data-device
+# Bring up the VirtIO network when available. The guest remains bootable without DHCP.
+if command -v ifconfig >/dev/null 2>&1 && [ -d /sys/class/net/eth0 ]; then
+  ifconfig eth0 up 2>/dev/null || true
+  if command -v udhcpc >/dev/null 2>&1; then udhcpc -q -n -i eth0 >/run/mtp2026/dhcp.log 2>&1 || true; fi
+fi
+printf 'network-ready=%s\n' "$(cat /proc/net/dev 2>/dev/null | grep -c 'eth0:' || true)" > /run/mtp2026/network.state
 # Read the non-secret VexaAccount identity metadata supplied by the native host
 # through QEMU fw_cfg. Provider access/refresh tokens are never placed here.
 IDENTITY_FWCFG="/sys/firmware/qemu_fw_cfg/by_name/opt/mtp2026/identity/raw"
