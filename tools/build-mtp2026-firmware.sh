@@ -11,8 +11,13 @@ if [ -s "$OUT/mtp2026-arm64-boot-firmware.bin" ]; then exit 0; fi
 # U-Boot qemu_arm64 builds host tooling as part of the normal target build.
 # Fail early with a useful diagnostic when the host GnuTLS development files
 # are missing instead of producing a late mkeficapsule compiler failure.
+if command -v pkg-config >/dev/null 2>&1 && ! pkg-config --exists gnutls; then
+  export PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig:${PKG_CONFIG_PATH:-}"
+fi
 if ! command -v pkg-config >/dev/null 2>&1 || ! pkg-config --exists gnutls; then
   echo "MTP2026 firmware build requires libgnutls28-dev (gnutls.pc)." >&2
+  pkg-config --variable pc_path pkg-config 2>/dev/null || true
+  find /usr -name gnutls.pc -print 2>/dev/null | head -20 || true
   exit 1
 fi
 
