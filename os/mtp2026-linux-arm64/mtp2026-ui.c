@@ -200,16 +200,35 @@ static void draw_home(void){
   if(strcmp(profile,"desktop")==0){ draw_desktop(); return; }
   rect(0,0,fb.w,fb.h,rgb(5,10,20)); draw_header(profile_title());
   text(25,84,profile_tagline(),1,C_MUTED);
-  rect(24,110,fb.w-48,118,rgb(14,29,44)); border(24,110,fb.w-48,118,a);
-  text(45,132,"VEXAACCOUNT",2,a); text(45,166,"CONNECTED CLOUD IDENTITY",2,C_TEXT);
-  text(45,198,"VEXASTORE • WEBAPPS • SYNC READY",1,C_GOOD);
-  int y=250,w=(fb.w-68)/2;
-  const char *b1=strcmp(profile,"gaming")==0?"GAME HUB":"APPLICATIONS";
-  const char *b2=strcmp(profile,"android")==0?"APK HOST":"WEBAPPS";
-  draw_button(24,y,w,64,b1,0); draw_button(44+w,y,w,64,b2,0);
-  draw_button(24,y+82,w,64,"FILES",0); draw_button(44+w,y+82,w,64,"SETTINGS",0);
-  draw_button(24,y+164,w,64,"NOTIFICATIONS",0); draw_button(44+w,y+164,w,64,"POWER",0);
-  if(strcmp(profile,"android")==0 || strcmp(profile,"mtp2026")==0) draw_mobile_nav();
+  if(strcmp(profile,"gaming")==0){
+    rect(24,108,fb.w-48,112,rgb(35,16,30)); border(24,108,fb.w-48,112,a);
+    text(44,130,"GAME HUB",3,a); text(44,166,"CONTROLLER READY • PERFORMANCE MODE",1,C_TEXT);
+    text(44,190,"VEXAACCOUNT • VEXASTORE • GAME LIBRARY",1,C_GOOD);
+    int w=(fb.w-68)/2;
+    draw_button(24,238,w,60,"GAME LIBRARY",1); draw_button(44+w,238,w,60,"VEXASTORE",0);
+    draw_button(24,314,w,60,"CONTROLLER",0); draw_button(44+w,314,w,60,"PERFORMANCE",0);
+    draw_button(24,390,w,60,"NETWORK",0); draw_button(44+w,390,w,60,"POWER",0);
+    draw_desktop_taskbar(); return;
+  }
+  if(strcmp(profile,"android")==0){
+    rect(24,108,fb.w-48,104,rgb(14,34,31)); border(24,108,fb.w-48,104,a);
+    text(44,128,"ANDROID HOME",3,a); text(44,163,"APK HOST • WEBAPPS • GESTURES",1,C_TEXT);
+    text(44,185,"QUICK SETTINGS READY",1,C_GOOD);
+    int w=(fb.w-68)/2;
+    draw_button(24,230,w,58,"VEXASTORE",0); draw_button(44+w,230,w,58,"APK HOST",0);
+    draw_button(24,300,w,58,"BROWSER",0); draw_button(44+w,300,w,58,"WEBAPPS",0);
+    draw_button(24,370,w,58,"QUICK SET",0); draw_button(44+w,370,w,58,"SETTINGS",0);
+    draw_mobile_nav(); return;
+  }
+  /* Device OS: mobile launcher + Control Center/notifications oriented workflow. */
+  rect(24,108,fb.w-48,104,rgb(25,22,47)); border(24,108,fb.w-48,104,a);
+  text(44,128,"DEVICE HOME",3,a); text(44,163,"CONTROL CENTER • NOTIFICATIONS • WEBAPPS",1,C_TEXT);
+  text(44,185,"VEXAACCOUNT SYNC READY",1,C_GOOD);
+  int w=(fb.w-68)/2;
+  draw_button(24,230,w,58,"VEXASTORE",0); draw_button(44+w,230,w,58,"WEBAPPS",0);
+  draw_button(24,300,w,58,"BROWSER",0); draw_button(44+w,300,w,58,"FILES",0);
+  draw_button(24,370,w,58,"CONTROL",0); draw_button(44+w,370,w,58,"SETTINGS",0);
+  draw_mobile_nav();
 }
 static void draw_apps(void){
   uint32_t a=profile_accent(); rect(0,0,fb.w,fb.h,rgb(5,10,20)); draw_header("APPLICATIONS");
