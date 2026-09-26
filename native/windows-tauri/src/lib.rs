@@ -113,7 +113,7 @@ async fn sync_guest_identity(app: tauri::AppHandle, id: String, subject: String,
 }
 
 #[tauri::command]
-async fn boot_guest(app: tauri::AppHandle, id: String, bundle_url: String, bundle_sha256: String, processes: tauri::State<'_, GuestProcesses>) -> Result<serde_json::Value, String> {
+async fn boot_guest_command(app: tauri::AppHandle, id: String, bundle_url: String, bundle_sha256: String, processes: tauri::State<'_, GuestProcesses>) -> Result<serde_json::Value, String> {
     let kernel_name = profile_name(&id)?; let initrd_name = initrd_name(&id)?; let dir = guest_root(&app, &id)?; let bundle = dir.join("guest.tar.gz");
     { let mut running = processes.0.lock().map_err(|_| "GUEST_PROCESS_LOCK_FAILED")?; if let Some(mut child) = running.remove(&id) { let _ = child.kill(); } }
     if !bundle.exists() { download_https(&bundle_url, &bundle)?; }
@@ -179,6 +179,6 @@ async fn notify_native(app: tauri::AppHandle, title: String, body: String) -> Re
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() { tauri::Builder::default().manage(GuestProcesses(Mutex::new(HashMap::new())))
     .plugin(tauri_plugin_fs::init()).plugin(tauri_plugin_notification::init()).plugin(tauri_plugin_shell::init())
-    .invoke_handler(tauri::generate_handler![native_capabilities,set_device_mode,sync_guest_identity,boot_guest,stop_guest,guest_runtime_status,enter_fullscreen,exit_fullscreen,open_external,install_package,notify_native])
+    .invoke_handler(tauri::generate_handler![native_capabilities,set_device_mode,sync_guest_identity,boot_guest_command,stop_guest,guest_runtime_status,enter_fullscreen,exit_fullscreen,open_external,install_package,notify_native])
     .on_window_event(|window, event| { if let WindowEvent::CloseRequested { .. } = event { let _ = window.emit("mtp2026:window-closing", ()); } })
     .run(tauri::generate_context!()).expect("error while running MTP2026 Windows shell"); }
