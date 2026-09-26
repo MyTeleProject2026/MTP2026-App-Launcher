@@ -8,16 +8,18 @@ if [ -z "$MANIFEST" ]; then
   echo "Usage: mtp2026-app-install <VexaStore install-manifest URL>" >&2
   exit 2
 fi
+case "$MANIFEST" in
+  https://*) ;;
+  *) echo "MTP2026 VexaStore installer requires an HTTPS manifest URL" >&2; exit 2 ;;
+esac
 
 mkdir -p "$INSTALL_ROOT"
 TMP="/tmp/mtp2026-app.$$.json"
 trap 'rm -f "$TMP"' EXIT
 
 wget -q -O "$TMP" "$MANIFEST"
+test -s "$TMP" || { echo "VexaStore manifest download was empty" >&2; exit 3; }
 
-# VexaStore v3 publishes the application identity under app and the web
-# application launch URL under webApp. Keep the guest installer dependency-
-# light so the same initramfs works on every ARM64 MTP2026 profile.
 APP_ID="$(sed -n 's/.*"id"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$TMP" | head -n 1)"
 APP_NAME="$(sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TMP" | head -n 1)"
 APP_URL="$(sed -n '/"webApp"[[:space:]]*:/,/"nativePackages"/ s/.*"url"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TMP" | head -n 1)"
@@ -25,19 +27,21 @@ APP_SHA="$(sed -n '/"webApp"[[:space:]]*:/,/"nativePackages"/ s/.*"sha256"[[:spa
 
 [ -n "$APP_ID" ] || { echo "Invalid VexaStore manifest: missing app.id" >&2; exit 3; }
 [ -n "$APP_URL" ] || { echo "Invalid VexaStore manifest: missing webApp.url" >&2; exit 3; }
+case "$APP_URL" in https://*) ;; *) echo "Invalid VexaStore WebApp URL: HTTPS required" >&2; exit 3 ;; esac
+case "$APP_ID" in *..*|*/*) echo "Invalid application id" >&2; exit 3 ;; esac
 
 DEST="$INSTALL_ROOT/$APP_ID"
 mkdir -p "$DEST"
 cp "$TMP" "$DEST/manifest.json"
 printf '%s\n' "$APP_URL" > "$DEST/launch.url"
 printf '%s\n' "webapp" > "$DEST/type"
+printf '%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$DEST/installed-at"
+printf '%s\n' "$MANIFEST" > "$DEST/source-manifest"
 
-# Native packages remain host-controlled security boundaries. Android uses
-# PackageInstaller, iOS uses Apple-authorized distribution, and Windows uses
-# the host installer/UAC. MTP2026 does not silently bypass those controls.
 if [ -n "$APP_SHA" ]; then
   printf '%s\n' "$APP_SHA" > "$DEST/sha256"
 fi
 
 printf 'Installed VexaStore WebApp: %s (%s)\n' "${APP_NAME:-$APP_ID}" "$APP_ID"
 printf 'Launch URL: %s\n' "$APP_URL"
+printf 'Install root: %s\n' "$DEST"
