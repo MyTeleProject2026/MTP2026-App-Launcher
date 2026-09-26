@@ -99,7 +99,7 @@ jobs:
             listing="$(gzip -dc "$initrd" | cpio -it 2>/dev/null)"
             check_entry() {
               local path="$1"
-              if ! printf '%s\n' "$listing" | grep -Eq "(^|\\./)$path$"; then
+              if ! printf '%s\n' "$listing" | grep -Fqx "./$path" && ! printf '%s\n' "$listing" | grep -Fqx "$path"; then
                 echo "::error::Missing initramfs entry '$path' for $profile"
                 printf '%s\n' "$listing" | grep -E 'chromium|mtp2026/(browser|profile|capabilities)|mtp2026-ui|mtp2026-daemon' | head -80 || true
                 exit 1
@@ -148,7 +148,7 @@ jobs:
           for profile in mtp2026 android desktop gaming; do
             initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
             listing="$(gzip -dc "$initrd" | cpio -it 2>/dev/null)"
-            printf '%s\n' "$listing" | grep -qx './etc/mtp2026/browser.json'
+            printf '%s\n' "$listing" | grep -Fqx './etc/mtp2026/browser.json'
             printf '%s\n' "$listing" | grep -qx './usr/bin/mtp2026-ui'
             printf '%s\n' "$listing" | grep -qx './usr/bin/mtp2026-browser'
             printf '%s\n' "$listing" | grep -qx './usr/bin/chromium'
