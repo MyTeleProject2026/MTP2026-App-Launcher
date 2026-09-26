@@ -112,6 +112,7 @@ async fn sync_guest_identity(app: tauri::AppHandle, id: String, subject: String,
     fs::write(path, serde_json::to_vec_pretty(&payload).map_err(|e| e.to_string())?).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
 async fn boot_guest(app: tauri::AppHandle, id: String, bundle_url: String, bundle_sha256: String, processes: tauri::State<'_, GuestProcesses>) -> Result<serde_json::Value, String> {
     let kernel_name = profile_name(&id)?; let initrd_name = initrd_name(&id)?; let dir = guest_root(&app, &id)?; let bundle = dir.join("guest.tar.gz");
     { let mut running = processes.0.lock().map_err(|_| "GUEST_PROCESS_LOCK_FAILED")?; if let Some(mut child) = running.remove(&id) { let _ = child.kill(); } }
@@ -134,7 +135,6 @@ async fn boot_guest(app: tauri::AppHandle, id: String, bundle_url: String, bundl
     let disk = ensure_persistent_disk(&app, &id)?;
     let identity = guest_identity_path(&app, &id).ok();
     let serial_log = dir.join("serial.log");
-    let serial_arg = format!("file:{}", serial_log.to_string_lossy());
     let qemu_log = dir.join("qemu.log");
     let mut command = Command::new("qemu-system-aarch64");
     let boot_drive = format!("if=none,format=raw,id=bootdisk,file={}", boot_disk.to_string_lossy());
