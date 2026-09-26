@@ -133,7 +133,7 @@ export async function bootGuest(mode, options = {}) {
     // If QEMU-WASM cannot resolve an installed image, fall back immediately
     // to the MTP2026-owned browser OS shell instead of exposing a recovery
     // screen or leaving the startup surface paused.
-    if (!controlKernel && !native?.bootGuest && message === 'GUEST_RUNTIME_IMAGE_REQUIRED') {
+    if (!controlKernel && !native?.bootGuest && (message === 'GUEST_RUNTIME_IMAGE_REQUIRED' || /^REAL_GUEST_IMAGE_NOT_INSTALLED(?:_|$)/.test(message))) {
       await saveGuestMetadata(id, {
         ...(await loadGuestMetadata(id).catch(() => null) || {}),
         provider: 'web-os-shell',
