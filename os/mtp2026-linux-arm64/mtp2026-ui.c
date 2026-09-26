@@ -127,7 +127,7 @@ static void run_selected(void){
   draw();
 }
 static void select_page(int d){page=(page+d+page_count)%page_count;cursor=0;draw();}
-static void input_loop(void){
+static void input_loop(void){\n  const int top=56;
   DIR*d=opendir("/dev/input");if(!d)return;char path[256];struct dirent*e;int fds[16],n=0;
   while((e=readdir(d))&&n<16){if(strncmp(e->d_name,"event",5))continue;snprintf(path,sizeof(path),"/dev/input/%s",e->d_name);int fd=open(path,O_RDONLY|O_NONBLOCK);if(fd>=0)fds[n++]=fd;}closedir(d);
   struct input_event ev;
@@ -135,8 +135,8 @@ static void input_loop(void){
     if(ev.type==EV_ABS){if(ev.code==ABS_X)pointer_x=(int)((long long)ev.value*fb.w/32767);else if(ev.code==ABS_Y)pointer_y=(int)((long long)ev.value*fb.h/32767);}
     if(ev.type!=EV_KEY||ev.value!=1)continue;
     if(ev.code==KEY_ESC){page=0;cursor=0;draw();continue;}
-    if(ev.code==KEY_RIGHT||ev.code==KEY_DOWN){if(page==1||page==2||page==3||page==7)cursor++;else select_page(1);draw();continue;}
-    if(ev.code==KEY_LEFT||ev.code==KEY_UP){if(page==1||page==2||page==3||page==7)cursor=(cursor+7)%8;else select_page(-1);draw();continue;}
+    if(ev.code==KEY_RIGHT||ev.code==KEY_DOWN){if(page==1)cursor=(cursor+1)%6;else if(page==2||page==3)cursor=(cursor+1)%8;else if(page==7)cursor=(cursor+1)%2;else select_page(1);draw();continue;}
+    if(ev.code==KEY_LEFT||ev.code==KEY_UP){if(page==1)cursor=(cursor+5)%6;else if(page==2||page==3)cursor=(cursor+7)%8;else if(page==7)cursor=(cursor+1)%2;else select_page(-1);draw();continue;}
     if(ev.code==KEY_ENTER||ev.code==KEY_SPACE||ev.code==BTN_A){run_selected();continue;}
     if(ev.code==BTN_LEFT){int p=(pointer_y-top-10)/58;if(pointer_x<190&&p>=0&&p<page_count){page=p;cursor=0;draw();continue;}
       if(page==1&&pointer_x>=215&&pointer_y>=136){int col=(pointer_x-215)/220,row=(pointer_y-136)/100,idx=row*3+col;if(col>=0&&col<3&&row<2&&idx<6){cursor=idx;run_selected();}}
