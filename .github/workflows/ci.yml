@@ -103,7 +103,8 @@ jobs:
         run: |
           legacy_real="REAL_GUEST_IMAGE_NOT_INSTALLED"
           legacy_source="GUEST_IMAGE_SOURCE_NOT_CONFIGURED"
-          legacy_loader="experienceLoader"\n          if grep -R -n --exclude-dir=node_modules --exclude-dir=.git \
+          legacy_loader="experienceLoader"
+          if grep -R -n --exclude-dir=node_modules --exclude-dir=.git \
             -e "$legacy_real" \
             -e "$legacy_source" \
             -e "$legacy_loader" frontend/src frontend/index.html; then
