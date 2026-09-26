@@ -171,6 +171,8 @@ while true; do
       echo "Notification service: launcher-managed guest notifications."
       ;;
     network)
+      ifconfig eth0 up 2>/dev/null || true
+      udhcpc -q -n -i eth0 2>/run/mtp2026/network-action.log || true
       echo "Network interfaces:"
       cat /proc/net/dev
       ;;
