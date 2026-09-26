@@ -42,12 +42,18 @@ if [ -x "$UBOOT/scripts/config" ]; then
   "$UBOOT/scripts/config" --enable CONFIG_VIRTIO || true
   "$UBOOT/scripts/config" --enable CONFIG_VIRTIO_BLK || true
   make -C "$UBOOT" olddefconfig
-  sed -i '/^[[:space:]]*hostprogs-\$(CONFIG_TOOLS_MKEFICAPSULE).*+= mkeficapsule[[:space:]]*$/d' "$UBOOT/tools/Makefile"
+
+  # qemu_arm64 firmware does not need UEFI capsule tooling. Some U-Boot
+  # releases still schedule mkeficapsule despite the Kconfig symbol being
+  # disabled; remove every host-tool registration before compiling.
+  sed -i '/mkeficapsule/d' "$UBOOT/tools/Makefile"
+  sed -i '/mkeficapsule/d' "$UBOOT/tools/Makefile.lib" 2>/dev/null || true
   grep -Eq '^CONFIG_BOOTSTD_FULL=y$' "$UBOOT/.config"
   grep -Eq '^CONFIG_BOOTMETH_EXTLINUX=y$' "$UBOOT/.config"
+  ! grep -qi 'mkeficapsule' "$UBOOT/tools/Makefile"
 fi
 
-make -C "$UBOOT" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE"
+make -C "$UBOOT" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE" CONFIG_TOOLS_MKEFICAPSULE=n
 test -s "$UBOOT/u-boot.bin"
 cp "$UBOOT/u-boot.bin" "$OUT/mtp2026-arm64-boot-firmware.bin"
 
