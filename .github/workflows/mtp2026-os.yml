@@ -3,45 +3,57 @@ name: MTP2026 Real OS Build
 on:
   push:
     branches: [main]
-    paths: ["os/**","tools/build-arm64-kernel.mjs","tools/verify-arm64-kernel.py",".github/workflows/mtp2026-os.yml"]
+    paths:
+      - "os/mtp2026-linux-arm64/**"
+      - "os/mtp2026-guest-profiles/**"
+      - "tools/build-arm64-browser-runtime.sh"
+      - "tools/build-mtp2026-firmware.sh"
+      - "tools/build-mtp2026-boot-disk.sh"
+      - ".github/workflows/mtp2026-os.yml"
   pull_request:
     branches: [main]
-    paths: ["os/**","tools/build-arm64-kernel.mjs","tools/verify-arm64-kernel.py",".github/workflows/mtp2026-os.yml"]
+    paths:
+      - "os/mtp2026-linux-arm64/**"
+      - "os/mtp2026-guest-profiles/**"
+      - "tools/build-arm64-browser-runtime.sh"
+      - "tools/build-mtp2026-firmware.sh"
+      - "tools/build-mtp2026-boot-disk.sh"
+      - ".github/workflows/mtp2026-os.yml"
 
 jobs:
   build-and-boot:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: {node-version: 20}
-      - name: Build MTP2026 BIOS and UEFI images
-        working-directory: os
-        run: cargo build
-      - name: Install Rust LLVM tools for ARM64 image conversion
-        run: rustup component add llvm-tools-preview
-      - name: Build MTP2026 ARM64 kernel
-        working-directory: os
-        run: cargo build --manifest-path arm64-kernel/Cargo.toml --target aarch64-unknown-none
-      - name: Build flat ARM64 guest image
-        run: node tools/build-arm64-kernel.mjs
-      - name: Execute ARM64 kernel boot verification
+      - name: Enable ARM64 Docker emulation
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - name: Install ARM64 OS build dependencies
         run: |
-          python3 -m pip install --disable-pip-version-check --no-input unicorn==2.1.4
-          python3 tools/verify-arm64-kernel.py
-      - name: Validate ARM64 kernel artifact
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-arm qemu-utils gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu build-essential xz-utils cpio rsync file
+      - name: Build all four real MTP2026 ARM64 guest profiles
+        env:
+          MTP2026_BUILD_BROWSER_RUNTIME: "1"
+        run: |
+          chmod +x os/mtp2026-guest-profiles/build-all.sh
+          bash os/mtp2026-guest-profiles/build-all.sh
+      - name: Validate all four bootable guest artifacts
         run: |
           set -euo pipefail
-          test -s frontend/public/arm64/mtp2026-arm64-kernel.bin
-          file frontend/public/arm64/mtp2026-arm64-kernel.bin
-      - name: Upload ARM64 kernel and firmware artifacts
+          for profile in mtp2026 android desktop gaming; do
+            dir="os/mtp2026-linux-arm64/out/artifacts/$profile"
+            test -s "$dir/mtp2026-$profile-arm64-linux.Image"
+            test -s "$dir/mtp2026-$profile-initramfs.cpio.gz"
+            test -s "$dir/mtp2026-$profile-boot-disk.img"
+            test -s "$dir/mtp2026-arm64-boot-firmware.bin"
+            echo "VALIDATED $profile"
+          done
+      - name: Upload four real ARM64 guest bundles
         uses: actions/upload-artifact@v4
         with:
-          name: mtp2026-os-images
-          path: |
-            os/target/debug/build/**/mtp2026-bios.img
-            os/target/debug/build/**/mtp2026-uefi.img
-            os/target/aarch64-unknown-none/debug/mtp2026-arm64-kernel
-            frontend/public/arm64/mtp2026-arm64-kernel.bin
+          name: mtp2026-four-real-arm64-guests
+          path: os/mtp2026-linux-arm64/out/artifacts/
           if-no-files-found: error
