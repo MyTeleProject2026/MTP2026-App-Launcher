@@ -81,7 +81,7 @@ async function bootNativeGuest({ id, guestContract }) {
       });
     }
   } catch (_) {}
-  return invoke('boot_guest', { id, bundleUrl, bundleSha256 });
+  return invoke('boot_guest_command', { id, bundleUrl, bundleSha256 });
 }
 
 async function stopNativeGuest(id) {
