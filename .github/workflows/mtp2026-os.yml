@@ -23,7 +23,7 @@ on:
 jobs:
   build-and-boot:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - name: Enable ARM64 Docker emulation
@@ -33,7 +33,9 @@ jobs:
       - name: Install ARM64 OS build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-arm qemu-utils gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu build-essential xz-utils cpio rsync file
+          sudo apt-get install -y qemu-system-arm qemu-utils gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu build-essential bc bison flex libssl-dev libelf-dev libgnutls28-dev xz-utils cpio rsync file curl gzip
+          pkg-config --exists gnutls
+          pkg-config --modversion gnutls
       - name: Build all four real MTP2026 ARM64 guest profiles
         env:
           MTP2026_BUILD_BROWSER_RUNTIME: "1"
@@ -50,6 +52,23 @@ jobs:
             test -s "$dir/mtp2026-$profile-boot-disk.img"
             test -s "$dir/mtp2026-arm64-boot-firmware.bin"
             echo "VALIDATED $profile"
+          done
+      - name: Boot every real ARM64 guest profile under QEMU
+        shell: bash
+        run: |
+          set -euo pipefail
+          for profile in mtp2026 android desktop gaming; do
+            dir="os/mtp2026-linux-arm64/out/artifacts/$profile"
+            log="/tmp/mtp2026-$profile.log"
+            set +e
+            timeout 40s qemu-system-aarch64 -M virt -cpu cortex-a72 -m 1024 -nographic -kernel "$dir/mtp2026-$profile-arm64-linux.Image" -initrd "$dir/mtp2026-$profile-initramfs.cpio.gz" -append 'console=ttyAMA0 rdinit=/init' >"$log" 2>&1
+            code=$?
+            set -e
+            cat "$log"
+            grep -q 'MTP2026 GUEST SYSTEM' "$log"
+            grep -q "MTP2026\[$profile\]>" "$log"
+            if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then exit "$code"; fi
+            echo "QEMU_BOOT_OK $profile"
           done
       - name: Upload four real ARM64 guest bundles
         uses: actions/upload-artifact@v4
