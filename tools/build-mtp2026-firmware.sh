@@ -44,6 +44,29 @@ if [ -x "$UBOOT/scripts/config" ]; then
   "$UBOOT/scripts/config" --enable CONFIG_VIRTIO || true
   "$UBOOT/scripts/config" --enable CONFIG_VIRTIO_BLK || true
   make -C "$UBOOT" olddefconfig
+
+# U-Boot 2025.01 may still select the EFI capsule host utility through
+# generated defaults. MTP2026 does not ship or use EFI capsule updates, so
+# force the host-tool symbol off after olddefconfig as a final build-contract
+# guard. This prevents mkeficapsule from entering the host tools build and
+# keeps the firmware dependency surface minimal.
+if [ -f "$UBOOT/.config" ]; then
+  sed -i -E '/^CONFIG_TOOLS_MKEFICAPSULE=/d; /^# CONFIG_TOOLS_MKEFICAPSULE is not set$/d' "$UBOOT/.config"
+  printf '%s\n' '# CONFIG_TOOLS_MKEFICAPSULE is not set' >> "$UBOOT/.config"
+  if grep -q '^CONFIG_EFI_CAPSULE_FIRMWARE_MANAGEMENT=y
+fi
+
+make -C "$UBOOT" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE" CONFIG_TOOLS_MKEFICAPSULE=n
+test -s "$UBOOT/u-boot.bin"
+cp "$UBOOT/u-boot.bin" "$OUT/mtp2026-arm64-boot-firmware.bin"
+
+cat > "$OUT/firmware-manifest.json" <<EOF
+{"schema":"mtp2026-arm64-firmware-v1","owner":"MTP2026","architecture":"arm64","machine":"qemu-aarch64-virt","bootloader":"U-Boot qemu_arm64_defconfig","sourceVersion":"$UBOOT_VERSION","proprietaryFirmware":false,"bootFlow":["QEMU virt power-on","MTP2026 boot firmware","VirtIO boot media discovery","Linux ARM64 kernel","MTP2026 initramfs","MTP2026 system services","MTP2026 graphical shell"]}
+EOF "$UBOOT/.config"; then
+    sed -i '/^CONFIG_EFI_CAPSULE_FIRMWARE_MANAGEMENT=y$/d' "$UBOOT/.config"
+    printf '%s\n' '# CONFIG_EFI_CAPSULE_FIRMWARE_MANAGEMENT is not set' >> "$UBOOT/.config"
+  fi
+fi
 fi
 
 make -C "$UBOOT" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE" CONFIG_TOOLS_MKEFICAPSULE=n
