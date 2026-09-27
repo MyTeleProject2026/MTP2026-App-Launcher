@@ -3,6 +3,8 @@ import { ExternalLink, LogIn, Plus, Smartphone, Monitor, Gamepad2, Trash2, Setti
 import { MTP2026_GUEST_PROFILES, normalizeMTP2026GuestProfile, applyMTP2026GuestProfile } from './mtp2026GuestProfiles.js';
 import { MTP2026Arm64Firmware } from './mtp2026Arm64Firmware.jsx';
 import { bootGuest, stopGuest } from './guestBootController.js';
+import MTP2026DesktopShell from './MTP2026DesktopShell.jsx';
+import './mtp2026DesktopShell.css';
 
 const GUEST_PROFILES = [
   MTP2026_GUEST_PROFILES.mtp2026,
@@ -78,6 +80,8 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
   }
 
   if(!booted) return <MTP2026Arm64Firmware profileId={profile.id} onReady={()=>{}} />;
+
+  if(profile.id==='desktop') return <MTP2026DesktopShell apps={apps} onExit={onLogin} />;
 
   return <main className="mtp-guest-page" data-profile={profile.id}>
     <section className="mtp-guest-shell">
