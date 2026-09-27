@@ -17,10 +17,7 @@ tarball="$SRC/u-boot.tar.gz"
 if [ ! -f "$tarball" ]; then
   curl -L --fail --retry 3 -o "$tarball" "https://github.com/u-boot/u-boot/archive/refs/tags/${UBOOT_VERSION}.tar.gz"
 fi
-
-if [ ! -d "$SRC/u-boot-${UBOOT_VERSION#v}" ]; then
-  tar -xzf "$tarball" -C "$SRC"
-fi
+if [ ! -d "$SRC/u-boot-${UBOOT_VERSION#v}" ]; then tar -xzf "$tarball" -C "$SRC"; fi
 
 UBOOT="$SRC/u-boot-${UBOOT_VERSION#v}"
 export CROSS_COMPILE="${CROSS_COMPILE:-aarch64-linux-gnu-}"
@@ -41,17 +38,21 @@ if [ -x "$UBOOT/scripts/config" ]; then
   make -C "$UBOOT" olddefconfig
 fi
 
-# Keep the host EFI-capsule utility disabled even if generated defaults select it.
+# Kconfig may regenerate the capsule symbols, so pin them off immediately
+# before compilation and fail if the unwanted host tool is still selected.
 if [ -f "$UBOOT/.config" ]; then
   sed -i -E '/^CONFIG_TOOLS_MKEFICAPSULE=/d; /^# CONFIG_TOOLS_MKEFICAPSULE is not set$/d' "$UBOOT/.config"
   printf '%s\n' '# CONFIG_TOOLS_MKEFICAPSULE is not set' >> "$UBOOT/.config"
   sed -i -E '/^CONFIG_EFI_CAPSULE_FIRMWARE_MANAGEMENT=/d; /^# CONFIG_EFI_CAPSULE_FIRMWARE_MANAGEMENT is not set$/d' "$UBOOT/.config"
   printf '%s\n' '# CONFIG_EFI_CAPSULE_FIRMWARE_MANAGEMENT is not set' >> "$UBOOT/.config"
+  if grep -q '^CONFIG_TOOLS_MKEFICAPSULE=y$' "$UBOOT/.config"; then
+    echo "ERROR: EFI capsule host tool remains enabled" >&2
+    exit 1
+  fi
 fi
 
 make -C "$UBOOT" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE" CONFIG_TOOLS_MKEFICAPSULE=n
 test -s "$UBOOT/u-boot.bin"
-
 cp "$UBOOT/u-boot.bin" "$OUT/mtp2026-arm64-boot-firmware.bin"
 
 cat > "$OUT/firmware-manifest.json" <<EOF
