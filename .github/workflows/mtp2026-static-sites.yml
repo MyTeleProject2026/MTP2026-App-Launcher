@@ -1,0 +1,65 @@
+name: MTP2026 OS Static Sites
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - "frontend-MTP2026-2Desktop/**"
+      - "frontend-MTP2026-Android/**"
+      - "Frontend-MTP202026-ROG_gamingOS/**"
+      - "frontend-MTP2026OS/**"
+      - ".github/workflows/mtp2026-static-sites.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "frontend-MTP2026-2Desktop/**"
+      - "frontend-MTP2026-Android/**"
+      - "Frontend-MTP202026-ROG_gamingOS/**"
+      - "frontend-MTP2026OS/**"
+      - ".github/workflows/mtp2026-static-sites.yml"
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Desktop
+            dir: frontend-MTP2026-2Desktop
+            mode: desktop
+          - name: Android
+            dir: frontend-MTP2026-Android
+            mode: android
+          - name: ROG Gaming
+            dir: Frontend-MTP202026-ROG_gamingOS
+            mode: gaming
+          - name: Device OS
+            dir: frontend-MTP2026OS
+            mode: mtp2026
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ${{ matrix.dir }}/package.json
+      - name: Install dependencies
+        working-directory: ${{ matrix.dir }}
+        run: npm install --no-audit --no-fund
+      - name: Verify fixed OS profile
+        working-directory: ${{ matrix.dir }}
+        run: |
+          node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('os-profile.json','utf8')); if(p.deviceMode!=='${{ matrix.mode }}'||p.architecture!=='arm64'||p.render!=='static-site') process.exit(1); console.log(p)"
+      - name: Build static site
+        working-directory: ${{ matrix.dir }}
+        run: npm run build
+      - name: Verify build output
+        working-directory: ${{ matrix.dir }}
+        run: |
+          test -s dist/index.html
+          test -s dist/manifest.webmanifest
+          test -s dist/arm64/guest-manifest.json
