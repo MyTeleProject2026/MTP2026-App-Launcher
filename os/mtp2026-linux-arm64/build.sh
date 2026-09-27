@@ -64,6 +64,9 @@ BUSYBOX="${SRC}/busybox-${BUSYBOX_VERSION}"
 make -C "$KERNEL" defconfig
 make -C "$KERNEL" scripts -j"$JOBS"
 "$KERNEL/scripts/config" --enable CONFIG_BLK_DEV_INITRD
+"${KERNEL}/scripts/config" --enable CONFIG_RD_GZIP
+"$KERNEL/scripts/config" --enable CONFIG_RD_BZIP2
+"$KERNEL/scripts/config" --enable CONFIG_RD_XZ
 "$KERNEL/scripts/config" --enable CONFIG_DEVTMPFS
 "$KERNEL/scripts/config" --enable CONFIG_DEVTMPFS_MOUNT
 "$KERNEL/scripts/config" --enable CONFIG_SERIAL_AMBA_PL011
