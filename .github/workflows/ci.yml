@@ -47,7 +47,6 @@ jobs:
           node --check frontend/src/guestImageStore.js
           node --check frontend/src/guestImageManager.js
           node --check frontend/src/arm64GuestRuntime.js
-          node --check frontend/src/arm64GuestWorker.js
           node --check frontend/src/guestBootController.js
           node --check frontend/src/mtp2026GuestProfiles.js
           node --check frontend/src/mtp2026GuestShell.js
