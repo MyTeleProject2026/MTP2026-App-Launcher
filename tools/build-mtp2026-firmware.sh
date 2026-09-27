@@ -25,13 +25,9 @@ export CROSS_COMPILE="${CROSS_COMPILE:-aarch64-linux-gnu-}"
 make -C "$UBOOT" qemu_arm64_defconfig
 
 # MTP2026 firmware is a QEMU ARM64 bootloader and does not need EFI
-# capsule tooling. U-Boot 2025.01 can register mkeficapsule as a host
-# utility independently of the target capsule configuration. Remove every
-# host-tool registration so the firmware does not require optional gnutls
-# development headers on the build runner.
-if [ -f "$UBOOT/tools/Makefile" ]; then
-  sed -i '/mkeficapsule/d' "$UBOOT/tools/Makefile"
-fi
+# capsule tooling. Disable the optional host utility through U-Boot Kconfig
+# instead of editing tools/Makefile; deleting matching lines can leave
+# orphaned recipe lines and make the host Makefile syntactically invalid.
 
 if [ -x "$UBOOT/scripts/config" ]; then
   "$UBOOT/scripts/config" --disable CONFIG_TOOLS_MKEFICAPSULE || true
