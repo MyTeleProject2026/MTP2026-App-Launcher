@@ -371,6 +371,16 @@ static void guest_action(int id){
     else page=0;
   }
 }
+static void desktop_action(int id){
+  switch(id){
+    case 0: desktop_view=2; cursor=0; break;
+    case 1: launch_browser("https://www.vexastore.2bd.net/"); break;
+    case 2: desktop_view=3; cursor=0; break;
+    case 3: launch_browser(NULL); break;
+    case 4: desktop_view=3; cursor=0; break;
+    default: desktop_view=4; cursor=id%9; break;
+  }
+}
 static void input_loop(void){
   DIR*d=opendir("/dev/input"); if(!d)return;
   char path[256]; struct dirent*e; int fds[32],n=0;
