@@ -30,7 +30,7 @@ docker create --platform linux/arm64 --name "$NAME" "$IMAGE" bash -lc '
   set -e
   export DEBIAN_FRONTEND=noninteractive
   apt-get update
-  apt-get install -y --no-install-recommends chromium ca-certificates fonts-dejavu fonts-liberation libgbm1 libdrm2 libegl1 libgl1 libx11-6 libxcb1 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxrandr2 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libpango-1.0-0 libpangocairo-1.0-0 libxkbcommon0 libxshmfence1 libasound2
+  apt-get install -y --no-install-recommends chromium ca-certificates fonts-dejavu fonts-liberation libc6 libgbm1 libdrm2 libegl1 libgl1 libx11-6 libxcb1 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxrandr2 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libpango-1.0-0 libpangocairo-1.0-0 libxkbcommon0 libxshmfence1 libasound2
   rm -rf /var/lib/apt/lists/*
   mkdir -p /opt/mtp2026-browser-runtime
   cp -a /usr/bin/chromium /opt/mtp2026-browser-runtime/chromium-launcher
@@ -38,14 +38,14 @@ docker create --platform linux/arm64 --name "$NAME" "$IMAGE" bash -lc '
   cp -a /usr/share/chromium /opt/mtp2026-browser-runtime/chromium-share
   cp -a /usr/lib/aarch64-linux-gnu /opt/mtp2026-browser-runtime/aarch64-linux-gnu
   cp -a /lib/aarch64-linux-gnu /opt/mtp2026-browser-runtime/lib-aarch64-linux-gnu
-  loader="$(readlink -f /lib/ld-linux-aarch64.so.1)"
-  test -f "$loader"
+  loader="$(find /lib /usr/lib -type f -name ld-linux-aarch64.so.1 -print -quit)"
+  test -n "$loader" && test -f "$loader"
   cp -L "$loader" /opt/mtp2026-browser-runtime/ld-linux-aarch64.so.1
   cp -a /usr/lib/chromium/icudtl.dat /opt/mtp2026-browser-runtime/icudtl.dat 2>/dev/null || true
   cp -a /etc/ssl/certs /opt/mtp2026-browser-runtime/certs
   cp -a /etc/fonts /opt/mtp2026-browser-runtime/fonts
-  printf "%s\\n" "MTP2026 ARM64 Chromium-compatible runtime" > /opt/mtp2026-browser-runtime/MANIFEST
-  printf "%s\\n" "Base image: Debian Bookworm ARM64 package environment" >> /opt/mtp2026-browser-runtime/MANIFEST
+  printf "%s\n" "MTP2026 ARM64 Chromium-compatible runtime" > /opt/mtp2026-browser-runtime/MANIFEST
+  printf "%s\n" "Base image: Debian Bookworm ARM64 package environment" >> /opt/mtp2026-browser-runtime/MANIFEST
   /usr/bin/chromium --version >> /opt/mtp2026-browser-runtime/MANIFEST 2>&1 || true
 '
 docker start "$NAME" >/dev/null
@@ -55,25 +55,28 @@ if [ "$STATUS" != "0" ]; then
   docker logs "$NAME" >&2 || true
   exit 1
 fi
+
 docker cp "$NAME:/opt/mtp2026-browser-runtime" "$TMP/runtime"
 
-# Docker's directory-copy layout differs across Docker versions. Normalize it
-# before consuming the extracted runtime so the CI gate is deterministic.
+# Normalize Docker's two possible directory-copy layouts before validation.
 RUNTIME_DIR="$TMP/runtime/mtp2026-browser-runtime"
-if [ ! -f "$RUNTIME_DIR/ld-linux-aarch64.so.1" ]; then
-  echo "ARM64 browser runtime extraction did not contain a real dynamic loader." >&2
-  exit 1
+if [ ! -f "$RUNTIME_DIR/chromium-launcher" ] && [ -f "$TMP/runtime/chromium-launcher" ]; then
+  RUNTIME_DIR="$TMP/runtime"
 fi
 if [ ! -f "$RUNTIME_DIR/chromium-launcher" ]; then
   mkdir -p "$TMP/normalized-runtime"
-  docker cp "$NAME:/opt/mtp2026-browser-runtime/." "$TMP/normalized-runtime" 2>/dev/null || true
-  if [ -f "$TMP/normalized-runtime/chromium-launcher" ]; then
-    RUNTIME_DIR="$TMP/normalized-runtime"
-  fi
+  docker cp "$NAME:/opt/mtp2026-browser-runtime/." "$TMP/normalized-runtime"
+  RUNTIME_DIR="$TMP/normalized-runtime"
+fi
+
+if [ ! -f "$RUNTIME_DIR/ld-linux-aarch64.so.1" ]; then
+  echo "ARM64 browser runtime extraction did not contain a real dynamic loader." >&2
+  find "$TMP" -maxdepth 7 -type f \( -name 'ld-linux-aarch64.so.1' -o -name 'chromium-launcher' \) -print >&2 || true
+  exit 1
 fi
 if [ ! -f "$RUNTIME_DIR/chromium-launcher" ]; then
   echo "ARM64 browser runtime extraction did not contain chromium-launcher." >&2
-  find "$TMP" -maxdepth 5 -type f -printf '%p\\n' >&2 || true
+  find "$TMP" -maxdepth 7 -type f -printf '%p\n' >&2 || true
   exit 1
 fi
 
