@@ -46,14 +46,29 @@ jobs:
           test "$code" = "302"
 
           echo "Checking deployed frontend build information"
-          if curl --fail --silent --show-error --location --max-time 20 "$frontend/build-info.json?verify=${EXPECTED_COMMIT:-scheduled}" >/tmp/build-info.json; then
-            actual=$(node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/build-info.json','utf8')); process.stdout.write(String(j.commit || 'unknown'))")
-            echo "Production frontend reports commit: $actual"
-            if [ -n "${EXPECTED_COMMIT:-}" ] && [ "$actual" != "unknown" ] && [ "$actual" != "$EXPECTED_COMMIT" ]; then
-              echo "::error::Production frontend is still serving $actual while this push is $EXPECTED_COMMIT."
-              echo "::error::Render frontend deployment has not propagated this commit; do not certify the live frontend as current."
-              exit 1
-            fi
-          else
+          if ! curl --fail --silent --show-error --location --max-time 20 "$frontend/build-info.json?verify=${EXPECTED_COMMIT:-scheduled}" >/tmp/build-info.json; then
             echo "WARNING: production frontend does not expose build-info.json; skipping commit comparison."
+            exit 0
           fi
+
+          actual=$(node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/build-info.json','utf8')); process.stdout.write(String(j.commit || 'unknown'))")
+          echo "Production frontend reports commit: $actual"
+
+          if [ -n "${EXPECTED_COMMIT:-}" ] && [ "$actual" != "unknown" ] && [ "$actual" != "$EXPECTED_COMMIT" ]; then
+            echo "Render frontend has not propagated $EXPECTED_COMMIT yet; polling for deployment completion."
+            for attempt in $(seq 1 60); do
+              sleep 15
+              if curl --fail --silent --show-error --location --max-time 20 "$frontend/build-info.json?verify=${EXPECTED_COMMIT}&attempt=$attempt" >/tmp/build-info.json; then
+                actual=$(node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/build-info.json','utf8')); process.stdout.write(String(j.commit || 'unknown'))")
+                echo "Deployment poll $attempt/60: $actual"
+                if [ "$actual" = "$EXPECTED_COMMIT" ]; then
+                  echo "Production frontend now serves the pushed commit."
+                  exit 0
+                fi
+              fi
+            done
+            echo "::error::Render frontend did not propagate $EXPECTED_COMMIT within 15 minutes; live frontend remains on $actual."
+            exit 1
+          fi
+
+          echo "Production frontend/backend verification passed."
