@@ -43,13 +43,17 @@ if [ -x "$UBOOT/scripts/config" ]; then
   "$UBOOT/scripts/config" --enable CONFIG_VIRTIO_BLK || true
   make -C "$UBOOT" olddefconfig
 
-  # qemu_arm64 firmware does not require UEFI capsule tooling. Keep the
-  # generated U-Boot makefiles intact. Deleting matching lines from the
-  # tools Makefile can leave continuation recipes without a target and
-  # produces "recipe commences before first target" on U-Boot 2025.01.
+  # qemu_arm64 firmware does not require UEFI capsule tooling. U-Boot
+  # 2025.01 may still carry the host-only capsule tool through generated
+  # host-tool dependencies, so force both related symbols off and regenerate.
+  sed -i '/^CONFIG_TOOLS_MKEFICAPSULE=/d;/^CONFIG_EFI_CAPSULE_FIRMWARE_MANAGEMENT=/d' "$UBOOT/.config"
+  printf '%s\n'     'CONFIG_TOOLS_MKEFICAPSULE=n'     'CONFIG_EFI_CAPSULE_FIRMWARE_MANAGEMENT=n' >> "$UBOOT/.config"
+  make -C "$UBOOT" olddefconfig
+
   grep -Eq '^CONFIG_BOOTSTD_FULL=y$' "$UBOOT/.config"
   grep -Eq '^CONFIG_BOOTMETH_EXTLINUX=y$' "$UBOOT/.config"
   ! grep -Eq '^CONFIG_TOOLS_MKEFICAPSULE=y$' "$UBOOT/.config"
+  ! grep -Eq '^CONFIG_EFI_CAPSULE_FIRMWARE_MANAGEMENT=y$' "$UBOOT/.config"
 fi
 
 make -C "$UBOOT" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE" CONFIG_TOOLS_MKEFICAPSULE=n
