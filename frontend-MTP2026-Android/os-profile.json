@@ -1,0 +1,11 @@
+{
+  "schema": "mtp2026-static-os-site-v1",
+  "id": "android",
+  "name": "MTP2026 Android OS",
+  "deviceMode": "android",
+  "architecture": "arm64",
+  "runtime": "MTP2026-owned guest + WebApp shell",
+  "render": "static-site",
+  "backend": "https://mtp2026-app-launcher-backend.onrender.com",
+  "notes": "Independent MTP2026 OS WebApp frontend; proprietary third-party firmware is not bundled."
+}

@@ -1,0 +1,18 @@
+[data-theme='dark'] .modal,[data-theme='dark'] .account-menu{background:#10141d;color:#f3f6fb;border-color:#273042}
+.settings-body{display:grid;gap:16px}
+.settings-body label{display:grid;gap:7px;font-weight:700;font-size:13px}
+.settings-body select{width:100%;padding:11px 12px;border:1px solid #d9dee8;border-radius:10px;background:inherit;color:inherit;font:inherit}
+.setting-toggle{display:flex;justify-content:space-between;align-items:center;width:100%;padding:13px 14px;border:1px solid #d9dee8;border-radius:10px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.setting-toggle svg{width:16px;height:16px}
+.notification-actions{display:flex;justify-content:flex-end;padding:0 20px 10px}
+.notification-actions button{border:0;background:transparent;font:inherit;cursor:pointer}
+.notification-list{display:grid;max-height:55vh;overflow:auto;padding:0 12px 12px;gap:6px}
+.notification-item{display:flex;align-items:flex-start;gap:12px;text-align:left;width:100%;border:1px solid transparent;border-radius:12px;padding:13px;background:transparent;color:inherit;cursor:pointer}
+.notification-item:hover{border-color:#d9dee8;background:rgba(127,127,127,.06)}
+.notification-item.read{opacity:.7}
+.notification-item b{display:block;margin-bottom:4px}
+.notification-item p{margin:0 0 6px;line-height:1.45}
+.notification-item small{opacity:.65}
+.unread-dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex:none;background:currentColor}
+.compact-mode .card{padding:14px}
+.compact-mode .hero{padding-top:28px;padding-bottom:28px}

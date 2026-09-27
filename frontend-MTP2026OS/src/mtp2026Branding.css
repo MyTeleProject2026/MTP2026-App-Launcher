@@ -1,0 +1,8 @@
+/* MTP2026 Device OS brand layer — uses the owner-supplied MTP2026 mark via the canonical PWA icon. */
+.mtp-ios-header .mtp-ios-eyebrow{color:#0b8fd3}
+.mtp-ios-avatar{background:#07101b url('/icon.svg') center/78% no-repeat;color:transparent;border:1px solid rgba(212,166,59,.55);box-shadow:0 8px 22px rgba(0,104,180,.25)}
+.mtp-ios-app:first-child .mtp-ios-app-icon,.mtp-ios-app:nth-child(2) .mtp-ios-app-icon{background:#07101b url('/icon.svg') center/78% no-repeat;color:transparent;border:1px solid rgba(212,166,59,.55)}
+.mtp-ios-app:first-child .mtp-ios-app-icon span,.mtp-ios-app:nth-child(2) .mtp-ios-app-icon span{display:none}
+.mtp-ios-dock-icon.store{background:#07101b url('/icon.svg') center/72% no-repeat;color:transparent;border:1px solid rgba(212,166,59,.5)}
+.mtp2026-guest-recovery-mark{background:#07101b url('/icon.svg') center/78% no-repeat;color:transparent;border:1px solid rgba(212,166,59,.55)}
+#mtp2026-device-os .mtp-ios-status-center{color:#0b8fd3;font-weight:800}

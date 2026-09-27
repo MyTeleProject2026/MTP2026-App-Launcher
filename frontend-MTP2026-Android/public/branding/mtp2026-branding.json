@@ -1,0 +1,20 @@
+{
+  "brand": "MTP2026",
+  "assets": {
+    "mark": "/branding/mtp2026-mark.svg",
+    "horizontal": "/branding/mtp2026-logo-horizontal.svg"
+  },
+  "source": "User-provided MTP2026 brand artwork",
+  "usage": {
+    "launcher": "mark",
+    "mobileGuest": "mark",
+    "desktopGuest": "horizontal",
+    "gamingGuest": "mark",
+    "storeInstall": "mark"
+  },
+  "palette": {
+    "gold": "#ffd23f",
+    "blue": "#12c8ff",
+    "background": "#03070d"
+  }
+}

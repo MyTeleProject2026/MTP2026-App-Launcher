@@ -1,0 +1,14 @@
+{
+  "format": "mtp2026-rootfs-v1",
+  "architecture": "AArch64",
+  "init": "/sbin/init",
+  "mounts": ["/", "/proc", "/sys", "/dev", "/data"],
+  "services": ["init", "vfs", "display", "input", "network", "settings", "app-host"],
+  "paths": {
+    "/sbin/init": { "type": "service", "name": "mtp2026-init" },
+    "/system/launcher": { "type": "service", "name": "mtp2026-launcher" },
+    "/system/settings": { "type": "service", "name": "mtp2026-settings" },
+    "/data/apps": { "type": "directory" },
+    "/data/files": { "type": "directory" }
+  }
+}

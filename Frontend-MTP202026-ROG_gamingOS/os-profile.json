@@ -1,0 +1,11 @@
+{
+  "schema": "mtp2026-static-os-site-v1",
+  "id": "gaming",
+  "name": "MTP2026 Gaming OS",
+  "deviceMode": "gaming",
+  "architecture": "arm64",
+  "runtime": "MTP2026-owned guest + WebApp shell",
+  "render": "static-site",
+  "backend": "https://mtp2026-app-launcher-backend.onrender.com",
+  "notes": "Independent MTP2026 OS WebApp frontend; proprietary third-party firmware is not bundled."
+}
