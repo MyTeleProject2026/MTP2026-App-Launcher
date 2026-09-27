@@ -47,11 +47,16 @@ jobs:
             log="/tmp/mtp2026-${profile}.log"
             echo "=== Booting ${profile} ==="
             set +e
-            timeout 35s qemu-system-aarch64 -M virt -cpu cortex-a72 -m 1024 -nographic \
-              -kernel "$image" -initrd "$initrd" -append 'console=ttyAMA0 rdinit=/init' > "$log" 2>&1
+            timeout 35s qemu-system-aarch64 -M virt -cpu cortex-a72 -m 1024 -nographic -no-reboot \
+              -kernel "$image" -initrd "$initrd" \
+              -append 'console=ttyAMA0 earlycon=pl011,0x9000000 rdinit=/init init=/init' > "$log" 2>&1
             code=$?
             set -e
             cat "$log"
+            if grep -q 'VFS: Unable to mount root fs' "$log"; then
+              echo "::error::${profile} did not consume the external initramfs; kernel boot contract failed."
+              exit 1
+            fi
             grep -q 'MTP2026 GUEST SYSTEM' "$log"
             grep -q "MTP2026\\[${profile}\\]>" "$log"
             if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then exit "$code"; fi
