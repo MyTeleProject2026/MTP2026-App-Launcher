@@ -38,7 +38,9 @@ docker create --platform linux/arm64 --name "$NAME" "$IMAGE" bash -lc '
   cp -a /usr/share/chromium /opt/mtp2026-browser-runtime/chromium-share
   cp -a /usr/lib/aarch64-linux-gnu /opt/mtp2026-browser-runtime/aarch64-linux-gnu
   cp -a /lib/aarch64-linux-gnu /opt/mtp2026-browser-runtime/lib-aarch64-linux-gnu
-  cp -a /lib/ld-linux-aarch64.so.1 /opt/mtp2026-browser-runtime/ld-linux-aarch64.so.1
+  loader="$(readlink -f /lib/ld-linux-aarch64.so.1)"
+  test -f "$loader"
+  cp -L "$loader" /opt/mtp2026-browser-runtime/ld-linux-aarch64.so.1
   cp -a /usr/lib/chromium/icudtl.dat /opt/mtp2026-browser-runtime/icudtl.dat 2>/dev/null || true
   cp -a /etc/ssl/certs /opt/mtp2026-browser-runtime/certs
   cp -a /etc/fonts /opt/mtp2026-browser-runtime/fonts
@@ -58,6 +60,10 @@ docker cp "$NAME:/opt/mtp2026-browser-runtime" "$TMP/runtime"
 # Docker's directory-copy layout differs across Docker versions. Normalize it
 # before consuming the extracted runtime so the CI gate is deterministic.
 RUNTIME_DIR="$TMP/runtime/mtp2026-browser-runtime"
+if [ ! -f "$RUNTIME_DIR/ld-linux-aarch64.so.1" ]; then
+  echo "ARM64 browser runtime extraction did not contain a real dynamic loader." >&2
+  exit 1
+fi
 if [ ! -f "$RUNTIME_DIR/chromium-launcher" ]; then
   mkdir -p "$TMP/normalized-runtime"
   docker cp "$NAME:/opt/mtp2026-browser-runtime/." "$TMP/normalized-runtime" 2>/dev/null || true
