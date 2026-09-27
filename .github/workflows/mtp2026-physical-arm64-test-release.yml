@@ -152,12 +152,14 @@ jobs:
           set -euo pipefail
           for profile in mtp2026 android desktop gaming; do
             initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
-            listing="$(gzip -dc "$initrd" | cpio -it 2>/dev/null)"
-            printf '%s\n' "$listing" | grep -Fqx './etc/mtp2026/browser.json'
-            printf '%s\n' "$listing" | grep -qx './usr/bin/mtp2026-ui'
-            printf '%s\n' "$listing" | grep -qx './usr/bin/mtp2026-browser'
-            printf '%s\n' "$listing" | grep -qx './usr/bin/chromium'
-            printf '%s\n' "$listing" | grep -qx './usr/lib/chromium/chromium'
+            listing_file="$(mktemp)"
+            gzip -dc "$initrd" | cpio -it >"$listing_file" 2>/dev/null
+            grep -Fqx './etc/mtp2026/browser.json' "$listing_file"
+            grep -qx './usr/bin/mtp2026-ui' "$listing_file"
+            grep -qx './usr/bin/mtp2026-browser' "$listing_file"
+            grep -qx './usr/bin/chromium' "$listing_file"
+            grep -qx './usr/lib/chromium/chromium' "$listing_file"
+            rm -f "$listing_file"
           done
       - name: Boot-test all guest profiles under AArch64 QEMU
         shell: bash
@@ -283,7 +285,7 @@ jobs:
                   'bootDiskName': boot_disk.name,
                   'bootDiskSha256': sha(boot_disk),
                   'runtime': 'qemu-system-aarch64',
-                  'bootArgs': ['-M','virt','-cpu','cortex-a72','-m','1024','-append','console=ttyAMA0 rdinit=/init']
+                  'bootArgs': ['-M','virt','-cpu','cortex-a72','-m','4096','-append','console=ttyAMA0 rdinit=/init']
               }
           manifest = {
               'schema': 'mtp2026-physical-arm64-test-v2',
