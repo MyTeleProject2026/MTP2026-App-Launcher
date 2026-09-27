@@ -24,10 +24,15 @@ export CROSS_COMPILE="${CROSS_COMPILE:-aarch64-linux-gnu-}"
 
 make -C "$UBOOT" qemu_arm64_defconfig
 
-# MTP2026 firmware is a QEMU ARM64 bootloader and does not need EFI
-# capsule tooling. Disable the optional host utility through U-Boot Kconfig
-# instead of editing tools/Makefile; deleting matching lines can leave
-# orphaned recipe lines and make the host Makefile syntactically invalid.
+# MTP2026 uses U-Boot only as a QEMU ARM64 bootloader. EFI capsule
+# generation is not part of the MTP2026 firmware contract. U-Boot's
+# tools target can nevertheless pull mkeficapsule into the host build,
+# which adds an unnecessary GnuTLS dependency. Remove only that host
+# program registration while leaving all firmware build logic intact.
+if [ -f "$UBOOT/tools/Makefile" ]; then
+  sed -i -E '/^[[:space:]]*hostprogs-[^=]*\+=[[:space:]]*mkeficapsule[[:space:]]*$/d' "$UBOOT/tools/Makefile"
+  sed -i -E '/^[[:space:]]*hostprogs-[^=]*\+=.*mkeficapsule[[:space:]]*$/d' "$UBOOT/tools/Makefile"
+fi
 
 if [ -x "$UBOOT/scripts/config" ]; then
   "$UBOOT/scripts/config" --disable CONFIG_TOOLS_MKEFICAPSULE || true
@@ -39,8 +44,6 @@ if [ -x "$UBOOT/scripts/config" ]; then
   "$UBOOT/scripts/config" --enable CONFIG_VIRTIO || true
   "$UBOOT/scripts/config" --enable CONFIG_VIRTIO_BLK || true
   make -C "$UBOOT" olddefconfig
-  sed -i '/^CONFIG_TOOLS_MKEFICAPSULE=/d;/^CONFIG_EFI_CAPSULE_FIRMWARE_MANAGEMENT=/d' "$UBOOT/.config"
-  printf '%s\n' 'CONFIG_TOOLS_MKEFICAPSULE=n' 'CONFIG_EFI_CAPSULE_FIRMWARE_MANAGEMENT=n' >> "$UBOOT/.config"
 fi
 
 make -C "$UBOOT" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE" CONFIG_TOOLS_MKEFICAPSULE=n
