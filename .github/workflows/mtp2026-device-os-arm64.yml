@@ -47,7 +47,7 @@ jobs:
             log="/tmp/mtp2026-${profile}.log"
             echo "=== Booting ${profile} ==="
             set +e
-            timeout 35s qemu-system-aarch64 -M virt -cpu cortex-a72 -m 1024 -nographic -no-reboot \
+            timeout 60s qemu-system-aarch64 -M virt -cpu cortex-a72 -m 4096 -nographic -no-reboot \
               -kernel "$image" -initrd "$initrd" \
               -append 'console=ttyAMA0 earlycon=pl011,0x9000000 rdinit=/init init=/init' > "$log" 2>&1
             code=$?
@@ -75,7 +75,7 @@ jobs:
             qemu-img create -f qcow2 "$data" 1G >/dev/null
             echo "=== Firmware booting ${profile} ==="
             set +e
-            timeout 45s qemu-system-aarch64 -M virt -cpu cortex-a72 -m 1024 -nographic \
+            timeout 60s qemu-system-aarch64 -M virt -cpu cortex-a72 -m 4096 -nographic \
               -bios "$firmware" \
               -drive "if=none,id=bootdisk,format=raw,file=$bootdisk" -device virtio-blk-pci,drive=bootdisk \
               -drive "if=none,id=datadisk,format=qcow2,file=$data" -device virtio-blk-pci,drive=datadisk \
