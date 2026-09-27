@@ -88,11 +88,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -x os/mtp2026-linux-arm64/out/browser-runtime/usr/bin/chromium
-          test -x os/mtp2026-linux-arm64/out/browser-runtime/usr/lib/chromium/chromium
-          test -f os/mtp2026-linux-arm64/out/browser-runtime/lib/ld-linux-aarch64.so.1
-          test -f os/mtp2026-linux-arm64/out/browser-runtime/MANIFEST
-          grep -q 'MTP2026 ARM64 Chromium-compatible runtime' os/mtp2026-linux-arm64/out/browser-runtime/MANIFEST
+          runtime="os/mtp2026-linux-arm64/out/browser-runtime"
+          test -x "$runtime/usr/bin/chromium" || { echo "::error::Missing executable $runtime/usr/bin/chromium"; find "$runtime" -maxdepth 4 -type f -print | head -120; exit 1; }
+          test -x "$runtime/usr/lib/chromium/chromium" || { echo "::error::Missing executable $runtime/usr/lib/chromium/chromium"; find "$runtime/usr/lib" -maxdepth 3 -type f -print | head -120; exit 1; }
+          test -f "$runtime/lib/ld-linux-aarch64.so.1" || { echo "::error::Missing ARM64 loader"; find "$runtime/lib" -maxdepth 2 -type f -print | head -80; exit 1; }
+          test -f "$runtime/MANIFEST" || { echo "::error::Missing runtime MANIFEST"; find "$runtime" -maxdepth 2 -type f -print | head -120; exit 1; }
+          grep -q 'MTP2026 ARM64 Chromium-compatible runtime' "$runtime/MANIFEST"
           for profile in mtp2026 android desktop gaming; do
             initrd="os/mtp2026-linux-arm64/out/artifacts/${profile}/mtp2026-${profile}-initramfs.cpio.gz"
             test -s "$initrd"
