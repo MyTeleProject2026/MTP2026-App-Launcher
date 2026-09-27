@@ -37,3 +37,59 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+
+  - type: web
+    name: mtp2026-desktop-os
+    runtime: static
+    rootDir: frontend-MTP2026-2Desktop
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: web
+    name: mtp2026-android-os
+    runtime: static
+    rootDir: frontend-MTP2026-Android
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: web
+    name: mtp2026-rog-gaming-os
+    runtime: static
+    rootDir: Frontend-MTP202026-ROG_gamingOS
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: web
+    name: mtp2026-device-os
+    runtime: static
+    rootDir: frontend-MTP2026OS
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
