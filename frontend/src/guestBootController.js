@@ -40,7 +40,7 @@ export async function bootGuest(mode, options = {}) {
     id,
     phase: 'splash',
     running: false,
-    provider: native?.bootGuest ? 'native-vm' : qemuAvailable ? 'qemu-wasm' : 'web-os-shell',
+    provider: native?.bootGuest ? 'native-vm' : qemuAvailable ? 'qemu-wasm' : 'browser-launcher',
     error: null,
     token,
     guestKind: controlKernel ? 'mtp2026-control-guest' : 'mtp2026-owned-guest-os',
@@ -64,7 +64,7 @@ export async function bootGuest(mode, options = {}) {
     if (useBrowserShell) {
       await saveGuestMetadata(id, {
         ...(metadata || {}),
-        provider: 'web-os-shell',
+        provider: 'browser-launcher',
         architecture: system.architecture,
         guestKind: 'mtp2026-owned-guest-os',
         bootProtocol: contract.bootProtocol,
@@ -76,7 +76,7 @@ export async function bootGuest(mode, options = {}) {
         id,
         phase: 'browser-shell',
         running: true,
-        provider: 'web-os-shell',
+        provider: 'browser-launcher',
         error: null,
         token,
         contract,
@@ -136,7 +136,7 @@ export async function bootGuest(mode, options = {}) {
     if (!controlKernel && !native?.bootGuest && (message === 'GUEST_RUNTIME_IMAGE_REQUIRED' || /^REAL_GUEST(?:_|$)/.test(message))) {
       await saveGuestMetadata(id, {
         ...(await loadGuestMetadata(id).catch(() => null) || {}),
-        provider: 'web-os-shell',
+        provider: 'browser-launcher',
         architecture: system.architecture,
         guestKind: 'mtp2026-owned-guest-os',
         status: 'ready',
@@ -147,7 +147,7 @@ export async function bootGuest(mode, options = {}) {
         id,
         phase: 'browser-shell',
         running: true,
-        provider: 'web-os-shell',
+        provider: 'browser-launcher',
         error: null,
         token,
         contract,
