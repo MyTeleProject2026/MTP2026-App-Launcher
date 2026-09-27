@@ -12,25 +12,25 @@ if [ -s "$OUT/mtp2026-arm64-boot-firmware.bin" ] && [ -s "$OUT/firmware-manifest
   exit 0
 fi
 
-if command -v pkg-config >/dev/null 2>&1 && ! pkg-config --exists gnutls; then
-  export PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig:${PKG_CONFIG_PATH:-}"
-fi
-if ! command -v pkg-config >/dev/null 2>&1 || ! pkg-config --exists gnutls; then
-  echo "MTP2026 firmware build requires libgnutls28-dev (gnutls.pc)." >&2
-  pkg-config --variable pc_path pkg-config 2>/dev/null || true
-  find /usr -name gnutls.pc -print 2>/dev/null | head -20 || true
-  exit 1
-fi
-
 tarball="$SRC/u-boot.tar.gz"
 if [ ! -f "$tarball" ]; then
   curl -L --fail --retry 3 -o "$tarball" "https://github.com/u-boot/u-boot/archive/refs/tags/${UBOOT_VERSION}.tar.gz"
 fi
-if [ ! -d "$SRC/u-boot-${UBOOT_VERSION#v}" ]; then tar -xzf "$tarball" -C "$SRC"; fi
+if [ ! -d "$SRC/u-boot-${UBOOT_VERSION#v}" ]; then
+  tar -xzf "$tarball" -C "$SRC"
+fi
 UBOOT="$SRC/u-boot-${UBOOT_VERSION#v}"
 export CROSS_COMPILE="${CROSS_COMPILE:-aarch64-linux-gnu-}"
 
 make -C "$UBOOT" qemu_arm64_defconfig
+
+# MTP2026 firmware is a QEMU ARM64 bootloader and does not need UEFI
+# capsule tooling. U-Boot 2025.01 can still schedule mkeficapsule as a
+# host tool even when the target capsule options are disabled, so remove
+# that host-tool registration explicitly.
+if [ -f "$UBOOT/tools/Makefile" ]; then
+  sed -i '/^hostprogs-\$(CONFIG_TOOLS_MKEFICAPSULE) += mkeficapsule$/d' "$UBOOT/tools/Makefile"
+fi
 
 if [ -x "$UBOOT/scripts/config" ]; then
   "$UBOOT/scripts/config" --disable CONFIG_TOOLS_MKEFICAPSULE || true
@@ -42,18 +42,9 @@ if [ -x "$UBOOT/scripts/config" ]; then
   "$UBOOT/scripts/config" --enable CONFIG_VIRTIO || true
   "$UBOOT/scripts/config" --enable CONFIG_VIRTIO_BLK || true
   make -C "$UBOOT" olddefconfig
-
-  # qemu_arm64 firmware does not require UEFI capsule tooling. U-Boot
-  # 2025.01 may still carry the host-only capsule tool through generated
-  # host-tool dependencies, so force both related symbols off and regenerate.
   sed -i '/^CONFIG_TOOLS_MKEFICAPSULE=/d;/^CONFIG_EFI_CAPSULE_FIRMWARE_MANAGEMENT=/d' "$UBOOT/.config"
-  printf '%s\n'     'CONFIG_TOOLS_MKEFICAPSULE=n'     'CONFIG_EFI_CAPSULE_FIRMWARE_MANAGEMENT=n' >> "$UBOOT/.config"
+  printf '%s\n' 'CONFIG_TOOLS_MKEFICAPSULE=n' 'CONFIG_EFI_CAPSULE_FIRMWARE_MANAGEMENT=n' >> "$UBOOT/.config"
   make -C "$UBOOT" olddefconfig
-
-  grep -Eq '^CONFIG_BOOTSTD_FULL=y$' "$UBOOT/.config"
-  grep -Eq '^CONFIG_BOOTMETH_EXTLINUX=y$' "$UBOOT/.config"
-  ! grep -Eq '^CONFIG_TOOLS_MKEFICAPSULE=y$' "$UBOOT/.config"
-  ! grep -Eq '^CONFIG_EFI_CAPSULE_FIRMWARE_MANAGEMENT=y$' "$UBOOT/.config"
 fi
 
 make -C "$UBOOT" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE" CONFIG_TOOLS_MKEFICAPSULE=n
