@@ -17,13 +17,19 @@ case "$PROFILE" in
 esac
 
 if [ ! -f "$FIRMWARE" ] || [ ! -f "$BOOTDISK" ]; then
-  echo "Profile firmware/boot disk is not built. Run: bash $ROOT/../mtp2026-guest-profiles/build-all.sh" >&2
+  echo "Profile firmware/boot disk is not built. Run: bash $ROOT/mtp2026-guest-profiles/build-all.sh" >&2
   exit 1
 fi
 
 if [ ! -f "$DATA" ]; then
   command -v qemu-img >/dev/null || { echo "qemu-img is required" >&2; exit 2; }
-  qemu-img create -f qcow2 "$DATA" "${MTP2026_DATA_SIZE:-64G}" >/dev/null
+  case "$PROFILE" in
+    mtp2026) DEFAULT_DATA_SIZE="64G" ;;
+    android) DEFAULT_DATA_SIZE="128G" ;;
+    desktop) DEFAULT_DATA_SIZE="256G" ;;
+    gaming) DEFAULT_DATA_SIZE="512G" ;;
+  esac
+  qemu-img create -f qcow2 "$DATA" "${MTP2026_DATA_SIZE:-$DEFAULT_DATA_SIZE}" >/dev/null
 fi
 
 exec qemu-system-aarch64   -M virt   -cpu cortex-a72   -m "${MTP2026_RAM:-2048}"   -bios "$FIRMWARE"   -drive "if=none,id=bootdisk,format=raw,file=$BOOTDISK"   -device virtio-blk-pci,drive=bootdisk   -drive "if=none,id=datadisk,format=qcow2,file=$DATA"   -device virtio-blk-pci,drive=datadisk   -device virtio-gpu-pci   -device virtio-keyboard-pci   -device virtio-mouse-pci   -device virtio-tablet-pci   -device virtio-net-pci,netdev=net0   -netdev user,id=net0   -audiodev driver=none,id=mtp2026audio   -device virtio-sound-pci,audiodev=mtp2026audio   -nographic
