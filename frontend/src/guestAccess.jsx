@@ -27,7 +27,7 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
   const [panel,setPanel]=useState('home');
   const [browserUrl,setBrowserUrl]=useState('https://vexaaccount-management.onrender.com');
   const [browserAddress,setBrowserAddress]=useState('https://vexaaccount-management.onrender.com');
-  const [guestProvider,setGuestProvider]=useState('web-os-shell');
+  const [guestProvider,setGuestProvider]=useState('browser-launcher');
   const [guestBootError,setGuestBootError]=useState('');
 
   const profile=useMemo(()=>GUEST_PROFILES.find(x=>x.id===profileId)||GUEST_PROFILES[0],[profileId]);
@@ -41,7 +41,7 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
         const state=await bootGuest(profile.id);
         if(cancelled) return;
         if(state?.error) setGuestBootError(state.error);
-        setGuestProvider(state?.provider || 'web-os-shell');
+        setGuestProvider(state?.provider || 'browser-launcher');
         setBooted(true);
       } catch(e) {
         if(cancelled) return;
