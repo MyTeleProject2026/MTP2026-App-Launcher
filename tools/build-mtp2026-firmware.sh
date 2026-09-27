@@ -24,12 +24,13 @@ export CROSS_COMPILE="${CROSS_COMPILE:-aarch64-linux-gnu-}"
 
 make -C "$UBOOT" qemu_arm64_defconfig
 
-# MTP2026 firmware is a QEMU ARM64 bootloader and does not need UEFI
-# capsule tooling. U-Boot 2025.01 can still schedule mkeficapsule as a
-# host tool even when the target capsule options are disabled, so remove
-# that host-tool registration explicitly.
+# MTP2026 firmware is a QEMU ARM64 bootloader and does not need EFI
+# capsule tooling. U-Boot 2025.01 can register mkeficapsule as a host
+# utility independently of the target capsule configuration. Remove every
+# host-tool registration so the firmware does not require optional gnutls
+# development headers on the build runner.
 if [ -f "$UBOOT/tools/Makefile" ]; then
-  sed -i '/^hostprogs-\$(CONFIG_TOOLS_MKEFICAPSULE) += mkeficapsule$/d' "$UBOOT/tools/Makefile"
+  sed -i '/mkeficapsule/d' "$UBOOT/tools/Makefile"
 fi
 
 if [ -x "$UBOOT/scripts/config" ]; then
@@ -44,7 +45,6 @@ if [ -x "$UBOOT/scripts/config" ]; then
   make -C "$UBOOT" olddefconfig
   sed -i '/^CONFIG_TOOLS_MKEFICAPSULE=/d;/^CONFIG_EFI_CAPSULE_FIRMWARE_MANAGEMENT=/d' "$UBOOT/.config"
   printf '%s\n' 'CONFIG_TOOLS_MKEFICAPSULE=n' 'CONFIG_EFI_CAPSULE_FIRMWARE_MANAGEMENT=n' >> "$UBOOT/.config"
-  make -C "$UBOOT" olddefconfig
 fi
 
 make -C "$UBOOT" -j"$JOBS" CROSS_COMPILE="$CROSS_COMPILE" CONFIG_TOOLS_MKEFICAPSULE=n
