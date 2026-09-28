@@ -239,6 +239,10 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     setActive(id);setStart(false);
   }
   function launchWeb(url){if(url){setBrowserUrl(url);open('browser');}}
+  function restoreWindow(id){
+    setMinimized(m=>m.filter(x=>x!==id));setMaximized(m=>{const n={...m};delete n[id];return n});setSnapped(s=>{const n={...s};delete n[id];return n});setActive(id);
+  }
+  function minimizeWindow(id){setMinimized(m=>m.includes(id)?m:[...m,id]);setActive(a=>a===id?null:a);}
   function resizeWindow(id,e){
     e.preventDefault(); e.stopPropagation();
     const startX=e.clientX,startY=e.clientY,base=windowGeometry[id]||{width:720,height:520};
@@ -246,7 +250,8 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
     window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
   }
-  function snapWindow(id,position){setSnapped(s=>({...s,[id]:position}));setMaximized(m=>{const n={...m};delete n[id];return n});setSnapMenu(null);window.dispatchEvent(new CustomEvent('mtp2026:snap',{detail:{id,position}}));}
+  function snapWindow(id,position){setSnapped(s=>({...s,[id]:position}));
+    setMinimized(m=>m.filter(x=>x!==id));setActive(id);setMaximized(m=>{const n={...m};delete n[id];return n});setSnapMenu(null);window.dispatchEvent(new CustomEvent('mtp2026:snap',{detail:{id,position}}));}
   function renderWindow(id){
     const app=allApps.find(a=>a.id===id)||APPS.find(a=>a.id===id);
     if(!app)return null;
@@ -302,7 +307,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     </div>}
     {snapMenu&&<div className="mtp11-snap-menu" style={{left:snapMenu.x,top:snapMenu.y}} onClick={e=>e.stopPropagation()}><button onClick={()=>snapWindow(snapMenu.id,'left')}>◧ Left half</button><button onClick={()=>snapWindow(snapMenu.id,'right')}>◨ Right half</button><button onClick={()=>snapWindow(snapMenu.id,'top')}>▣ Top</button><button onClick={()=>snapWindow(snapMenu.id,'restore')}>□ Restore</button></div>}
     <div className="mtp11-window-switcher">{windows.map(id=>{const a=allApps.find(x=>x.id===id);if(!a)return null;const I=a.icon||Globe2;return <button key={id} className={active===id?'active':''} onClick={()=>{setActive(id);setMinimized(m=>m.filter(x=>x!==id));}} title={a.title}><I/></button>})}</div>
-    {taskbarMenu&&<div className="mtp11-context-menu" style={{left:Math.min(taskbarMenu.x,window.innerWidth-210),top:Math.min(taskbarMenu.y,window.innerHeight-150)}} onClick={e=>e.stopPropagation()}><button onClick={()=>{open(taskbarMenu.id);setTaskbarMenu(null)}}><Monitor/> Open</button><button onClick={()=>{close(taskbarMenu.id);setTaskbarMenu(null)}}><X/> Close window</button></div>}
+    {taskbarMenu&&<div className="mtp11-context-menu" style={{left:Math.min(taskbarMenu.x,window.innerWidth-210),top:Math.min(taskbarMenu.y,window.innerHeight-150)}} onClick={e=>e.stopPropagation()}><button onClick={()=>{restoreWindow(taskbarMenu.id);setTaskbarMenu(null)}}><Monitor/> Restore</button><button onClick={()=>{minimizeWindow(taskbarMenu.id);setTaskbarMenu(null)}}><Minus/> Minimize</button><button onClick={()=>{setMaximized(m=>({...m,[taskbarMenu.id]:true}));setSnapped(s=>{const n={...s};delete n[taskbarMenu.id];return n});restoreWindow(taskbarMenu.id);setTaskbarMenu(null)}}><Maximize2/> Maximize</button><button onClick={()=>{close(taskbarMenu.id);setTaskbarMenu(null)}}><X/> Close window</button></div>}
     {start&&<div className="mtp11-start">
       <div className="mtp11-start-search"><Search/><input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search apps, settings, and files"/></div>
       <div className="mtp11-start-head"><b>All</b><span>{visible.length} apps</span></div>
