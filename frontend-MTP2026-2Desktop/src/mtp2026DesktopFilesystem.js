@@ -27,3 +27,17 @@ export function deleteDesktopEntry(folder,name){
   const fs=getDesktopFilesystem(); fs[folder]=(fs[folder]||[]).filter(x=>x.name!==name); saveDesktopFilesystem(fs); return fs;
 }
 export function readDesktopEntry(folder,name){return (getDesktopFilesystem()[folder]||[]).find(x=>x.name===name)||null;}
+export function writeDesktopTextFile(folder,name,content=''){
+  const fs=getDesktopFilesystem(); const clean=String(name).trim(); if(!clean)return fs;
+  const list=[...(fs[folder]||[])]; const i=list.findIndex(x=>x.name===clean);
+  const file={name:clean,type:'text',size:String(content).length,updatedAt:new Date().toISOString(),content:String(content)};
+  if(i>=0)list[i]=file; else list.push(file); fs[folder]=list; saveDesktopFilesystem(fs); return file;
+}
+export function copyDesktopEntry(sourceFolder,name,targetFolder,targetName=name){
+  const source=readDesktopEntry(sourceFolder,name); if(!source)return null;
+  const fs=getDesktopFilesystem(); const list=[...(fs[targetFolder]||[])];
+  const clean=String(targetName).trim()||name;
+  const copy={...source,name:clean,updatedAt:new Date().toISOString()};
+  const i=list.findIndex(x=>x.name===clean); if(i>=0)list[i]=copy; else list.push(copy);
+  fs[targetFolder]=list; saveDesktopFilesystem(fs); return copy;
+}
