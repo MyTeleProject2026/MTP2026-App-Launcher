@@ -1,0 +1,1 @@
+window.__MTP2026_SITE_PROFILE=Object.freeze({id:'desktop',name:'MTP2026 Desktop OS',deviceMode:'desktop',architecture:'arm64',runtime:'MTP2026-owned guest + WebApp shell'});document.documentElement.dataset.mtpDefaultSystem='desktop';document.documentElement.dataset.mtpDeviceMode='desktop';
