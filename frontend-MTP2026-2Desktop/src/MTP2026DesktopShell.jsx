@@ -50,6 +50,7 @@ function WindowFrame({title,icon:Icon,children,onClose,onMinimize,onMaximize,max
 }
 
 function TextEditor({folder,name,onClose}){
+
   const [value,setValue]=useState(()=>readDesktopEntry(folder,name)?.content||'');
   const [saved,setSaved]=useState(false);
   const save=()=>{writeDesktopTextFile(folder,name,value);setSaved(true);setTimeout(()=>setSaved(false),1200)};
@@ -76,7 +77,12 @@ function FileExplorer(){
   const makeFolder=()=>{const target=folder==='This PC'?'Documents':folder;const name=prompt('Folder name','New folder');if(name) {createDesktopFolder(target,name);refresh();}};
   const rename=()=>{if(!selected||folder==='This PC')return;const next=prompt('Rename item',selected);if(next&&next!==selected){renameDesktopEntry(folder,selected,next);refresh();setSelected(next);}};
   const remove=()=>{if(!selected||folder==='This PC')return;if(confirm('Delete “'+selected+'” from '+folder+'?')){deleteDesktopEntry(folder,selected);refresh();}};
-  const openEntry=name=>{if(folders.includes(name))navigate(name);else if(readDesktopEntry(folder,name)?.type==='text')setEditor({folder,name});};
+  const openEntry=name=>{
+    if(folders.includes(name)){navigate(name);return;}
+    const entry=readDesktopEntry(folder,name);
+    if(entry?.type==='text'){setEditor({folder,name});return;}
+    if(entry?.type==='url'&&entry.url){window.dispatchEvent(new CustomEvent('mtp2026:browser-open',{detail:{url:entry.url}}));}
+  };
   const items=folder==='This PC'
     ? folders.map(name=>({name,type:'Folder',isFolder:true}))
     : (nativeFs[folder]||[]).map(f=>({...f,isFolder:false}));
@@ -220,6 +226,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [snapped,setSnapped]=useState(()=>session.snapped||{});
   const [windowGeometry,setWindowGeometry]=useState(()=>session.windowGeometry||{});
   const [browserUrl,setBrowserUrl]=useState('https://www.vexastore.2bd.net/');
+  useEffect(()=>{const h=e=>{if(e.detail?.url){setBrowserUrl(e.detail.url);open('browser')}};window.addEventListener('mtp2026:browser-open',h);return()=>window.removeEventListener('mtp2026:browser-open',h)},[]);
   const [wallpaper,setWallpaper]=useState('aurora');
   const [boot,setBoot]=useState({phase:'ready',progress:100,provider:'browser-shell'});
   const [runtime,setRuntime]=useState(()=>detectDesktopRuntime());
