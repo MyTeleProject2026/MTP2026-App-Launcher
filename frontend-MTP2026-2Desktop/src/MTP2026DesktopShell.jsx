@@ -50,6 +50,7 @@ function WindowFrame({title,icon:Icon,children,onClose,onMinimize,onMaximize,max
 }
 
 function FileExplorer(){
+  const [clipboard,setClipboard]=useState(()=>{try{return JSON.parse(localStorage.getItem('mtp2026:desktop:clipboard:v1')||'null')}catch{return null}});
   const [nativeFs,setNativeFs]=useState(getDesktopFilesystem);
   const [folder,setFolder]=useState('This PC');
   const [history,setHistory]=useState(['This PC']);
@@ -72,6 +73,9 @@ function FileExplorer(){
     : (nativeFs[folder]||[]).map(f=>({...f,isFolder:false}));
   const filtered=items.filter(x=>x.name.toLowerCase().includes(query.toLowerCase()));
   const selectedEntry=selected&&readDesktopEntry(folder,selected);
+  const copySelected=()=>{if(!selectedEntry||folder==='This PC')return;const item={...selectedEntry,sourceFolder:folder};setClipboard(item);try{localStorage.setItem('mtp2026:desktop:clipboard:v1',JSON.stringify(item))}catch{}};
+  const paste=()=>{if(!clipboard)return;const target=folder==='This PC'?'Documents':folder;const name=clipboard.name;const exists=(nativeFs[target]||[]).some(x=>x.name===name);const pastedName=exists?name.replace(/(\.[^.]+)?$/,' copy$1'):name;createDesktopTextFile(target,pastedName);refresh();};
+
   return <div className="mtp11-files">
     <aside className="mtp11-file-nav">
       <button className={folder==='This PC'?'active':''} onClick={()=>navigate('This PC')}><HardDrive/> This PC</button>
@@ -85,7 +89,7 @@ function FileExplorer(){
       </div>
       <div className="mtp11-toolbar">
         <button onClick={refresh}><RefreshCw/> Refresh</button><button onClick={makeFile}><File/> New file</button><button onClick={makeFolder}><Folder/> New folder</button>
-        <button disabled={!selected||folder==='This PC'} onClick={rename}>Rename</button><button disabled={!selected||folder==='This PC'} onClick={remove}>Delete</button>
+        <button disabled={!selected||folder==='This PC'} onClick={copySelected}>Copy</button><button disabled={!clipboard} onClick={paste}>Paste</button><button disabled={!selected||folder==='This PC'} onClick={rename}>Rename</button><button disabled={!selected||folder==='This PC'} onClick={remove}>Delete</button>
         <span>{filtered.length} item{filtered.length===1?'':'s'}{selected?' · '+selected:''}</span>
       </div>
       <div className="mtp11-file-grid">
