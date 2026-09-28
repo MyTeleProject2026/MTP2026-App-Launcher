@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::fs;
 use std::path::Path;
 
 #[derive(Serialize)]
@@ -27,7 +28,28 @@ struct ProcessInfo {
 
 #[tauri::command]
 fn mtp2026_list_processes() -> Vec<ProcessInfo> {
-    vec![ProcessInfo { pid: std::process::id(), name: "MTP2026 Desktop Host".to_string() }]
+    #[cfg(target_os = "linux")]
+    {
+        let mut out = Vec::new();
+        if let Ok(entries) = fs::read_dir("/proc") {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if let Ok(pid) = name.parse::<u32>() {
+                    let comm = fs::read_to_string(entry.path().join("comm"))
+                        .unwrap_or_else(|_| "unknown".to_string())
+                        .trim()
+                        .to_string();
+                    out.push(ProcessInfo { pid, name: comm });
+                }
+            }
+        }
+        out.sort_by_key(|p| p.pid);
+        return out;
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        vec![ProcessInfo { pid: std::process::id(), name: "MTP2026 Desktop Host".to_string() }]
+    }
 }
 
 #[tauri::command]
@@ -44,9 +66,13 @@ fn mtp2026_list_services() -> Vec<String> {
 
 #[tauri::command]
 fn mtp2026_filesystem_info() -> serde_json::Value {
+    let root = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).unwrap_or_default();
+    let metadata = if root.is_empty() { None } else { fs::metadata(&root).ok() };
     serde_json::json!({
-        "root": std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).unwrap_or_default(),
+        "root": root,
         "separator": std::path::MAIN_SEPARATOR.to_string(),
+        "exists": metadata.is_some(),
+        "native": true,
     })
 }
 
