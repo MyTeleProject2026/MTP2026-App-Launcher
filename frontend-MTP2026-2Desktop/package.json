@@ -6,7 +6,10 @@
   "scripts": {
     "start": "vite --host 0.0.0.0",
     "build": "vite build",
-    "dev": "vite --host 0.0.0.0"
+    "dev": "vite --host 0.0.0.0",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "@alexaltea/unicorn-js": "2.1.4",
@@ -17,5 +20,8 @@
     "react": "latest",
     "react-dom": "latest",
     "lucide-react": "latest"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.8.0"
   }
 }
