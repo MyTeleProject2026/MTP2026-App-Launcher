@@ -59,7 +59,7 @@ async function continueAfterSelection(mode) {
 
 async function run() {
   const siteMode = normalizeMode(window.__MTP2026_SITE_PROFILE?.deviceMode);
-  const inProgress = siteMode || selected();
+  // A dedicated Desktop deployment is already the selected OS. Do not run\n  // shared launcher authentication/runtime orchestration, which can otherwise\n  // start a different guest mode before the Desktop shell mounts.\n  if (siteMode === 'desktop') {\n    document.documentElement.dataset.mtpDefaultSystem = 'desktop';\n    document.documentElement.dataset.mtpStartup = 'desktop-direct';\n    return;\n  }\n  const inProgress = siteMode || selected();
   const mode = siteMode || inProgress || currentMode();
   if (!inProgress) {
     const picker = ensurePicker();
