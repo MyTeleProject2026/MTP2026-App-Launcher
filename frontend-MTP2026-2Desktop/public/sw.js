@@ -1,4 +1,4 @@
-const CACHE = 'mtp2026-shell-v6';
+const CACHE = 'mtp2026-shell-v7-desktop';
 const STATIC_ASSETS = ['/', '/manifest.webmanifest', '/icon.svg'];
 
 self.addEventListener('install', event => {
