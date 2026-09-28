@@ -49,3 +49,5 @@
 .mtp11-context-menu{position:fixed;z-index:900;min-width:190px;padding:6px;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(10,20,34,.97);box-shadow:0 18px 55px rgba(0,0,0,.55);backdrop-filter:blur(20px)}
 .mtp11-context-menu button{width:100%;display:flex;align-items:center;gap:9px;padding:9px 11px;border:0;border-radius:8px;background:transparent;color:#dceaf8;text-align:left}.mtp11-context-menu button:hover{background:rgba(255,255,255,.08)}.mtp11-context-menu svg{width:15px}
 @media(max-width:650px){.mtp11-window-layer{min-width:0;min-height:0}.mtp11-window-layer.snap-left,.mtp11-window-layer.snap-right{width:50%!important}.mtp11-context-menu{min-width:170px}}
+
+.mtp11-desktop-icon{position:absolute;left:18px;top:18px}.mtp11-desktop-icon.dragging{z-index:20;cursor:grabbing;filter:brightness(1.12)}.mtp11-desktop-icons{position:absolute;inset:0;z-index:30}
