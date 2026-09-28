@@ -124,3 +124,14 @@
 .mtp11-account-menu{position:absolute;left:16px;bottom:62px;width:220px;padding:7px;border:1px solid rgba(148,190,255,.18);border-radius:12px;background:rgba(8,18,35,.98);box-shadow:0 20px 60px rgba(0,0,0,.5)}
 .mtp11-account-menu button{display:flex;align-items:center;gap:8px;width:100%;border:0;background:transparent;color:inherit;text-align:left;border-radius:8px;padding:9px}
 .mtp11-account-menu button:hover{background:rgba(255,255,255,.07)}
+
+.mtp11-file-source{padding:10px 10px 8px;border-bottom:1px solid rgba(255,255,255,.08)}
+.mtp11-file-source>span{display:block;font-size:10px;text-transform:uppercase;opacity:.6;margin-bottom:6px}
+.mtp11-file-source>div{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.mtp11-file-source button{display:flex;align-items:center;gap:6px;justify-content:center}
+.mtp11-file-source button svg{width:14px;height:14px}
+.mtp11-file-source-banner{display:flex;align-items:center;gap:10px;margin:10px;border:1px solid rgba(120,180,255,.25);border-radius:10px;padding:9px 11px;background:rgba(40,100,180,.08)}
+.mtp11-file-source-banner svg{width:18px;height:18px;flex:0 0 auto}
+.mtp11-file-source-banner b,.mtp11-file-source-banner small{display:block}
+.mtp11-file-source-banner small{opacity:.7;margin-top:2px}
+.mtp11-toolbar button:disabled{opacity:.45;cursor:not-allowed}
