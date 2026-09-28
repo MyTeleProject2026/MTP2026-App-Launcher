@@ -12,7 +12,7 @@ import { guestImageStatus, installGuestImageFromBytes, installGuestImageFromCont
 import { bootDesktopGuest, stopDesktopGuest } from './mtp2026DesktopGuestBridge.js';
 import { startDesktopSession, endDesktopSession } from './mtp2026DesktopSession.js';
 import { getDesktopOSState, setDesktopSessionState, setDesktopPowerState, registerDesktopProcess, unregisterDesktopProcess, subscribeDesktopOSState, getDesktopProcesses, getDesktopServices as getCoreDesktopServices, setDesktopServiceState, addDesktopSystemEvent, setDesktopLocked, isDesktopLocked } from './mtp2026DesktopOSCore.js';
-import { nativeSystemInfo, nativeListProcesses, nativeListServices, nativeFilesystemInfo, nativeListDirectory, nativeOpenPath, nativeRevealPath, getNativeDesktopCapabilities } from './mtp2026DesktopNativeBridge.js';
+import { nativeSystemInfo, nativeListProcesses, nativeListServices, nativeFilesystemInfo, nativeListDirectory, nativeOpenPath, nativeRevealPath, nativeSystemMetrics, getNativeDesktopCapabilities } from './mtp2026DesktopNativeBridge.js';
 
 const APPS = [
   { id:'files', title:'File Explorer', icon:FolderOpen },
@@ -303,17 +303,32 @@ function ServiceManager(){
 }
 
 function SystemMonitor({runtime,guestState}){
-  const [tick,setTick]=useState(0);
+  const [metrics,setMetrics]=useState(null);
   const [nativeInfo,setNativeInfo]=useState(null);
   const [fsInfo,setFsInfo]=useState(null);
-  useEffect(()=>{const t=setInterval(()=>setTick(x=>x+1),1000);void nativeSystemInfo().then(r=>{if(r?.supported)setNativeInfo(r.value)});void nativeFilesystemInfo().then(r=>{if(r?.supported)setFsInfo(r.value)});return()=>clearInterval(t)},[]);
-  const cpu=Math.round(18+((tick*13)%31)),mem=Math.round(42+((tick*7)%18));
+  useEffect(()=>{
+    let mounted=true;
+    const refresh=async()=>{
+      const [m,si,fi]=await Promise.all([nativeSystemMetrics(),nativeSystemInfo(),nativeFilesystemInfo()]);
+      if(!mounted)return;
+      if(m?.supported)setMetrics(m.value||null);
+      if(si?.supported)setNativeInfo(si.value||null);
+      if(fi?.supported)setFsInfo(fi.value||null);
+    };
+    void refresh();const t=setInterval(refresh,2000);return()=>{mounted=false;clearInterval(t)};
+  },[]);
+  const cpu=Number.isFinite(metrics?.cpu_percent)?Math.round(metrics.cpu_percent):null;
+  const mem=Number.isFinite(metrics?.memory_percent)?Math.round(metrics.memory_percent):null;
+  const network=Number.isFinite(metrics?.network_rx_bytes)?Math.min(100,Math.round(((metrics.network_rx_bytes+metrics.network_tx_bytes)/Math.max(1,1024*1024*1024))*100)):null;
+  const storage=Number.isFinite(metrics?.storage_percent)?Math.round(metrics.storage_percent):null;
   const guestReady=Boolean(guestState?.running&&(guestState?.phase==='ready'||guestState?.phase==='browser-shell'));
   const guestMeter=guestReady?100:Math.max(0,Math.min(100,guestState?.progress||0));
-  return <div className="mtp11-monitor"><div className="mtp11-runtime-badge"><span className="dot"/> {runtime.mode==='native-vm'?'ARM64 guest provider active':runtime.mode==='qemu-wasm'?'QEMU-WASM ARM64 provider available':'Browser shell runtime'} · {runtime.guestProfile}</div><div className="mtp11-monitor-hero"><Activity/><div><b>MTP2026 System Monitor</b><small>Live {runtime.mode} telemetry · {runtime.architecture}</small></div></div>
-    {[['CPU',cpu,'%'],['Memory',mem,'%'],['Network',navigator.onLine?100:0,'%'],['Guest runtime',guestMeter,'%']].map(([n,v,u])=><div className="mtp11-meter" key={n}><div><span>{n}</span><b>{v}{u}</b></div><i><em style={{width:`${v}%`}}/></i></div>)}
+  const meters=[['CPU',cpu,'%'],['Memory',mem,'%'],['Storage',storage,'%'],['Network',network,'%'],['Guest runtime',guestMeter,'%']];
+  return <div className="mtp11-monitor"><div className="mtp11-runtime-badge"><span className="dot"/> {runtime.mode==='native-vm'?'ARM64 guest provider active':runtime.mode==='qemu-wasm'?'QEMU-WASM ARM64 provider available':'Browser shell runtime'} · {runtime.guestProfile}</div><div className="mtp11-monitor-hero"><Activity/><div><b>MTP2026 System Monitor</b><small>{metrics?.native?'Native host telemetry':'Shell telemetry'} · {runtime.architecture}</small></div></div>
+    {meters.map(([n,v,u])=><div className="mtp11-meter" key={n}><div><span>{n}</span><b>{v===null?'—':v+u}</b></div><i><em style={{width:(v===null?0:v)+'%'}}/></i></div>)}
     {nativeInfo&&<div className="mtp11-taskmgr-native"><span>Host</span><b>{nativeInfo.host_os}</b><span>{nativeInfo.architecture} · PID {nativeInfo.process_id}</span></div>}
     {fsInfo&&<div className="mtp11-taskmgr-native"><span>Native filesystem</span><b>{fsInfo.root||'host root'}</b><span>{fsInfo.separator} · {fsInfo.exists?'available':'unavailable'}</span></div>}
+    {metrics?.native&&<div className="mtp11-taskmgr-native"><span>Network I/O</span><b>{Math.round((metrics.network_rx_bytes||0)/1024/1024)} MB RX</b><span>{Math.round((metrics.network_tx_bytes||0)/1024/1024)} MB TX</span></div>}
   </div>;
 }
 
