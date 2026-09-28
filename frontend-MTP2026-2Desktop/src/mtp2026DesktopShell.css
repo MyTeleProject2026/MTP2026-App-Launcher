@@ -51,3 +51,5 @@
 @media(max-width:650px){.mtp11-window-layer{min-width:0;min-height:0}.mtp11-window-layer.snap-left,.mtp11-window-layer.snap-right{width:50%!important}.mtp11-context-menu{min-width:170px}}
 
 .mtp11-desktop-icon{position:absolute;left:18px;top:18px}.mtp11-desktop-icon.dragging{z-index:20;cursor:grabbing;filter:brightness(1.12)}.mtp11-desktop-icons{position:absolute;inset:0;z-index:30}
+
+.mtp11-editor{position:absolute;inset:0;z-index:40;display:flex;flex-direction:column;background:rgba(7,16,28,.98)}.mtp11-editor-toolbar{height:48px;display:flex;align-items:center;gap:10px;padding:0 10px;border-bottom:1px solid rgba(255,255,255,.1)}.mtp11-editor-toolbar b{flex:1;font-size:12px}.mtp11-editor-toolbar span{font-size:10px;opacity:.65}.mtp11-editor-toolbar button{display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(255,255,255,.05);color:inherit}.mtp11-editor-toolbar svg{width:14px}.mtp11-editor textarea{flex:1;width:100%;resize:none;border:0;outline:0;padding:20px;background:transparent;color:inherit;font:13px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace}
