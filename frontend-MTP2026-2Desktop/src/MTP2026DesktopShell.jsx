@@ -19,6 +19,9 @@ const APPS = [
 ];
 
 const STORAGE_KEY='mtp2026-desktop-files-v1';
+const SESSION_KEY='mtp2026-desktop-session-v1';
+function readSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'{}')}catch{return {}}}
+function writeSession(v){try{localStorage.setItem(SESSION_KEY,JSON.stringify(v))}catch{}}
 
 function readFiles(){
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); } catch { return {}; }
@@ -110,9 +113,10 @@ function SystemMonitor(){
 export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [start,setStart]=useState(false);
   const [search,setSearch]=useState('');
-  const [windows,setWindows]=useState([]);
-  const [active,setActive]=useState(null);
-  const [maximized,setMaximized]=useState({});
+  const session=useMemo(readSession,[]);
+  const [windows,setWindows]=useState(()=>Array.isArray(session.windows)?session.windows:[]);
+  const [active,setActive]=useState(()=>session.active||null);
+  const [maximized,setMaximized]=useState(()=>session.maximized||{});
   const [notifications,setNotifications]=useState(false);
   const [clock,setClock]=useState(new Date());
   const [power,setPower]=useState(false);
@@ -120,13 +124,14 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [wallpaper,setWallpaper]=useState('aurora');
   const [boot,setBoot]=useState({phase:'ready',progress:100,provider:'browser-shell'});
   useEffect(()=>{const t=setInterval(()=>setClock(new Date()),1000);return()=>clearInterval(t);},[]);
+  useEffect(()=>{writeSession({windows,active,maximized,updatedAt:new Date().toISOString()})},[windows,active,maximized]);
   useEffect(()=>{const w=localStorage.getItem('mtp2026-desktop-wallpaper');if(w)setWallpaper(w); void bootDesktopOS({onProgress:setBoot}); return ()=>{shutdownDesktopOS();};},[]);
 
   const installed=useMemo(()=>apps.map(a=>({id:`web-${a.id}`,title:a.title||a.name||'Web App',icon:Globe2,kind:'web',url:a.url})),[apps]);
   const allApps=[...APPS,{id:'services',title:'System Services',icon:ServerCog},...installed];
   const visible=allApps.filter(a=>a.title.toLowerCase().includes(search.toLowerCase()));
 
-  function close(id){setWindows(ws=>ws.filter(w=>w!==id));if(active===id)setActive(null);}
+  function close(id){setWindows(ws=>ws.filter(w=>w!==id));setMaximized(m=>{const next={...m};delete next[id];return next});if(active===id)setActive(null);}
   function open(id){
     if(id==='store'){window.open('https://www.vexastore.2bd.net/','_blank','noopener,noreferrer');setStart(false);return;}
     const existing=windows.find(w=>w===id);
@@ -146,7 +151,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     if(id==='terminal')body=<div className="mtp11-terminal"><div>mtp2026@desktop:~$ system-info</div><div>MTP2026 Desktop OS</div><div>Architecture: aarch64</div><div>Runtime: browser-shell / native-vm compatible</div><div>Guest profile: desktop</div><div className="cursor">█</div></div>;
     if(id==='browser')body=<div className="mtp11-browser"><form onSubmit={e=>{e.preventDefault();setBrowserUrl(browserUrl);}}><Globe2/><input value={browserUrl} onChange={e=>setBrowserUrl(e.target.value)}/><button>Go</button></form><iframe title="MTP2026 Browser" src={browserUrl} allow="fullscreen; clipboard-read; clipboard-write; autoplay; gamepad" sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-pointer-lock allow-scripts allow-same-origin"/></div>;
     if(app.kind==='web')body=<div className="mtp11-browser"><div className="mtp11-browser-note">MTP2026 WebApp · VexaAccount application workspace</div><iframe title={app.title} src={app.url} allow="fullscreen; clipboard-read; clipboard-write; autoplay; gamepad" sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-pointer-lock allow-scripts allow-same-origin"/></div>;
-    return <div className={`mtp11-window-layer ${maximized[id]?'max':''}`} style={{zIndex:active===id?120:110}} key={id} onMouseDown={()=>setActive(id)}><WindowFrame title={app.title} icon={Icon} maximized={!!maximized[id]} onClose={()=>close(id)} onMinimize={()=>setWindows(ws=>ws.filter(w=>w!==id))} onMaximize={()=>setMaximized(m=>({...m,[id]:!m[id]}))}>{body}</WindowFrame></div>;
+    return <div className={`mtp11-window-layer ${maximized[id]?'max':''}`} style={{zIndex:active===id?120:110}} key={id} onMouseDown={()=>setActive(id)}><WindowFrame title={app.title} icon={Icon} maximized={!!maximized[id]} onClose={()=>close(id)} onMinimize={()=>{setWindows(ws=>ws.filter(w=>w!==id));if(active===id)setActive(null)}} onMaximize={()=>setMaximized(m=>({...m,[id]:!m[id]}))}>{body}</WindowFrame></div>;
   }
 
   const bg=wallpaper==='aurora'?'mtp11-bg-aurora':wallpaper==='midnight'?'mtp11-bg-midnight':'mtp11-bg-clean';
