@@ -389,7 +389,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
         {id:'runtime',label:'Guest Runtime',icon:Cpu,action:()=>open('runtime')},
         {id:'about',label:'System Information',icon:Info,action:()=>open('about')},
         ...installed.slice(0,8).map(a=>({id:a.id,label:a.title,icon:Globe2,action:()=>open(a.id)}))
-      ].map((item,index)=>{const I=item.icon;const pos=iconPositions[item.id]||{x:18,y:18+index*88};return <button key={item.id} style={{left:pos.x,top:pos.y}} className={`mtp11-desktop-icon ${desktopSelection===item.id?'selected':''} ${draggingIcon===item.id?'dragging':''}`} onPointerDown={e=>{e.stopPropagation();moveIcon(item.id,e)}} onClick={e=>{e.stopPropagation();setDesktopSelection(item.id)}} onDoubleClick={item.action}><I/><b>{item.label}</b></button>})}
+      ].map((item,index)=>{const I=item.icon;const pos=iconPositions[item.id]||{x:18+Math.floor(index/7)*96,y:18+(index%7)*88};return <button key={item.id} style={{left:pos.x,top:pos.y}} className={`mtp11-desktop-icon ${desktopSelection===item.id?'selected':''} ${draggingIcon===item.id?'dragging':''}`} onPointerDown={e=>{e.stopPropagation();moveIcon(item.id,e)}} onClick={e=>{e.stopPropagation();setDesktopSelection(item.id)}} onDoubleClick={item.action}><I/><b>{item.label}</b></button>})}
     </div>
     {windows.map(renderWindow)}
     {desktopMenu&&<div className="mtp11-context-menu" style={{left:Math.min(desktopMenu.x,window.innerWidth-210),top:Math.min(desktopMenu.y,window.innerHeight-190)}} onClick={e=>e.stopPropagation()}>
