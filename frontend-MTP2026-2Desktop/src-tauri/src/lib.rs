@@ -76,6 +76,28 @@ fn mtp2026_filesystem_info() -> serde_json::Value {
     })
 }
 
+#[derive(Serialize)]
+struct DirectoryEntry {
+    name: String,
+    path: String,
+    directory: bool,
+}
+
+#[tauri::command]
+fn mtp2026_list_directory(path: String) -> Result<Vec<DirectoryEntry>, String> {
+    let root = Path::new(&path);
+    if !root.is_dir() { return Err(format!("Not a directory: {path}")); }
+    let mut out = Vec::new();
+    for entry in fs::read_dir(root).map_err(|e| e.to_string())?.flatten() {
+        let p = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        let directory = p.is_dir();
+        out.push(DirectoryEntry { name, path: p.to_string_lossy().to_string(), directory });
+    }
+    out.sort_by(|a,b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    Ok(out)
+}
+
 #[tauri::command]
 fn mtp2026_open_path(path: String) -> Result<(), String> {
     let target = Path::new(&path);
@@ -138,6 +160,7 @@ pub fn run() {
             mtp2026_list_processes,
             mtp2026_list_services,
             mtp2026_filesystem_info,
+            mtp2026_list_directory,
             mtp2026_open_path,
             mtp2026_reveal_path,
             mtp2026_power_action,
