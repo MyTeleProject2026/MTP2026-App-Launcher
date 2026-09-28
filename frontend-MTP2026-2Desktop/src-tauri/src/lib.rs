@@ -19,6 +19,37 @@ fn mtp2026_system_info() -> SystemInfo {
     }
 }
 
+#[derive(Serialize)]
+struct ProcessInfo {
+    pid: u32,
+    name: String,
+}
+
+#[tauri::command]
+fn mtp2026_list_processes() -> Vec<ProcessInfo> {
+    vec![ProcessInfo { pid: std::process::id(), name: "MTP2026 Desktop Host".to_string() }]
+}
+
+#[tauri::command]
+fn mtp2026_list_services() -> Vec<String> {
+    vec![
+        "desktop-shell".to_string(),
+        "window-manager".to_string(),
+        "session-manager".to_string(),
+        "filesystem".to_string(),
+        "application-manager".to_string(),
+        "guest-runtime".to_string(),
+    ]
+}
+
+#[tauri::command]
+fn mtp2026_filesystem_info() -> serde_json::Value {
+    serde_json::json!({
+        "root": std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).unwrap_or_default(),
+        "separator": std::path::MAIN_SEPARATOR.to_string(),
+    })
+}
+
 #[tauri::command]
 fn mtp2026_open_path(path: String) -> Result<(), String> {
     let target = Path::new(&path);
@@ -78,6 +109,9 @@ pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             mtp2026_system_info,
+            mtp2026_list_processes,
+            mtp2026_list_services,
+            mtp2026_filesystem_info,
             mtp2026_open_path,
             mtp2026_reveal_path,
             mtp2026_power_action,
