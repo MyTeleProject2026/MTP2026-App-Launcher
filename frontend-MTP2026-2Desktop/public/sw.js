@@ -21,6 +21,8 @@ self.addEventListener('fetch', event => {
 
   // Never cache authentication, account state, API responses, or callback URLs.
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) return;
+  // Site identity must always come from the deployed Desktop build, never an old cache.
+  if (url.pathname === '/site-profile.js' || url.pathname === '/index.html') return;
 
   if (request.mode === 'navigate') {
     event.respondWith(
