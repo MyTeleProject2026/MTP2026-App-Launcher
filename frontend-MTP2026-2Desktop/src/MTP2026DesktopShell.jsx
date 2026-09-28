@@ -8,6 +8,8 @@ import { MTP2026_DESKTOP_BRANDING } from './mtp2026DesktopBranding.js';
 import { bootDesktopOS, shutdownDesktopOS } from './mtp2026DesktopBootManager.js';
 import { getDesktopServices, restartDesktopServices } from './mtp2026DesktopServiceManager.js';
 import { createDesktopTextFile, getDesktopFilesystem } from './mtp2026DesktopFilesystem.js';
+import { detectDesktopRuntime } from './mtp2026DesktopRuntimeAdapter.js';
+import { startDesktopSession, endDesktopSession } from './mtp2026DesktopSession.js';
 
 const APPS = [
   { id:'files', title:'File Explorer', icon:FolderOpen },
@@ -105,7 +107,7 @@ function SystemMonitor(){
   const [tick,setTick]=useState(0);
   useEffect(()=>{const t=setInterval(()=>setTick(x=>x+1),1000);return()=>clearInterval(t);},[]);
   const cpu=Math.round(18+((tick*13)%31)),mem=Math.round(42+((tick*7)%18));
-  return <div className="mtp11-monitor"><div className="mtp11-monitor-hero"><Activity/><div><b>MTP2026 System Monitor</b><small>Live browser/runtime telemetry</small></div></div>
+  return <div className="mtp11-monitor"><div className="mtp11-runtime-badge"><span className="dot"/> {runtime.mode==='native-vm'?'ARM64 guest provider active':'Browser shell runtime'} · {runtime.guestProfile}</div><div className="mtp11-monitor-hero"><Activity/><div><b>MTP2026 System Monitor</b><small>Live {runtime.mode} telemetry · {runtime.architecture}</small></div></div>
     {[['CPU',cpu,'%'],['Memory',mem,'%'],['Network',navigator.onLine?100:0,'%'],['ARM64 Guest',100,'%']].map(([n,v,u])=><div className="mtp11-meter" key={n}><div><span>{n}</span><b>{v}{u}</b></div><i><em style={{width:`${v}%`}}/></i></div>)}
   </div>;
 }
@@ -123,9 +125,10 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [browserUrl,setBrowserUrl]=useState('https://www.vexastore.2bd.net/');
   const [wallpaper,setWallpaper]=useState('aurora');
   const [boot,setBoot]=useState({phase:'ready',progress:100,provider:'browser-shell'});
+  const [runtime,setRuntime]=useState(()=>detectDesktopRuntime());
   useEffect(()=>{const t=setInterval(()=>setClock(new Date()),1000);return()=>clearInterval(t);},[]);
   useEffect(()=>{writeSession({windows,active,maximized,updatedAt:new Date().toISOString()})},[windows,active,maximized]);
-  useEffect(()=>{const w=localStorage.getItem('mtp2026-desktop-wallpaper');if(w)setWallpaper(w); void bootDesktopOS({onProgress:setBoot}); return ()=>{shutdownDesktopOS();};},[]);
+  useEffect(()=>{const w=localStorage.getItem('mtp2026-desktop-wallpaper');if(w)setWallpaper(w); setRuntime(detectDesktopRuntime()); startDesktopSession('desktop'); void bootDesktopOS({provider:detectDesktopRuntime().mode,onProgress:setBoot}); return ()=>{shutdownDesktopOS();endDesktopSession();};},[]);
 
   const installed=useMemo(()=>apps.map(a=>({id:`web-${a.id}`,title:a.title||a.name||'Web App',icon:Globe2,kind:'web',url:a.url})),[apps]);
   const allApps=[...APPS,{id:'services',title:'System Services',icon:ServerCog},...installed];
