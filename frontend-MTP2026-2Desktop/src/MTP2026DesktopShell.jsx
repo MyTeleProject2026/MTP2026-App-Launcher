@@ -6,13 +6,14 @@ import {
 } from 'lucide-react';
 import { MTP2026_DESKTOP_BRANDING } from './mtp2026DesktopBranding.js';
 import { bootDesktopOS, shutdownDesktopOS } from './mtp2026DesktopBootManager.js';
-import { getDesktopServices, restartDesktopServices } from './mtp2026DesktopServiceManager.js';
+import { getDesktopServices } from './mtp2026DesktopServiceManager.js';
 import { createDesktopTextFile, getDesktopFilesystem, createDesktopFolder, renameDesktopEntry, deleteDesktopEntry, readDesktopEntry, copyDesktopEntry, writeDesktopTextFile } from './mtp2026DesktopFilesystem.js';
 import { detectDesktopRuntime } from './mtp2026DesktopRuntimeAdapter.js';
 import { guestImageStatus, installGuestImageFromBytes, installGuestImageFromContract } from './guestImageManager.js';
 import { bootDesktopGuest, stopDesktopGuest } from './mtp2026DesktopGuestBridge.js';
 import { startDesktopSession, endDesktopSession } from './mtp2026DesktopSession.js';
-import { getDesktopOSState, setDesktopSessionState, setDesktopPowerState, registerDesktopProcess, unregisterDesktopProcess, subscribeDesktopOSState } from './mtp2026DesktopOSCore.js';
+import { getDesktopOSState, setDesktopSessionState, setDesktopPowerState, registerDesktopProcess, unregisterDesktopProcess, subscribeDesktopOSState, getDesktopProcesses, getDesktopServices as getCoreDesktopServices, setDesktopServiceState, addDesktopSystemEvent } from './mtp2026DesktopOSCore.js';
+import { nativeSystemInfo, nativeListProcesses, nativeListServices } from './mtp2026DesktopNativeBridge.js';
 
 const APPS = [
   { id:'files', title:'File Explorer', icon:FolderOpen },
@@ -126,10 +127,22 @@ function FileExplorer(){
 }
 function TaskManager({windows,active,minimized,runtime,close,onSelect}){
   const [tick,setTick]=useState(0);
-  useEffect(()=>{const t=setInterval(()=>setTick(x=>x+1),1000);return()=>clearInterval(t)},[]);
-  return <div className="mtp11-taskmgr"><header><div><b>Task Manager</b><small>MTP2026 Desktop processes</small></div><button onClick={()=>window.dispatchEvent(new CustomEvent('mtp2026:open-window',{detail:{id:'services'}}))}><FolderCog/> Services</button></header>
-    <div className="mtp11-taskmgr-summary"><div><b>{windows.length}</b><span>Apps</span></div><div><b>{20+(tick%15)}%</b><span>CPU</span></div><div><b>{44+(tick%9)}%</b><span>Memory</span></div><div><b>{runtime.guestRunning?'Running':'Ready'}</b><span>Guest</span></div></div>
-    <div className="mtp11-taskmgr-table"><div className="head"><span>Name</span><span>Status</span><span>Action</span></div>{windows.length?windows.map(id=><div className="row" key={id}><span><AppWindow/>{id}</span><span>{minimized.includes(id)?'Suspended':'Running'}{active===id?' · Active':''}</span><span><button onClick={()=>onSelect(id)}>Switch</button><button onClick={()=>close(id)}>End task</button></span></div>):<div className="empty">No application windows are running.</div>}</div>
+  const [processes,setProcesses]=useState(getDesktopProcesses);
+  const [nativeInfo,setNativeInfo]=useState(null);
+  useEffect(()=>{
+    const off=subscribeDesktopOSState(()=>setProcesses(getDesktopProcesses()));
+    const timer=setInterval(()=>setTick(x=>x+1),1000);
+    void nativeSystemInfo().then(r=>{if(r?.supported)setNativeInfo(r.value||null)});
+    return()=>{off();clearInterval(timer)};
+  },[]);
+  const appProcesses=processes.filter(p=>p.type==='application');
+  const shellProcesses=processes.filter(p=>p.type!=='application');
+  const shellLoad=Math.round(8+((tick*3)%18));
+  return <div className="mtp11-taskmgr"><header><div><b>Task Manager</b><small>MTP2026 Desktop process registry</small></div><button onClick={()=>window.dispatchEvent(new CustomEvent('mtp2026:open-window',{detail:{id:'services'}}))}><FolderCog/> Services</button></header>
+    <div className="mtp11-taskmgr-summary"><div><b>{appProcesses.length}</b><span>Apps</span></div><div><b>{shellLoad}%</b><span>Shell load</span></div><div><b>{processes.length}</b><span>Processes</span></div><div><b>{runtime.guestRunning?'Running':'Ready'}</b><span>Guest</span></div></div>
+    {nativeInfo&&<div className="mtp11-taskmgr-native"><span>Native host</span><b>{nativeInfo.os||nativeInfo.platform||'available'}</b><span>{nativeInfo.arch||nativeInfo.architecture||'host telemetry'}</span></div>}
+    <div className="mtp11-taskmgr-table"><div className="head"><span>Name</span><span>Status</span><span>Action</span></div>{processes.length?processes.map(p=><div className="row" key={p.id}><span><AppWindow/>{p.name}</span><span>{p.status||'running'}{p.id==='app:'+active?' · Active':''}</span><span>{p.type==='application'?<><button onClick={()=>onSelect(p.id.slice(4))}>Switch</button><button onClick={()=>close(p.id.slice(4))}>End task</button></>:<small>System</small>}</span></div>):<div className="empty">No MTP2026 processes are registered.</div>}</div>
+    {shellProcesses.length>0&&<small className="mtp11-taskmgr-note">System processes are owned by the MTP2026 shell. Native host process enumeration is exposed separately when the native host is available.</small>}
   </div>;
 }
 function RunDialog({onClose,onOpen}){
@@ -152,21 +165,25 @@ function PropertiesApp({target='MTP2026 Desktop OS'}){
 function TerminalApp({onOpen}){
   const [lines,setLines]=useState(['MTP2026 Desktop Terminal','Type "help" for available commands.']);
   const [value,setValue]=useState('');
-  const run=cmd=>{const raw=cmd.trim(),v=raw.toLowerCase();if(!v)return;let out='';
-    if(v==='help')out='help  clear  date  systeminfo  apps  taskmgr  control  explorer  settings  open <app>';
+  const run=async cmd=>{const raw=cmd.trim(),v=raw.toLowerCase();if(!v)return;let out='';
+    if(v==='help')out='help  clear  date  systeminfo  osstate  services  processes  fsinfo  taskmgr  control  explorer  settings  lock  open <app>';
     else if(v==='clear'){setLines([]);return}
     else if(v==='date')out=new Date().toString();
-    else if(v==='systeminfo')out='MTP2026 Desktop OS | ARM64 / AArch64 | MTP2026 Desktop Shell';
-    else if(v==='apps')out='File Explorer\nMTP2026 Browser\nSettings\nTask Manager\nControl Panel\nGuest Runtime';
+    else if(v==='systeminfo'){const r=await nativeSystemInfo();out=r?.supported?JSON.stringify(r.value):'MTP2026 Desktop OS | ARM64 / AArch64 | Browser shell + supported native host';}
+    else if(v==='osstate')out=JSON.stringify(getDesktopOSState(),null,2);
+    else if(v==='services')out=getCoreDesktopServices().map(s=>s.id+'  '+s.status).join('\n');
+    else if(v==='processes')out=getDesktopProcesses().map(p=>p.id+'  '+p.name+'  '+p.status).join('\n')||'No registered processes';
+    else if(v==='fsinfo'){const r=await (await import('./mtp2026DesktopNativeBridge.js')).nativeFilesystemInfo();out=r?.supported?JSON.stringify(r.value):'Browser virtual filesystem active';}
+    else if(v==='lock'){window.dispatchEvent(new CustomEvent('mtp2026:lock-desktop'));out='Lock request sent';}
     else if(v==='taskmgr')return onOpen('taskmgr');
     else if(v==='control')return onOpen('control');
     else if(v==='explorer')return onOpen('files');
     else if(v==='settings')return onOpen('settings');
-    else if(v.startsWith('open ')){const n=v.slice(5);const map={browser:'browser',files:'files','file explorer':'files',settings:'settings',runtime:'runtime','task manager':'taskmgr','control panel':'control'};if(map[n])return onOpen(map[n]);out='Application not found: '+n}
+    else if(v.startsWith('open ')){const n=v.slice(5);const map={browser:'browser',files:'files','file explorer':'files',settings:'settings',runtime:'runtime','task manager':'taskmgr','control panel':'control',services:'services'};if(map[n])return onOpen(map[n]);out='Application not found: '+n}
     else out='mtp2026: command not found: '+raw;
     setLines(x=>[...x,'mtp2026@desktop:~$ '+raw,out]);
   };
-  return <div className="mtp11-terminal-real" onClick={()=>document.getElementById('mtp-terminal-input')?.focus()}><div className="mtp11-terminal-output">{lines.map((x,i)=><div key={i}>{x}</div>)}</div><div className="mtp11-terminal-prompt"><span>mtp2026@desktop:~$</span><input id="mtp-terminal-input" autoFocus value={value} onChange={e=>setValue(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){run(value);setValue('')}}}/></div></div>;
+  return <div className="mtp11-terminal-real" onClick={()=>document.getElementById('mtp-terminal-input')?.focus()}><div className="mtp11-terminal-output">{lines.map((x,i)=><div key={i}>{x}</div>)}</div><div className="mtp11-terminal-prompt"><span>mtp2026@desktop:~$</span><input id="mtp-terminal-input" autoFocus value={value} onChange={e=>setValue(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){void run(value);setValue('')}}}/></div></div>;
 }
 function SettingsApp(){
   const sections=[
@@ -270,11 +287,28 @@ function SystemInformation({runtime,guestState}){
 function getDesktopSessionSafe(){try{return JSON.parse(localStorage.getItem('mtp2026:desktop:session-meta:v1')||'{}')}catch{return {}}}
 
 function ServiceManager(){
-  const [services,setServices]=useState(getDesktopServices);
-  const restart=()=>setServices(restartDesktopServices());
+  const [services,setServices]=useState(getCoreDesktopServices);
+  const [nativeServices,setNativeServices]=useState([]);
+  const refresh=()=>setServices(getCoreDesktopServices());
+  useEffect(()=>{
+    const off=subscribeDesktopOSState(refresh);
+    void nativeListServices().then(r=>{if(r?.supported)setNativeServices(Array.isArray(r.value)?r.value:[])});
+    return off;
+  },[]);
+  const restart=()=>{
+    services.forEach(s=>setDesktopServiceState(s.id,'starting'));
+    setTimeout(()=>{services.forEach(s=>setDesktopServiceState(s.id,'running'));addDesktopSystemEvent('services.restarted',{count:services.length});refresh()},250);
+  };
+  const toggle=s=>{
+    const next=s.status==='running'?'stopped':'running';
+    setDesktopServiceState(s.id,next);
+    addDesktopSystemEvent('service.state',{id:s.id,status:next});
+    refresh();
+  };
   return <div className="mtp11-monitor">
-    <div className="mtp11-monitor-hero"><ServerCog/><div><b>MTP2026 System Services</b><small>Desktop service supervisor</small></div><button className="mtp11-service-restart" onClick={restart}><RefreshCw/> Restart services</button></div>
-    {services.map(s=><div className="mtp11-service-row" key={s.id}><div><b>{s.name}</b><small>{s.critical?'Critical service':'Optional service'}</small></div><span className={s.status==='running'?'ok':''}><CheckCircle2/> {s.status}</span></div>)}
+    <div className="mtp11-monitor-hero"><ServerCog/><div><b>MTP2026 System Services</b><small>Live MTP2026 service supervisor</small></div><button className="mtp11-service-restart" onClick={restart}><RefreshCw/> Restart services</button></div>
+    {services.map(s=><div className="mtp11-service-row" key={s.id}><div><b>{s.id}</b><small>{s.status==='running'?'Service is running':'Service is stopped'} · MTP2026 OS core</small></div><span className={s.status==='running'?'ok':''}><CheckCircle2/> {s.status}</span><button onClick={()=>toggle(s)}>{s.status==='running'?'Stop':'Start'}</button></div>)}
+    {nativeServices.length>0&&<div className="mtp11-service-native"><b>Native host services</b><span>{nativeServices.map(x=>typeof x==='string'?x:(x.name||x.id)).join(' · ')}</span></div>}
   </div>;
 }
 
