@@ -289,6 +289,7 @@ function SystemMonitor({runtime,guestState}){
 
 export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [start,setStart]=useState(false);
+  const [runDialog,setRunDialog]=useState(false);
   const [search,setSearch]=useState('');
   const session=useMemo(()=>readSession(),[]);
   const [windows,setWindows]=useState(()=>Array.isArray(session.windows)?session.windows:[]);
@@ -335,6 +336,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   useEffect(()=>{
     const onKey=e=>{
       if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='l'){e.preventDefault();setStart(true);setSearch('');return;}
+      if((e.metaKey||e.ctrlKey)&&e.key==='r'){e.preventDefault();setRunDialog(true);return;}
       if(e.key==='Escape'){setStart(false);setNotifications(false);setPower(false);return;}
       if(e.altKey&&e.key==='Tab'){e.preventDefault();const ids=windows.filter(id=>!minimized.includes(id));if(ids.length){const i=Math.max(0,ids.indexOf(active));const next=ids[(i+1)%ids.length];setActive(next);setMinimized(m=>m.filter(x=>x!==next));}}
       if(e.key==='F11'){e.preventDefault();const id=active;if(id)setMaximized(m=>({...m,[id]:!m[id]}));}
@@ -392,10 +394,14 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     if(id==='files')body=<FileExplorer/>;
     if(id==='settings')body=<SettingsApp/>;
     if(id==='system')body=<SystemMonitor runtime={runtime} guestState={guestState}/>;
+    if(id==='taskmgr')body=<TaskManager windows={windows} active={active} minimized={minimized} runtime={runtime} close={close} onSelect={id=>{setActive(id);setMinimized(m=>m.filter(x=>x!==id));}}/>;
+    if(id==='control')body=<ControlPanel onSettings={()=>open('settings')} onOpen={open}/>;
+    if(id==='run')body=<RunDialog onClose={()=>close('run')} onOpen={open}/>;
     if(id==='runtime')body=<GuestRuntime runtime={runtime} guestState={guestState} onState={setGuestState}/>;
     if(id==='about')body=<SystemInformation runtime={runtime} guestState={guestState}/>;
     if(id==='services')body=<ServiceManager/>;
-    if(id==='terminal')body=<div className="mtp11-terminal"><div>mtp2026@desktop:~$ system-info</div><div>MTP2026 Desktop OS</div><div>Architecture: aarch64</div><div>Runtime: browser-shell / native-vm compatible</div><div>Guest profile: desktop</div><div className="cursor">█</div></div>;
+    if(id==='terminal')body=<TerminalApp onOpen={open}/>;
+    if(id==='legacy-terminal')body=<div className="mtp11-terminal"><div>mtp2026@desktop:~$ system-info</div><div>MTP2026 Desktop OS</div><div>Architecture: aarch64</div><div>Runtime: browser-shell / native-vm compatible</div><div>Guest profile: desktop</div><div className="cursor">█</div></div>;
     if(id==='browser')body=<div className="mtp11-browser"><form onSubmit={e=>{e.preventDefault();setBrowserUrl(browserUrl);}}><Globe2/><input value={browserUrl} onChange={e=>setBrowserUrl(e.target.value)}/><button>Go</button></form><iframe title="MTP2026 Browser" src={browserUrl} allow="fullscreen; clipboard-read; clipboard-write; autoplay; gamepad" sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-pointer-lock allow-scripts allow-same-origin"/></div>;
     if(app.kind==='web')body=<div className="mtp11-browser"><div className="mtp11-browser-note">MTP2026 WebApp · VexaAccount application workspace</div><iframe title={app.title} src={app.url} allow="fullscreen; clipboard-read; clipboard-write; autoplay; gamepad" sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-pointer-lock allow-scripts allow-same-origin"/></div>;
     if(minimized.includes(id)) return null;
@@ -449,6 +455,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     {snapMenu&&<div className="mtp11-snap-menu" style={{left:snapMenu.x,top:snapMenu.y}} onClick={e=>e.stopPropagation()}><button onClick={()=>snapWindow(snapMenu.id,'left')}>◧ Left half</button><button onClick={()=>snapWindow(snapMenu.id,'right')}>◨ Right half</button><button onClick={()=>snapWindow(snapMenu.id,'top')}>▣ Top</button><button onClick={()=>snapWindow(snapMenu.id,'restore')}>□ Restore</button></div>}
     <div className="mtp11-window-switcher">{windows.map(id=>{const a=allApps.find(x=>x.id===id);if(!a)return null;const I=a.icon||Globe2;return <button key={id} className={active===id?'active':''} onClick={()=>{setActive(id);setMinimized(m=>m.filter(x=>x!==id));}} title={a.title}><I/></button>})}</div>
     {taskbarMenu&&<div className="mtp11-context-menu" style={{left:Math.min(taskbarMenu.x,window.innerWidth-210),top:Math.min(taskbarMenu.y,window.innerHeight-150)}} onClick={e=>e.stopPropagation()}><button onClick={()=>{restoreWindow(taskbarMenu.id);setTaskbarMenu(null)}}><Monitor/> Restore</button><button onClick={()=>{minimizeWindow(taskbarMenu.id);setTaskbarMenu(null)}}><Minus/> Minimize</button><button onClick={()=>{setMaximized(m=>({...m,[taskbarMenu.id]:true}));setSnapped(s=>{const n={...s};delete n[taskbarMenu.id];return n});restoreWindow(taskbarMenu.id);setTaskbarMenu(null)}}><Maximize2/> Maximize</button><button onClick={()=>{close(taskbarMenu.id);setTaskbarMenu(null)}}><X/> Close window</button></div>}
+    {runDialog&&<RunDialog onClose={()=>setRunDialog(false)} onOpen={id=>{setRunDialog(false);open(id)}}/>}
     {start&&<div className="mtp11-start">
       <div className="mtp11-start-search"><Search/><input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search apps, settings, and files"/></div>
       <div className="mtp11-start-head"><b>All</b><span>{visible.length} apps</span></div>
@@ -461,6 +468,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     <nav className="mtp11-taskbar">
       <button className="mtp11-start-button" onClick={()=>setStart(v=>!v)} aria-label="Start"><Grid2X2/></button>
       <button className="mtp11-search-button" onClick={()=>setStart(true)}><Search/><span>Search</span></button>
+      <button className="mtp11-taskbar-run" onClick={()=>setRunDialog(true)} title="Run"><Command/></button>
       <div className="mtp11-pinned">{[['files',FolderOpen],['browser',Globe2],['settings',Settings],['system',Activity],['runtime',Cpu],['about',Info],['services',ServerCog]].map(([id,I])=><button key={id} className={`${active===id?'active ':''}${windows.includes(id)?'running':''}`} onContextMenu={e=>{e.preventDefault();setTaskbarMenu({id,x:e.clientX,y:e.clientY});}} onClick={()=>open(id)}><I/></button>)}</div>
       <div className="mtp11-tray"><Wifi/><ShieldCheck/><button onClick={()=>setNotifications(v=>!v)}><Bell/></button><button onClick={()=>setQuickSettings(v=>!v)}><Wifi/></button><button className="mtp11-clock"><b>{clock.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</b><small>{clock.toLocaleDateString([], {month:'numeric',day:'numeric',year:'numeric'})}</small></button><button onClick={()=>setPower(v=>!v)}><Power/></button></div>
     </nav>
