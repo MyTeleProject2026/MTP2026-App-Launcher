@@ -1,0 +1,27 @@
+{
+  "product": "MTP2026 Desktop OS",
+  "owner": "MTP2026",
+  "edition": "Desktop Edition",
+  "version": "2026.1",
+  "architecture": "aarch64",
+  "shell": "MTP2026 Desktop Shell",
+  "runtime": {
+    "browserShell": true,
+    "nativeHost": "Tauri-compatible",
+    "guestProfile": "desktop",
+    "guestArchitecture": "aarch64",
+    "guestProviders": ["native-vm", "qemu-wasm", "browser-shell"]
+  },
+  "subsystems": [
+    "desktop-shell",
+    "window-manager",
+    "session-manager",
+    "process-registry",
+    "service-supervisor",
+    "virtual-filesystem",
+    "settings",
+    "notifications",
+    "application-launcher",
+    "guest-runtime"
+  ]
+}
