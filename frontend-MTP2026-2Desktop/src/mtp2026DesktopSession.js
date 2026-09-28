@@ -4,7 +4,7 @@ export function getDesktopSession(){
   try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch{return {}}
 }
 export function startDesktopSession(profile='desktop'){
-  const session={id:crypto?.randomUUID?.()||String(Date.now()),profile,startedAt:new Date().toISOString(),status:'active'};
+  const session={id:globalThis.crypto?.randomUUID?.()||String(Date.now()),profile,startedAt:new Date().toISOString(),status:'active'};
   try{localStorage.setItem(KEY,JSON.stringify(session))}catch{}
   return session;
 }
