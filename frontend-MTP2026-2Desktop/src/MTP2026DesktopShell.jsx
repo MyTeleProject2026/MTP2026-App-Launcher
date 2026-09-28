@@ -135,7 +135,7 @@ function RunDialog({onClose,onOpen}){
   const execute=()=>{const raw=value.trim(),v=raw.toLowerCase();if(!v)return;
     const map={cmd:'terminal',terminal:'terminal',taskmgr:'taskmgr','task manager':'taskmgr',control:'control','control panel':'control',settings:'settings',explorer:'files','explorer.exe':'files'};
     if(map[v]){onOpen(map[v]);onClose();return}
-    if(/^https?:\\/\\//.test(raw)){window.dispatchEvent(new CustomEvent('mtp2026:browser-open',{detail:{url:raw}}));onClose();return}
+    if(raw.indexOf('http://')===0||raw.indexOf('https://')===0){window.dispatchEvent(new CustomEvent('mtp2026:browser-open',{detail:{url:raw}}));onClose();return}
     setValue('Unknown MTP2026 command: '+raw);
   };
   return <div className="mtp11-run-dialog"><header><Command/><div><b>Run</b><small>Open a program, folder, document, or website</small></div><button onClick={onClose}><X/></button></header><input autoFocus value={value} onChange={e=>setValue(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')execute();if(e.key==='Escape')onClose()}} placeholder="Type a command, app name, or URL"/><p>Try <code>cmd</code>, <code>taskmgr</code>, <code>control</code>, <code>explorer</code>, or <code>settings</code>.</p><footer><button onClick={execute}>OK</button><button onClick={onClose}>Cancel</button></footer></div>;
