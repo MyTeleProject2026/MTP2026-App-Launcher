@@ -1,6 +1,7 @@
 use serde::Serialize;
 use std::fs;
 use std::path::Path;
+use std::sync::{Mutex, OnceLock};
 
 #[derive(Serialize)]
 struct SystemInfo {
@@ -24,6 +25,103 @@ fn mtp2026_system_info() -> SystemInfo {
 struct ProcessInfo {
     pid: u32,
     name: String,
+}
+
+
+static CPU_SAMPLE: OnceLock<Mutex<Option<(u64, u64)>>> = OnceLock::new();
+
+#[tauri::command]
+fn mtp2026_system_metrics() -> serde_json::Value {
+    #[cfg(target_os = "linux")]
+    {
+        let mut cpu_percent = 0.0_f64;
+        if let Ok(stat) = fs::read_to_string("/proc/stat") {
+            if let Some(line) = stat.lines().find(|line| line.starts_with("cpu ")) {
+                let values: Vec<u64> = line.split_whitespace().skip(1).filter_map(|v| v.parse().ok()).collect();
+                if values.len() >= 4 {
+                    let idle = values[3] + values.get(4).copied().unwrap_or(0);
+                    let total: u64 = values.iter().sum();
+                    let lock = CPU_SAMPLE.get_or_init(|| Mutex::new(None));
+                    if let Ok(mut previous) = lock.lock() {
+                        if let Some((prev_total, prev_idle)) = *previous {
+                            let total_delta = total.saturating_sub(prev_total);
+                            let idle_delta = idle.saturating_sub(prev_idle);
+                            if total_delta > 0 {
+                                cpu_percent = ((total_delta.saturating_sub(idle_delta) as f64 / total_delta as f64) * 100.0).clamp(0.0, 100.0);
+                            }
+                        }
+                        *previous = Some((total, idle));
+                    }
+                }
+            }
+        }
+
+        let mut memory_percent = 0.0_f64;
+        if let Ok(mem) = fs::read_to_string("/proc/meminfo") {
+            let mut total = 0_u64;
+            let mut available = 0_u64;
+            for line in mem.lines() {
+                let mut parts = line.split_whitespace();
+                match parts.next() {
+                    Some("MemTotal:") => total = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0),
+                    Some("MemAvailable:") => available = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0),
+                    _ => {}
+                }
+            }
+            if total > 0 {
+                memory_percent = (((total.saturating_sub(available)) as f64 / total as f64) * 100.0).clamp(0.0, 100.0);
+            }
+        }
+
+        let mut network_rx = 0_u64;
+        let mut network_tx = 0_u64;
+        if let Ok(net) = fs::read_to_string("/proc/net/dev") {
+            for line in net.lines().skip(2) {
+                if let Some((_, values)) = line.split_once(':') {
+                    let values: Vec<u64> = values.split_whitespace().filter_map(|v| v.parse().ok()).collect();
+                    if values.len() >= 9 {
+                        network_rx = network_rx.saturating_add(values[0]);
+                        network_tx = network_tx.saturating_add(values[8]);
+                    }
+                }
+            }
+        }
+
+        let mut storage_percent = 0.0_f64;
+        let root = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).unwrap_or_else(|_| "/".to_string());
+        if let Ok(output) = std::process::Command::new("df").args(["-P", "-k", &root]).output() {
+            if output.status.success() {
+                if let Some(line) = String::from_utf8_lossy(&output.stdout).lines().nth(1) {
+                    if let Some(percent) = line.split_whitespace().nth(4) {
+                        storage_percent = percent.trim_end_matches('%').parse::<f64>().unwrap_or(0.0).clamp(0.0, 100.0);
+                    }
+                }
+            }
+        }
+
+        return serde_json::json!({
+            "native": true,
+            "platform": "linux",
+            "cpu_percent": cpu_percent,
+            "memory_percent": memory_percent,
+            "network_rx_bytes": network_rx,
+            "network_tx_bytes": network_tx,
+            "storage_percent": storage_percent
+        });
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        serde_json::json!({
+            "native": true,
+            "platform": std::env::consts::OS,
+            "cpu_percent": serde_json::Value::Null,
+            "memory_percent": serde_json::Value::Null,
+            "network_rx_bytes": serde_json::Value::Null,
+            "network_tx_bytes": serde_json::Value::Null,
+            "storage_percent": serde_json::Value::Null
+        })
+    }
 }
 
 #[tauri::command]
@@ -157,6 +255,7 @@ pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             mtp2026_system_info,
+            mtp2026_system_metrics,
             mtp2026_list_processes,
             mtp2026_list_services,
             mtp2026_filesystem_info,
