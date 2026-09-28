@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Bell, ChevronDown, File, Folder, FolderOpen, Globe2, Grid2X2, HardDrive,
+  Bell, ChevronDown, File, Folder, FolderOpen, Globe2, Grid2X2, HardDrive, Info, Clipboard,
   Monitor, Power, Search, Settings, ShieldCheck, Store, Terminal, UserRound,
   Wifi, X, Minus, Maximize2, RefreshCw, Download, Cpu, Activity, LockKeyhole, ServerCog, CheckCircle2
 } from 'lucide-react';
@@ -21,6 +21,7 @@ const APPS = [
   { id:'terminal', title:'Terminal', icon:Terminal },
   { id:'system', title:'System Monitor', icon:Activity },
   { id:'runtime', title:'Guest Runtime', icon:Cpu },
+  { id:'about', title:'System Information', icon:Info },
 ];
 
 const STORAGE_KEY='mtp2026-desktop-files-v1';
@@ -128,6 +129,23 @@ function GuestRuntime({runtime,guestState,onState}){
   </div>;
 }
 
+function SystemInformation({runtime,guestState}){
+  const session=getDesktopSessionSafe();
+  return <div className="mtp11-info">
+    <div className="mtp11-info-hero"><div className="mtp11-info-mark">M</div><div><div className="mtp11-runtime-kicker">ABOUT THIS DEVICE</div><h2>MTP2026 Desktop OS</h2><p>Desktop Edition · version {MTP2026_DESKTOP_BRANDING.version}</p></div></div>
+    <div className="mtp11-info-grid">
+      <div><span>Architecture</span><b>ARM64 / AArch64</b></div>
+      <div><span>Shell</span><b>{MTP2026_DESKTOP_BRANDING.shell}</b></div>
+      <div><span>Runtime provider</span><b>{runtime.mode}</b></div>
+      <div><span>Guest profile</span><b>{runtime.guestProfile}</b></div>
+      <div><span>Guest state</span><b>{guestState?.phase||'idle'}</b></div>
+      <div><span>Network</span><b>{navigator.onLine?'Connected':'Offline'}</b></div>
+    </div>
+    <div className="mtp11-info-section"><Info/><div><b>MTP2026-owned platform</b><p>The desktop shell, branding, services and application layer are maintained as an independent MTP2026 implementation. Real guest execution remains dependent on an actual verified ARM64 image and supported runtime provider.</p></div></div>
+  </div>;
+}
+function getDesktopSessionSafe(){try{return JSON.parse(localStorage.getItem('mtp2026:desktop:session-meta:v1')||'{}')}catch{return {}}}
+
 function ServiceManager(){
   const [services,setServices]=useState(getDesktopServices);
   const restart=()=>setServices(restartDesktopServices());
@@ -159,6 +177,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [notifications,setNotifications]=useState(false);
   const [clock,setClock]=useState(new Date());
   const [power,setPower]=useState(false);
+  const [desktopMenu,setDesktopMenu]=useState(null);
   const [browserUrl,setBrowserUrl]=useState('https://www.vexastore.2bd.net/');
   const [wallpaper,setWallpaper]=useState('aurora');
   const [boot,setBoot]=useState({phase:'ready',progress:100,provider:'browser-shell'});
@@ -204,6 +223,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     if(id==='settings')body=<SettingsApp/>;
     if(id==='system')body=<SystemMonitor runtime={runtime} guestState={guestState}/>;
     if(id==='runtime')body=<GuestRuntime runtime={runtime} guestState={guestState} onState={setGuestState}/>;
+    if(id==='about')body=<SystemInformation runtime={runtime} guestState={guestState}/>;
     if(id==='services')body=<ServiceManager/>;
     if(id==='terminal')body=<div className="mtp11-terminal"><div>mtp2026@desktop:~$ system-info</div><div>MTP2026 Desktop OS</div><div>Architecture: aarch64</div><div>Runtime: browser-shell / native-vm compatible</div><div>Guest profile: desktop</div><div className="cursor">█</div></div>;
     if(id==='browser')body=<div className="mtp11-browser"><form onSubmit={e=>{e.preventDefault();setBrowserUrl(browserUrl);}}><Globe2/><input value={browserUrl} onChange={e=>setBrowserUrl(e.target.value)}/><button>Go</button></form><iframe title="MTP2026 Browser" src={browserUrl} allow="fullscreen; clipboard-read; clipboard-write; autoplay; gamepad" sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-pointer-lock allow-scripts allow-same-origin"/></div>;
@@ -214,7 +234,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
 
   const bg=wallpaper==='aurora'?'mtp11-bg-aurora':wallpaper==='midnight'?'mtp11-bg-midnight':'mtp11-bg-clean';
   return <main className={`mtp11-desktop ${bg}`}>
-    <div className="mtp11-desktop-shade" onContextMenu={e=>e.preventDefault()} />
+    <div className="mtp11-desktop-shade" onContextMenu={e=>{e.preventDefault();setDesktopMenu({x:e.clientX,y:e.clientY});}} onClick={()=>desktopMenu&&setDesktopMenu(null)} />
     {boot.phase!=='ready'&&<div className="mtp11-boot-screen">
       <div className="mtp11-boot-logo"><img src="/mtp2026-logo.svg" alt="MTP2026"/></div>
       <b>{MTP2026_DESKTOP_BRANDING.productName}</b>
@@ -228,9 +248,17 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
       <button onDoubleClick={()=>open('browser')}><Globe2/><b>MTP2026 Browser</b></button>
       <button onDoubleClick={()=>open('settings')}><Settings/><b>Settings</b></button>
       <button onDoubleClick={()=>open('runtime')}><Cpu/><b>Guest Runtime</b></button>
+      <button onDoubleClick={()=>open('about')}><Info/><b>System Information</b></button>
       {installed.slice(0,8).map(a=><button key={a.id} onDoubleClick={()=>open(a.id)}><Globe2/><b>{a.title}</b></button>)}
     </div>
     {windows.map(renderWindow)}
+    {desktopMenu&&<div className="mtp11-context-menu" style={{left:Math.min(desktopMenu.x,window.innerWidth-210),top:Math.min(desktopMenu.y,window.innerHeight-190)}} onClick={e=>e.stopPropagation()}>
+      <button onClick={()=>{setDesktopMenu(null);setWindows([]);setActive(null);}}><RefreshCw/> Refresh desktop</button>
+      <button onClick={()=>{setDesktopMenu(null);open('files')}}><FolderOpen/> Open File Explorer</button>
+      <button onClick={()=>{setDesktopMenu(null);open('about')}}><Info/> System information</button>
+      <button onClick={()=>{setDesktopMenu(null);open('settings')}}><Settings/> Personalize</button>
+      <button onClick={()=>navigator.clipboard?.writeText('MTP2026 Desktop OS') }><Clipboard/> Copy system name</button>
+    </div>}
     <div className="mtp11-window-switcher">{windows.map(id=>{const a=allApps.find(x=>x.id===id);if(!a)return null;const I=a.icon||Globe2;return <button key={id} className={active===id?'active':''} onClick={()=>{setActive(id);setMinimized(m=>m.filter(x=>x!==id));}} title={a.title}><I/></button>})}</div>
     {start&&<div className="mtp11-start">
       <div className="mtp11-start-search"><Search/><input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search apps, settings, and files"/></div>
@@ -243,7 +271,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     <nav className="mtp11-taskbar">
       <button className="mtp11-start-button" onClick={()=>setStart(v=>!v)} aria-label="Start"><Grid2X2/></button>
       <button className="mtp11-search-button" onClick={()=>setStart(true)}><Search/><span>Search</span></button>
-      <div className="mtp11-pinned">{[['files',FolderOpen],['browser',Globe2],['settings',Settings],['system',Activity],['runtime',Cpu],['services',ServerCog]].map(([id,I])=><button key={id} className={active===id?'active':''} onClick={()=>open(id)}><I/></button>)}</div>
+      <div className="mtp11-pinned">{[['files',FolderOpen],['browser',Globe2],['settings',Settings],['system',Activity],['runtime',Cpu],['about',Info],['services',ServerCog]].map(([id,I])=><button key={id} className={active===id?'active':''} onClick={()=>open(id)}><I/></button>)}</div>
       <div className="mtp11-tray"><Wifi/><ShieldCheck/><button onClick={()=>setNotifications(v=>!v)}><Bell/></button><button className="mtp11-clock"><b>{clock.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</b><small>{clock.toLocaleDateString([], {month:'numeric',day:'numeric',year:'numeric'})}</small></button><button onClick={()=>setPower(v=>!v)}><Power/></button></div>
     </nav>
   </main>;
