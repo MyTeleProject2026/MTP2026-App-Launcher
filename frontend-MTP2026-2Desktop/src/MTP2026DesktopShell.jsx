@@ -120,23 +120,59 @@ function FileExplorer(){
   </div>;
 }
 function SettingsApp(){
+  const sections=[
+    {id:'system',label:'System',icon:Cpu},{id:'devices',label:'Bluetooth & devices',icon:Monitor},
+    {id:'network',label:'Network & internet',icon:Wifi},{id:'personalization',label:'Personalization',icon:Monitor},
+    {id:'apps',label:'Apps',icon:Grid2X2},{id:'accounts',label:'Accounts',icon:UserRound},
+    {id:'privacy',label:'Privacy & security',icon:ShieldCheck},{id:'updates',label:'System Update',icon:RefreshCw},
+  ];
+  const [section,setSection]=useState('system');
   const [theme,setTheme]=useState(()=>localStorage.getItem('mtp2026-desktop-theme')||'dark');
   const [animations,setAnimations]=useState(()=>localStorage.getItem('mtp2026-desktop-animations')!=='off');
-  const saveTheme=v=>{setTheme(v);localStorage.setItem('mtp2026-desktop-theme',v);};
-  const saveAnimations=v=>{setAnimations(v);localStorage.setItem('mtp2026-desktop-animations',v?'on':'off');};
-  return <div className="mtp11-settings">
-    <aside><div className="mtp11-settings-user"><div className="mtp11-avatar">M</div><div><b>MTP2026 User</b><small>VexaAccount protected</small></div></div>
-      {['System','Bluetooth & devices','Network & internet','Personalization','Apps','Accounts','Privacy & security','Windows Update'].map((x,i)=><button key={x} className={i===0?'active':''}>{x}</button>)}</aside>
-    <main><h2>System</h2><p>Manage your MTP2026 Desktop OS experience.</p>
-      <div className="mtp11-setting-card"><Cpu/><div><b>About</b><span>MTP2026 Desktop OS · ARM64 / AArch64 · MTP2026 guest runtime</span></div></div>
-      <div className="mtp11-setting-card"><Wifi/><div><b>Network</b><span>Host-connected network · {navigator.onLine?'Connected':'Offline'}</span></div></div>
-      <div className="mtp11-setting-card"><ShieldCheck/><div><b>Security</b><span>VexaAccount session protection and MTP2026 runtime policy</span></div></div>
-      <div className="mtp11-setting-card"><Monitor/><div><b>Appearance</b><span>Desktop shell theme</span><select value={theme} onChange={e=>saveTheme(e.target.value)}><option value="dark">Dark</option><option value="light">Light</option></select></div></div>
-      <div className="mtp11-setting-card"><Activity/><div><b>Motion</b><span>Shell animations</span><button onClick={()=>saveAnimations(!animations)}>{animations?'Enabled':'Disabled'}</button></div></div>
-    </main>
-  </div>;
+  const [bluetooth,setBluetooth]=useState(()=>localStorage.getItem('mtp2026-desktop-bluetooth')==='on');
+  const [metered,setMetered]=useState(()=>localStorage.getItem('mtp2026-desktop-metered')==='on');
+  const [lockScreen,setLockScreen]=useState(()=>localStorage.getItem('mtp2026-desktop-lock')!=='off');
+  const [notifications,setNotifications]=useState(()=>localStorage.getItem('mtp2026-desktop-notifications')!=='off');
+  const toggle=(setter,key,value)=>{setter(!value);localStorage.setItem(key,!value?'off':'on');};
+  const event=(name,detail={})=>window.dispatchEvent(new CustomEvent(name,{detail}));
+  const themeCard=<div className="mtp11-setting-card"><Monitor/><div><b>Theme</b><span>Desktop shell appearance</span></div><select value={theme} onChange={e=>{setTheme(e.target.value);localStorage.setItem('mtp2026-desktop-theme',e.target.value)}}><option value="dark">Dark</option><option value="light">Light</option></select></div>;
+  const content={
+    system:<><h2>System</h2><p>Manage your MTP2026 Desktop OS experience.</p>
+      <div className="mtp11-setting-card"><Cpu/><div><b>About</b><span>MTP2026 Desktop OS · ARM64 / AArch64 · MTP2026 guest runtime</span></div><button onClick={()=>event('mtp2026:open-window',{id:'about'})}>Open</button></div>
+      <div className="mtp11-setting-card"><Wifi/><div><b>Network</b><span>Host-connected network · {navigator.onLine?'Connected':'Offline'}</span></div><button onClick={()=>setSection('network')}>Manage</button></div>
+      <div className="mtp11-setting-card"><ShieldCheck/><div><b>Security</b><span>VexaAccount session protection and MTP2026 runtime policy</span></div><button onClick={()=>setSection('privacy')}>Review</button></div>
+      themeCard
+      <div className="mtp11-setting-card"><Activity/><div><b>Motion</b><span>Shell animations</span></div><button onClick={()=>toggle(setAnimations,'mtp2026-desktop-animations',animations)}>{animations?'Enabled':'Disabled'}</button></div></>,
+    devices:<><h2>Bluetooth & devices</h2><p>Manage device connectivity for the MTP2026 Desktop shell.</p>
+      <div className="mtp11-setting-card"><Monitor/><div><b>Display</b><span>Responsive desktop viewport and shell scaling</span></div><button onClick={()=>setSection('personalization')}>Configure</button></div>
+      <div className="mtp11-setting-card"><Wifi/><div><b>Bluetooth</b><span>{bluetooth?'Bluetooth is enabled':'Bluetooth is disabled'}</span></div><button onClick={()=>toggle(setBluetooth,'mtp2026-desktop-bluetooth',bluetooth)}>{bluetooth?'Turn off':'Turn on'}</button></div>
+      <div className="mtp11-setting-card"><HardDrive/><div><b>Storage</b><span>Local MTP2026 desktop filesystem and application data</span></div><button onClick={()=>event('mtp2026:open-window',{id:'files'})}>Open files</button></div></>,
+    network:<><h2>Network & internet</h2><p>Connection status and desktop network preferences.</p>
+      <div className="mtp11-setting-card"><Wifi/><div><b>Connection</b><span>{navigator.onLine?'Connected to host network':'Offline'} · Live browser status</span></div><button onClick={()=>setSection('network')}>Refresh</button></div>
+      <div className="mtp11-setting-card"><Globe2/><div><b>Browser access</b><span>Web applications use the MTP2026 Browser surface.</span></div><button onClick={()=>event('mtp2026:open-window',{id:'browser'})}>Open browser</button></div>
+      <div className="mtp11-setting-card"><Activity/><div><b>Metered connection</b><span>Reduce optional background activity</span></div><button onClick={()=>toggle(setMetered,'mtp2026-desktop-metered',metered)}>{metered?'On':'Off'}</button></div></>,
+    personalization:<><h2>Personalization</h2><p>Control the visual presentation of your MTP2026 desktop.</p>
+      themeCard
+      <div className="mtp11-setting-card"><Grid2X2/><div><b>Desktop layout</b><span>Reset shortcut positions to the default grid</span></div><button onClick={()=>event('mtp2026:reset-desktop-layout')}>Reset</button></div>
+      <div className="mtp11-setting-card"><Activity/><div><b>Motion effects</b><span>Window and shell animations</span></div><button onClick={()=>toggle(setAnimations,'mtp2026-desktop-animations',animations)}>{animations?'Enabled':'Disabled'}</button></div></>,
+    apps:<><h2>Apps</h2><p>Manage applications available in the MTP2026 Desktop shell.</p>
+      <div className="mtp11-setting-card"><Store/><div><b>VexaStore</b><span>Open the MTP2026 application hub</span></div><button onClick={()=>window.open('https://www.vexastore.2bd.net/','_blank','noopener,noreferrer')}>Open</button></div>
+      <div className="mtp11-setting-card"><Globe2/><div><b>MTP2026 Browser</b><span>Web application runtime surface</span></div><button onClick={()=>event('mtp2026:open-window',{id:'browser'})}>Launch</button></div>
+      <div className="mtp11-setting-card"><Terminal/><div><b>Terminal</b><span>MTP2026 diagnostic shell</span></div><button onClick={()=>event('mtp2026:open-window',{id:'terminal'})}>Launch</button></div></>,
+    accounts:<><h2>Accounts</h2><p>VexaAccount session and local desktop identity.</p>
+      <div className="mtp11-setting-card"><UserRound/><div><b>MTP2026 User</b><span>VexaAccount protected desktop session</span></div><button onClick={()=>event('mtp2026:open-account')}>Account</button></div>
+      <div className="mtp11-setting-card"><LockKeyhole/><div><b>Sign-in protection</b><span>Session security is controlled by the launcher account flow.</span></div><button onClick={()=>event('mtp2026:open-account-security')}>Review</button></div></>,
+    privacy:<><h2>Privacy & security</h2><p>Local shell privacy and runtime protection.</p>
+      <div className="mtp11-setting-card"><ShieldCheck/><div><b>VexaAccount protection</b><span>Authenticated session and runtime policy</span></div><button disabled>Protected</button></div>
+      <div className="mtp11-setting-card"><LockKeyhole/><div><b>Lock screen</b><span>Protect the desktop when the session is idle</span></div><button onClick={()=>toggle(setLockScreen,'mtp2026-desktop-lock',lockScreen)}>{lockScreen?'Enabled':'Disabled'}</button></div>
+      <div className="mtp11-setting-card"><Bell/><div><b>System notifications</b><span>Allow desktop notification panel events</span></div><button onClick={()=>toggle(setNotifications,'mtp2026-desktop-notifications',notifications)}>{notifications?'Enabled':'Disabled'}</button></div></>,
+    updates:<><h2>System Update</h2><p>MTP2026 Desktop OS update channel and runtime maintenance.</p>
+      <div className="mtp11-setting-card"><RefreshCw/><div><b>Update status</b><span>MTP2026 Desktop OS · version 2026.1</span></div><button onClick={()=>event('mtp2026:check-updates')}>Check</button></div>
+      <div className="mtp11-setting-card"><Cpu/><div><b>ARM64 runtime</b><span>Guest image and runtime provider are managed separately from shell updates.</span></div><button onClick={()=>event('mtp2026:open-window',{id:'runtime'})}>Runtime</button></div>
+      <div className="mtp11-setting-card"><ServerCog/><div><b>System services</b><span>Desktop service supervisor</span></div><button onClick={()=>event('mtp2026:open-window',{id:'services'})}>Services</button></div></>
+  };
+  return <div className="mtp11-settings"><aside><div className="mtp11-settings-user"><div className="mtp11-avatar">M</div><div><b>MTP2026 User</b><small>VexaAccount protected</small></div></div>{sections.map(({id,label,icon:Icon})=><button key={id} className={section===id?'active':''} onClick={()=>setSection(id)}><Icon/> {label}</button>)}</aside><main>{content[section]}</main></div>;
 }
-
 function GuestRuntime({runtime,guestState,onState}){
   const [image,setImage]=useState({status:'checking'});
   const [busy,setBusy]=useState(false);
