@@ -8,7 +8,7 @@ import { API, startVexaLogin, finishVexaLogin, signOut } from './auth';
 import { DeviceModeSettings, ApplicationSettingsModal, getDeviceMode } from './launcherPlatform.jsx';
 import { GuestAccess } from './guestAccess.jsx';
 
-const defaults = { theme: 'system', defaultView: 'launcher', openBehavior: 'new_tab', compactMode: false, deviceMode: 'android' };
+const defaults = { theme: 'system', defaultView: 'launcher', openBehavior: 'new_tab', compactMode: false, deviceMode: 'desktop' };
 function initials(profile) { const name = profile?.name || profile?.email || 'Vexa Creator'; return name.split(/\s+/).map(x => x[0]).join('').slice(0, 2).toUpperCase(); }
 async function json(response) { const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`); return data; }
 function VexaAvatar({ profile, className = 'avatar' }) { if (profile?.picture) return <div className={className}><img src={profile.picture} alt="" /></div>; return <div className={className}>{initials(profile)}</div>; }
