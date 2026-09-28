@@ -58,6 +58,7 @@ function FileExplorer(){
   const [query,setQuery]=useState('');
   const [selected,setSelected]=useState(null);
   useEffect(()=>{const handler=e=>{if(e.detail?.folder){setQuery('');navigate(e.detail.folder)}};window.addEventListener('mtp2026:explorer-navigate',handler);return()=>window.removeEventListener('mtp2026:explorer-navigate',handler)},[]);
+  useEffect(()=>{const key=e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'){e.preventDefault();copySelected()}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'){e.preventDefault();paste()}if(e.key==='Delete'){e.preventDefault();remove()}if(e.key==='Enter'&&selected){const entry=readDesktopEntry(folder,selected);if(entry?.name&&folders.includes(entry.name))navigate(entry.name)}};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)},[selected,folder,clipboard]);
   const folders=['Desktop','Documents','Downloads','Pictures','Music','Videos'];
   const refresh=()=>{setNativeFs(getDesktopFilesystem());setSelected(null);};
   const navigate=next=>{const h=history.slice(0,historyIndex+1).concat(next);setHistory(h);setHistoryIndex(h.length-1);setFolder(next);setSelected(null);};
