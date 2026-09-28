@@ -7,7 +7,7 @@ import {
 import { MTP2026_DESKTOP_BRANDING } from './mtp2026DesktopBranding.js';
 import { bootDesktopOS, shutdownDesktopOS } from './mtp2026DesktopBootManager.js';
 import { getDesktopServices, restartDesktopServices } from './mtp2026DesktopServiceManager.js';
-import { createDesktopTextFile, getDesktopFilesystem, createDesktopFolder, renameDesktopEntry, deleteDesktopEntry, readDesktopEntry } from './mtp2026DesktopFilesystem.js';
+import { createDesktopTextFile, getDesktopFilesystem, createDesktopFolder, renameDesktopEntry, deleteDesktopEntry, readDesktopEntry, copyDesktopEntry, writeDesktopTextFile } from './mtp2026DesktopFilesystem.js';
 import { detectDesktopRuntime } from './mtp2026DesktopRuntimeAdapter.js';
 import { guestImageStatus, installGuestImageFromBytes, installGuestImageFromContract } from './guestImageManager.js';
 import { bootDesktopGuest, stopDesktopGuest } from './mtp2026DesktopGuestBridge.js';
@@ -49,6 +49,13 @@ function WindowFrame({title,icon:Icon,children,onClose,onMinimize,onMaximize,max
   </section>;
 }
 
+function TextEditor({folder,name,onClose}){
+  const [value,setValue]=useState(()=>readDesktopEntry(folder,name)?.content||'');
+  const [saved,setSaved]=useState(false);
+  const save=()=>{writeDesktopTextFile(folder,name,value);setSaved(true);setTimeout(()=>setSaved(false),1200)};
+  useEffect(()=>{const key=e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();save()}};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)},[value,folder,name]);
+  return <div className="mtp11-editor"><div className="mtp11-editor-toolbar"><b>{name}</b><span>{saved?'Saved':'Text document'}</span><button onClick={save}><CheckCircle2/> Save</button><button onClick={onClose}><X/></button></div><textarea value={value} onChange={e=>setValue(e.target.value)} spellCheck="false"/></div>;
+}
 function FileExplorer(){
   const [clipboard,setClipboard]=useState(()=>{try{return JSON.parse(localStorage.getItem('mtp2026:desktop:clipboard:v1')||'null')}catch{return null}});
   const [nativeFs,setNativeFs]=useState(getDesktopFilesystem);
@@ -57,6 +64,7 @@ function FileExplorer(){
   const [historyIndex,setHistoryIndex]=useState(0);
   const [query,setQuery]=useState('');
   const [selected,setSelected]=useState(null);
+  const [editor,setEditor]=useState(null);
   useEffect(()=>{const handler=e=>{if(e.detail?.folder){setQuery('');navigate(e.detail.folder)}};window.addEventListener('mtp2026:explorer-navigate',handler);return()=>window.removeEventListener('mtp2026:explorer-navigate',handler)},[]);
   useEffect(()=>{const key=e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'){e.preventDefault();copySelected()}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'){e.preventDefault();paste()}if(e.key==='Delete'){e.preventDefault();remove()}if(e.key==='Enter'&&selected){const entry=readDesktopEntry(folder,selected);if(entry?.name&&folders.includes(entry.name))navigate(entry.name)}};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)},[selected,folder,clipboard]);
   const folders=['Desktop','Documents','Downloads','Pictures','Music','Videos'];
@@ -68,7 +76,7 @@ function FileExplorer(){
   const makeFolder=()=>{const target=folder==='This PC'?'Documents':folder;const name=prompt('Folder name','New folder');if(name) {createDesktopFolder(target,name);refresh();}};
   const rename=()=>{if(!selected||folder==='This PC')return;const next=prompt('Rename item',selected);if(next&&next!==selected){renameDesktopEntry(folder,selected,next);refresh();setSelected(next);}};
   const remove=()=>{if(!selected||folder==='This PC')return;if(confirm('Delete “'+selected+'” from '+folder+'?')){deleteDesktopEntry(folder,selected);refresh();}};
-  const openEntry=name=>{if(folders.includes(name))navigate(name);};
+  const openEntry=name=>{if(folders.includes(name))navigate(name);else if(readDesktopEntry(folder,name)?.type==='text')setEditor({folder,name});};
   const items=folder==='This PC'
     ? folders.map(name=>({name,type:'Folder',isFolder:true}))
     : (nativeFs[folder]||[]).map(f=>({...f,isFolder:false}));
@@ -95,11 +103,12 @@ function FileExplorer(){
       </div>
       <div className="mtp11-file-grid">
         {filtered.map(x=><button className={`mtp11-file-card ${selected===x.name?'selected':''}`} key={x.name}
-          onClick={()=>setSelected(x.name)} onDoubleClick={()=>x.isFolder?openEntry(x.name):setSelected(x.name)}>
+          onClick={()=>setSelected(x.name)} onDoubleClick={()=>openEntry(x.name)}>
           {x.isFolder?<FolderOpen/>:<File/>}<b>{x.name}</b><small>{x.isFolder?'Folder':`${x.type||'file'} · ${x.size||0} B`}</small>
         </button>)}
         {!filtered.length&&<div className="mtp11-empty">{query?'No matching items.':'This folder is empty.'}</div>}
       </div>
+      {editor&&<TextEditor {...editor} onClose={()=>{setEditor(null);refresh()}}/>}
       {selectedEntry&&<div className="mtp11-file-details"><Info/><div><b>{selectedEntry.name}</b><small>{selectedEntry.type||'text'} · {selectedEntry.size||0} bytes · Updated {new Date(selectedEntry.updatedAt||Date.now()).toLocaleString()}</small></div></div>}
     </main>
   </div>;
