@@ -12,7 +12,7 @@ import { detectDesktopRuntime } from './mtp2026DesktopRuntimeAdapter.js';
 import { guestImageStatus, installGuestImageFromBytes, installGuestImageFromContract } from './guestImageManager.js';
 import { bootDesktopGuest, stopDesktopGuest } from './mtp2026DesktopGuestBridge.js';
 import { startDesktopSession, endDesktopSession } from './mtp2026DesktopSession.js';
-import { getDesktopOSState, setDesktopSessionState, setDesktopPowerState, registerDesktopProcess, unregisterDesktopProcess, subscribeDesktopOSState, getDesktopProcesses, getDesktopServices as getCoreDesktopServices, setDesktopServiceState, addDesktopSystemEvent } from './mtp2026DesktopOSCore.js';
+import { getDesktopOSState, setDesktopSessionState, setDesktopPowerState, registerDesktopProcess, unregisterDesktopProcess, subscribeDesktopOSState, getDesktopProcesses, getDesktopServices as getCoreDesktopServices, setDesktopServiceState, addDesktopSystemEvent, setDesktopLocked, isDesktopLocked } from './mtp2026DesktopOSCore.js';
 import { nativeSystemInfo, nativeListProcesses, nativeListServices } from './mtp2026DesktopNativeBridge.js';
 
 const APPS = [
@@ -332,7 +332,8 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [pinnedApps,setPinnedApps]=useState(()=>{try{return JSON.parse(localStorage.getItem('mtp2026:desktop:pinned-apps:v1')||'["files","browser","settings","terminal","taskmgr","control"]')}catch{return ['files','browser','settings','terminal','taskmgr','control']}});
   const [recentApps,setRecentApps]=useState(()=>{try{return JSON.parse(localStorage.getItem('mtp2026:desktop:recent-apps:v1')||'[]')}catch{return []}});
   const session=useMemo(()=>readSession(),[]);
-  const [,setOsState]=useState(()=>getDesktopOSState());
+  const [osState,setOsState]=useState(()=>getDesktopOSState());
+  const [locked,setLocked]=useState(()=>isDesktopLocked());
   const [windows,setWindows]=useState(()=>Array.isArray(session.windows)?session.windows:[]);
   const [active,setActive]=useState(()=>session.active||null);
   const [maximized,setMaximized]=useState(()=>session.maximized||{});
@@ -377,13 +378,14 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     return()=>window.removeEventListener('mtp2026:guest-state',handler);
   },[]);
   useEffect(()=>{writeSession({windows,active,maximized,minimized,snapped,windowGeometry,updatedAt:new Date().toISOString()})},[windows,active,maximized,minimized,snapped,windowGeometry]);
-  useEffect(()=>subscribeDesktopOSState(setOsState),[]);
+  useEffect(()=>subscribeDesktopOSState(state=>{setOsState(state);setLocked(Boolean(state?.security?.locked));}),[]);
+  useEffect(()=>{const lock=()=>setDesktopLocked(true);window.addEventListener('mtp2026:lock-desktop',lock);return()=>window.removeEventListener('mtp2026:lock-desktop',lock)},[]);
   useEffect(()=>{ setDesktopSessionState('active'); return ()=>setDesktopSessionState('inactive'); },[]);
   useEffect(()=>{ const activeIds=new Set(windows); const state=getDesktopOSState(); Object.keys(state.processes||{}).filter(id=>id.startsWith('app:')).forEach(id=>{const appId=id.slice(4);if(!activeIds.has(appId))unregisterDesktopProcess(id)}); windows.forEach(id=>{registerDesktopProcess({id:'app:'+id,name:id,type:'application',status:minimized.includes(id)?'suspended':'running'});}); },[windows,minimized]);
   useEffect(()=>{try{localStorage.setItem('mtp2026:desktop:icon-positions:v1',JSON.stringify(iconPositions))}catch{}},[iconPositions]);
   useEffect(()=>{
     const onKey=e=>{
-      if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='l'){e.preventDefault();setStart(true);setSearch('');return;}
+      if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='l'){e.preventDefault();if(e.altKey){setDesktopLocked(true);return;}setStart(true);setSearch('');return;}
       if((e.metaKey||e.ctrlKey)&&e.key==='r'){e.preventDefault();setRunDialog(true);return;}
       if(e.key==='Escape'){setStart(false);setNotifications(false);setPower(false);return;}
       if(e.altKey&&e.key==='Tab'){e.preventDefault();const ids=windows.filter(id=>!minimized.includes(id));if(ids.length){const i=Math.max(0,ids.indexOf(active));const next=ids[(i+1)%ids.length];setActive(next);setMinimized(m=>m.filter(x=>x!==next));}}
@@ -475,6 +477,16 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
   };
   return <main className={`mtp11-desktop ${bg}`} onPointerDown={desktopPointerDown}>
+    {locked&&<div className="mtp11-lock-screen" role="dialog" aria-modal="true">
+      <div className="mtp11-lock-card">
+        <LockKeyhole/>
+        <div className="mtp11-lock-time">{clock.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
+        <div className="mtp11-lock-date">{clock.toLocaleDateString([], {weekday:'long',month:'long',day:'numeric'})}</div>
+        <b>MTP2026 User</b>
+        <small>Desktop session locked</small>
+        <button onClick={()=>setDesktopLocked(false)}>Unlock session</button>
+      </div>
+    </div>
     <div className="mtp11-desktop-shade" onContextMenu={e=>{e.preventDefault();setDesktopMenu({x:e.clientX,y:e.clientY});}} onClick={()=>desktopMenu&&setDesktopMenu(null)} />
     {boot.phase!=='ready'&&<div className="mtp11-boot-screen">
       <div className="mtp11-boot-logo"><img src="/mtp2026-logo.svg" alt="MTP2026"/></div>
