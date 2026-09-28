@@ -56,6 +56,7 @@ function FileExplorer(){
   const [historyIndex,setHistoryIndex]=useState(0);
   const [query,setQuery]=useState('');
   const [selected,setSelected]=useState(null);
+  useEffect(()=>{const handler=e=>{if(e.detail?.folder){setQuery('');navigate(e.detail.folder)}};window.addEventListener('mtp2026:explorer-navigate',handler);return()=>window.removeEventListener('mtp2026:explorer-navigate',handler)},[]);
   const folders=['Desktop','Documents','Downloads','Pictures','Music','Videos'];
   const refresh=()=>{setNativeFs(getDesktopFilesystem());setSelected(null);};
   const navigate=next=>{const h=history.slice(0,historyIndex+1).concat(next);setHistory(h);setHistoryIndex(h.length-1);setFolder(next);setSelected(null);};
