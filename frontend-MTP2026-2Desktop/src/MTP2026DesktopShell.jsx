@@ -297,6 +297,10 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [maximized,setMaximized]=useState(()=>session.maximized||{});
   const [minimized,setMinimized]=useState(()=>session.minimized||[]);
   const [notifications,setNotifications]=useState(false);
+  const [calendar,setCalendar]=useState(false);
+  const [wifiEnabled,setWifiEnabled]=useState(()=>localStorage.getItem('mtp2026-desktop-wifi')!=='off');
+  const [bluetoothEnabled,setBluetoothEnabled]=useState(()=>localStorage.getItem('mtp2026-desktop-bluetooth')==='on');
+  const [volumeEnabled,setVolumeEnabled]=useState(()=>localStorage.getItem('mtp2026-desktop-volume')!=='off');
   const [clock,setClock]=useState(new Date());
   const [power,setPower]=useState(false);
   const [desktopMenu,setDesktopMenu]=useState(null);
@@ -399,6 +403,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     if(id==='run')body=<RunDialog onClose={()=>close('run')} onOpen={open}/>;
     if(id==='runtime')body=<GuestRuntime runtime={runtime} guestState={guestState} onState={setGuestState}/>;
     if(id==='about')body=<SystemInformation runtime={runtime} guestState={guestState}/>;
+    if(id==='properties')body=<PropertiesApp/>;
     if(id==='services')body=<ServiceManager/>;
     if(id==='terminal')body=<TerminalApp onOpen={open}/>;
     if(id==='legacy-terminal')body=<div className="mtp11-terminal"><div>mtp2026@desktop:~$ system-info</div><div>MTP2026 Desktop OS</div><div>Architecture: aarch64</div><div>Runtime: browser-shell / native-vm compatible</div><div>Guest profile: desktop</div><div className="cursor">█</div></div>;
@@ -462,15 +467,22 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
       <div className="mtp11-start-grid">{visible.map(a=>{const I=a.icon||Globe2;return <button key={a.id} onClick={()=>a.kind==='web'?launchWeb(a.url):open(a.id)}><span><I/></span><b>{a.title}</b></button>})}</div>
       <div className="mtp11-start-footer"><div><div className="mtp11-avatar">M</div><span>MTP2026 User<small>VexaAccount</small></span></div><button onClick={()=>setPower(v=>!v)}><Power/></button></div>
     </div>}
-    {quickSettings&&<div className="mtp11-quick-settings"><header><b>Quick Settings</b><button onClick={()=>setQuickSettings(false)}><X/></button></header><div className="mtp11-quick-grid"><button className={navigator.onLine?'on':''}><Wifi/><span>Network<small>{navigator.onLine?'Connected':'Offline'}</small></span></button><button><ShieldCheck/><span>Security<small>Protected</small></span></button><button><Monitor/><span>Display<small>Desktop</small></span></button><button onClick={()=>setStart(true)}><Settings/><span>Settings<small>Open system settings</small></span></button></div></div>}
+    {quickSettings&&<div className="mtp11-quick-settings"><header><b>Quick Settings</b><button onClick={()=>setQuickSettings(false)}><X/></button></header><div className="mtp11-quick-grid">
+      <button className={wifiEnabled?'on':''} onClick={()=>{setWifiEnabled(v=>{localStorage.setItem('mtp2026-desktop-wifi',v?'off':'on');return !v})}}><Wifi/><span>Wi-Fi<small>{wifiEnabled&&navigator.onLine?'Connected':'Off'}</small></span></button>
+      <button className={bluetoothEnabled?'on':''} onClick={()=>{setBluetoothEnabled(v=>{localStorage.setItem('mtp2026-desktop-bluetooth',v?'off':'on');return !v})}}><Network/><span>Bluetooth<small>{bluetoothEnabled?'On':'Off'}</small></span></button>
+      <button className={volumeEnabled?'on':''} onClick={()=>{setVolumeEnabled(v=>{localStorage.setItem('mtp2026-desktop-volume',v?'off':'on');return !v})}}><Volume2/><span>Volume<small>{volumeEnabled?'On':'Muted'}</small></span></button>
+      <button><Monitor/><span>Display<small>Desktop</small></span></button>
+      <button onClick={()=>{setQuickSettings(false);setStart(true)}}><Settings/><span>Settings<small>Open system settings</small></span></button>
+    </div></div>}
+    {calendar&&<div className="mtp11-calendar-panel"><header><b>{clock.toLocaleString([], {month:'long',year:'numeric'})}</b><button onClick={()=>setCalendar(false)}><X/></button></header><div className="mtp11-calendar-today"><b>{clock.toLocaleDateString([], {weekday:'long',month:'long',day:'numeric'})}</b><span>{clock.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span></div><div className="mtp11-calendar-note">MTP2026 Desktop calendar</div></div>}
     {notifications&&<div className="mtp11-notification-panel"><header><b>Notifications</b><button onClick={()=>setNotifications(false)}><X/></button></header><div><Bell/><p>You're all caught up.</p><small>MTP2026 system events will appear here.</small></div></div>}
     {power&&<div className="mtp11-power"><button onClick={()=>window.location.reload()}><RefreshCw/> Restart shell</button><button onClick={onExit}><LockKeyhole/> Exit Desktop OS</button><button onClick={()=>setPower(false)}>Cancel</button></div>}
     <nav className="mtp11-taskbar">
       <button className="mtp11-start-button" onClick={()=>setStart(v=>!v)} aria-label="Start"><Grid2X2/></button>
       <button className="mtp11-search-button" onClick={()=>setStart(true)}><Search/><span>Search</span></button>
       <button className="mtp11-taskbar-run" onClick={()=>setRunDialog(true)} title="Run"><Command/></button>
-      <div className="mtp11-pinned">{[['files',FolderOpen],['browser',Globe2],['settings',Settings],['system',Activity],['runtime',Cpu],['about',Info],['services',ServerCog]].map(([id,I])=><button key={id} className={`${active===id?'active ':''}${windows.includes(id)?'running':''}`} onContextMenu={e=>{e.preventDefault();setTaskbarMenu({id,x:e.clientX,y:e.clientY});}} onClick={()=>open(id)}><I/></button>)}</div>
-      <div className="mtp11-tray"><Wifi/><ShieldCheck/><button onClick={()=>setNotifications(v=>!v)}><Bell/></button><button onClick={()=>setQuickSettings(v=>!v)}><Wifi/></button><button className="mtp11-clock"><b>{clock.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</b><small>{clock.toLocaleDateString([], {month:'numeric',day:'numeric',year:'numeric'})}</small></button><button onClick={()=>setPower(v=>!v)}><Power/></button></div>
+      <div className="mtp11-pinned">{[['files',FolderOpen],['browser',Globe2],['settings',Settings],['system',Activity],['runtime',Cpu],['about',Info],['services',ServerCog],['taskmgr',Activity],['control',SlidersHorizontal]].map(([id,I])=><button key={id} className={`${active===id?'active ':''}${windows.includes(id)?'running':''}`} onContextMenu={e=>{e.preventDefault();setTaskbarMenu({id,x:e.clientX,y:e.clientY});}} onClick={()=>open(id)}><I/></button>)}</div>
+      <div className="mtp11-tray"><Wifi/><ShieldCheck/><button onClick={()=>setNotifications(v=>!v)}><Bell/></button><button onClick={()=>setQuickSettings(v=>!v)}><Wifi/></button><button className="mtp11-clock" onClick={()=>{setCalendar(v=>!v);setNotifications(false)}}><b>{clock.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</b><small>{clock.toLocaleDateString([], {month:'numeric',day:'numeric',year:'numeric'})}</small></button><button onClick={()=>setPower(v=>!v)}><Power/></button></div>
     </nav>
   </main>;
 }
