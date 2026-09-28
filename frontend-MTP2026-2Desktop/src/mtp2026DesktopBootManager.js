@@ -5,7 +5,7 @@ const initial=()=>({phase:'off',progress:0,provider:'browser-shell',startedAt:nu
 export function readDesktopBootState(){
   try{return {...initial(),...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{return initial()}
 }
-function persist(state){try{localStorage.setItem(KEY,JSON.stringify(state))}catch{}
+function persist(state){try{localStorage.setItem(KEY,JSON.stringify(state))}catch{}}
 
 function progressForPhase(phase){
   return {
