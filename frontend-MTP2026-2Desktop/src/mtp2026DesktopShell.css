@@ -107,3 +107,20 @@
 .mtp11-calendar-panel{position:absolute;right:14px;bottom:76px;width:310px;z-index:2500;padding:18px;border:1px solid rgba(148,190,255,.18);border-radius:18px;background:rgba(8,18,35,.96);box-shadow:0 24px 70px rgba(0,0,0,.45)}
 .mtp11-calendar-panel header{display:flex;justify-content:space-between}.mtp11-calendar-panel header button{border:0;background:transparent;color:inherit}.mtp11-calendar-today{display:grid;gap:8px;padding:24px 4px}.mtp11-calendar-today span{font-size:30px}.mtp11-calendar-note{color:#8fa4bd;font-size:12px}
 @media(max-width:720px){.mtp11-taskmgr-summary{grid-template-columns:repeat(2,1fr)}.mtp11-taskmgr-table .head,.mtp11-taskmgr-table .row{grid-template-columns:1fr}.mtp11-control-grid{grid-template-columns:1fr}.mtp11-calendar-panel{right:8px;left:8px;width:auto}}
+
+.mtp11-start-tabs{display:flex;gap:6px;margin:10px 0 14px}
+.mtp11-start-tabs button{border:1px solid rgba(148,190,255,.12);background:rgba(255,255,255,.04);color:inherit;border-radius:9px;padding:7px 12px}
+.mtp11-start-tabs button.active{background:rgba(90,180,255,.16);border-color:rgba(90,190,255,.35)}
+.mtp11-start-head{display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px}
+.mtp11-start-head button{border:0;background:transparent;color:#8fdcff;font-size:12px}
+.mtp11-start-recent{display:grid;gap:6px}
+.mtp11-start-recent button{display:flex;align-items:center;gap:10px;text-align:left;border:0;background:transparent;color:inherit;border-radius:9px;padding:8px}
+.mtp11-start-recent button:hover{background:rgba(255,255,255,.06)}
+.mtp11-start-recent span{display:grid;gap:2px}
+.mtp11-start-recent small{color:#8fa4bd}
+.mtp11-start-footer .mtp11-account{display:flex;align-items:center;gap:8px;flex:1;text-align:left;background:transparent;color:inherit;border:0}
+.mtp11-start-footer .mtp11-account span{display:grid;gap:2px}
+.mtp11-start-footer .mtp11-account small{color:#8fa4bd}
+.mtp11-account-menu{position:absolute;left:16px;bottom:62px;width:220px;padding:7px;border:1px solid rgba(148,190,255,.18);border-radius:12px;background:rgba(8,18,35,.98);box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.mtp11-account-menu button{display:flex;align-items:center;gap:8px;width:100%;border:0;background:transparent;color:inherit;text-align:left;border-radius:8px;padding:9px}
+.mtp11-account-menu button:hover{background:rgba(255,255,255,.07)}
