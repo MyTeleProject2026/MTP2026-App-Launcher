@@ -122,6 +122,14 @@ function FileExplorer(){
     </main>
   </div>;
 }
+function TaskManager({windows,active,minimized,runtime,close,onSelect}){
+  const [tick,setTick]=useState(0);
+  useEffect(()=>{const t=setInterval(()=>setTick(x=>x+1),1000);return()=>clearInterval(t)},[]);
+  return <div className="mtp11-taskmgr"><header><div><b>Task Manager</b><small>MTP2026 Desktop processes</small></div><button onClick={()=>window.dispatchEvent(new CustomEvent('mtp2026:open-window',{detail:{id:'services'}}))}><FolderCog/> Services</button></header>
+    <div className="mtp11-taskmgr-summary"><div><b>{windows.length}</b><span>Apps</span></div><div><b>{20+(tick%15)}%</b><span>CPU</span></div><div><b>{44+(tick%9)}%</b><span>Memory</span></div><div><b>{runtime.guestRunning?'Running':'Ready'}</b><span>Guest</span></div></div>
+    <div className="mtp11-taskmgr-table"><div className="head"><span>Name</span><span>Status</span><span>Action</span></div>{windows.length?windows.map(id=><div className="row" key={id}><span><AppWindow/>{id}</span><span>{minimized.includes(id)?'Suspended':'Running'}{active===id?' · Active':''}</span><span><button onClick={()=>onSelect(id)}>Switch</button><button onClick={()=>close(id)}>End task</button></span></div>):<div className="empty">No application windows are running.</div>}</div>
+  </div>;
+}
 function SettingsApp(){
   const sections=[
     {id:'system',label:'System',icon:Cpu},{id:'devices',label:'Bluetooth & devices',icon:Monitor},
