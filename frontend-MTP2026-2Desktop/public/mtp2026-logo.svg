@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+<title>MTP2026 Desktop OS</title><desc>MTP2026 owned desktop operating system logo</desc>
+<defs><linearGradient id="g" x1="20" y1="20" x2="236" y2="236"><stop stop-color="#63d8ff"/><stop offset=".55" stop-color="#3b82f6"/><stop offset="1" stop-color="#7c5cff"/></linearGradient></defs>
+<rect x="12" y="12" width="232" height="232" rx="56" fill="#071321" stroke="url(#g)" stroke-width="8"/>
+<path d="M55 72h146v30h-53v82h-40v-82H55z" fill="url(#g)"/>
+<path d="M58 143h36v41H58zm104-42h36v83h-36z" fill="#eaf8ff"/>
+<text x="128" y="224" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="800" fill="#9fdfff" letter-spacing="2">MTP2026</text>
+</svg>
