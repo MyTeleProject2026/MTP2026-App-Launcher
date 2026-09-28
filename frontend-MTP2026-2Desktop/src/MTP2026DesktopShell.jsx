@@ -371,13 +371,15 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     </div>}
     <div className="mtp11-desktop-icons" onClick={()=>setDesktopSelection(null)}>
       {desktopBox&&<div className="mtp11-selection-box" style={{left:desktopBox.x,top:desktopBox.y,width:desktopBox.w,height:desktopBox.h}}/>}
-      <button style={{left:iconPositions['this-pc']?.x,top:iconPositions['this-pc']?.y}} className={`mtp11-desktop-icon ${desktopSelection==='this-pc'?'selected':''} ${draggingIcon==='this-pc'?'dragging':''}`} onPointerDown={e=>{e.stopPropagation();moveIcon('this-pc',e)}} onClick={e=>{e.stopPropagation();setDesktopSelection('this-pc')}} onDoubleClick={()=>desktopShortcutAction('files')}><span>🖥️</span><b>This PC</b></button>
-      <button style={{left:iconPositions.files?.x,top:iconPositions.files?.y}} className={`mtp11-desktop-icon ${desktopSelection==='files'?'selected':''} ${draggingIcon==='files'?'dragging':''}`} onPointerDown={e=>{e.stopPropagation();moveIcon('files',e)}} onClick={e=>{e.stopPropagation();setDesktopSelection('files')}} onPointerDown={e=>{if(e.button===0)setDraggingIcon('files')}} onPointerUp={()=>setDraggingIcon(null)} onDoubleClick={()=>desktopShortcutAction('this-pc')}><FolderOpen/><b>File Explorer</b></button>
-      <button onPointerDown={e=>{if(e.button===0)setDraggingIcon('browser')}} onPointerUp={()=>setDraggingIcon(null)} onDoubleClick={()=>open('browser')}><Globe2/><b>MTP2026 Browser</b></button>
-      <button onPointerDown={e=>{if(e.button===0)setDraggingIcon('settings')}} onPointerUp={()=>setDraggingIcon(null)} onDoubleClick={()=>open('settings')}><Settings/><b>Settings</b></button>
-      <button onPointerDown={e=>{if(e.button===0)setDraggingIcon('runtime')}} onPointerUp={()=>setDraggingIcon(null)} onDoubleClick={()=>open('runtime')}><Cpu/><b>Guest Runtime</b></button>
-      <button onDoubleClick={()=>open('about')}><Info/><b>System Information</b></button>
-      {installed.slice(0,8).map(a=><button key={a.id} onDoubleClick={()=>open(a.id)}><Globe2/><b>{a.title}</b></button>)}
+      {[
+        {id:'this-pc',label:'This PC',icon:Monitor,action:()=>desktopShortcutAction('files')},
+        {id:'files',label:'File Explorer',icon:FolderOpen,action:()=>desktopShortcutAction('this-pc')},
+        {id:'browser',label:'MTP2026 Browser',icon:Globe2,action:()=>open('browser')},
+        {id:'settings',label:'Settings',icon:Settings,action:()=>open('settings')},
+        {id:'runtime',label:'Guest Runtime',icon:Cpu,action:()=>open('runtime')},
+        {id:'about',label:'System Information',icon:Info,action:()=>open('about')},
+        ...installed.slice(0,8).map(a=>({id:a.id,label:a.title,icon:Globe2,action:()=>open(a.id)}))
+      ].map((item,index)=>{const I=item.icon;const pos=iconPositions[item.id]||{x:18,y:18+index*88};return <button key={item.id} style={{left:pos.x,top:pos.y}} className={`mtp11-desktop-icon ${desktopSelection===item.id?'selected':''} ${draggingIcon===item.id?'dragging':''}`} onPointerDown={e=>{e.stopPropagation();moveIcon(item.id,e)}} onClick={e=>{e.stopPropagation();setDesktopSelection(item.id)}} onDoubleClick={item.action}><I/><b>{item.label}</b></button>})}
     </div>
     {windows.map(renderWindow)}
     {desktopMenu&&<div className="mtp11-context-menu" style={{left:Math.min(desktopMenu.x,window.innerWidth-210),top:Math.min(desktopMenu.y,window.innerHeight-190)}} onClick={e=>e.stopPropagation()}>
