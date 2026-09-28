@@ -197,6 +197,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [quickSettings,setQuickSettings]=useState(false);
   const [snapMenu,setSnapMenu]=useState(null);
   const [desktopSelection,setDesktopSelection]=useState(null);
+  const [snapped,setSnapped]=useState(()=>session.snapped||{});
   const [browserUrl,setBrowserUrl]=useState('https://www.vexastore.2bd.net/');
   const [wallpaper,setWallpaper]=useState('aurora');
   const [boot,setBoot]=useState({phase:'ready',progress:100,provider:'browser-shell'});
@@ -208,7 +209,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     window.addEventListener('mtp2026:guest-state',handler);
     return()=>window.removeEventListener('mtp2026:guest-state',handler);
   },[]);
-  useEffect(()=>{writeSession({windows,active,maximized,minimized,updatedAt:new Date().toISOString()})},[windows,active,maximized,minimized]);
+  useEffect(()=>{writeSession({windows,active,maximized,minimized,snapped,updatedAt:new Date().toISOString()})},[windows,active,maximized,minimized,snapped]);
   useEffect(()=>{
     const onKey=e=>{
       if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='l'){e.preventDefault();setStart(true);setSearch('');return;}
@@ -224,7 +225,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const allApps=[...APPS,{id:'services',title:'System Services',icon:ServerCog},...installed];
   const visible=allApps.filter(a=>a.title.toLowerCase().includes(search.toLowerCase()));
 
-  function close(id){setWindows(ws=>ws.filter(w=>w!==id));setMinimized(m=>m.filter(x=>x!==id));setMaximized(m=>{const next={...m};delete next[id];return next});if(active===id)setActive(null);}
+  function close(id){setWindows(ws=>ws.filter(w=>w!==id));setMinimized(m=>m.filter(x=>x!==id));setMaximized(m=>{const next={...m};delete next[id];return next});if(active===id)setActive(null);setSnapped(s=>{const n={...s};delete n[id];return n});}
   function open(id){
     if(id==='store'){window.open('https://www.vexastore.2bd.net/','_blank','noopener,noreferrer');setStart(false);return;}
     const existing=windows.find(w=>w===id);
@@ -233,7 +234,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     setActive(id);setStart(false);
   }
   function launchWeb(url){if(url){setBrowserUrl(url);open('browser');}}
-  function snapWindow(id,position){setMaximized(m=>{const n={...m};delete n[id];return n});setSnapMenu(null);window.dispatchEvent(new CustomEvent('mtp2026:snap',{detail:{id,position}}));}
+  function snapWindow(id,position){setSnapped(s=>({...s,[id]:position}));setMaximized(m=>{const n={...m};delete n[id];return n});setSnapMenu(null);window.dispatchEvent(new CustomEvent('mtp2026:snap',{detail:{id,position}}));}
   function renderWindow(id){
     const app=allApps.find(a=>a.id===id)||APPS.find(a=>a.id===id);
     if(!app)return null;
@@ -249,7 +250,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     if(id==='browser')body=<div className="mtp11-browser"><form onSubmit={e=>{e.preventDefault();setBrowserUrl(browserUrl);}}><Globe2/><input value={browserUrl} onChange={e=>setBrowserUrl(e.target.value)}/><button>Go</button></form><iframe title="MTP2026 Browser" src={browserUrl} allow="fullscreen; clipboard-read; clipboard-write; autoplay; gamepad" sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-pointer-lock allow-scripts allow-same-origin"/></div>;
     if(app.kind==='web')body=<div className="mtp11-browser"><div className="mtp11-browser-note">MTP2026 WebApp · VexaAccount application workspace</div><iframe title={app.title} src={app.url} allow="fullscreen; clipboard-read; clipboard-write; autoplay; gamepad" sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-pointer-lock allow-scripts allow-same-origin"/></div>;
     if(minimized.includes(id)) return null;
-    return <div className={`mtp11-window-layer ${maximized[id]?'max':''}`} style={{zIndex:active===id?120:110}} key={id} onMouseDown={()=>{setActive(id);setMinimized(m=>m.filter(x=>x!==id));}}><WindowFrame title={app.title} icon={Icon} maximized={!!maximized[id]} onClose={()=>close(id)} onMinimize={()=>{setMinimized(m=>m.includes(id)?m:m.concat(id));if(active===id)setActive(null)}} onMaximize={()=>setMaximized(m=>({...m,[id]:!m[id]}))} onTitleDoubleClick={()=>setMaximized(m=>({...m,[id]:!m[id]}))} onTitleContextMenu={e=>{e.preventDefault();setSnapMenu({id,x:e.clientX,y:e.clientY});}}>{body}</WindowFrame></div>;
+    return <div className={`mtp11-window-layer ${maximized[id]?'max':''} ${snapped[id]?'snap-'+snapped[id]:''}`} style={{zIndex:active===id?120:110}} key={id} onMouseDown={()=>{setActive(id);setMinimized(m=>m.filter(x=>x!==id));}}><WindowFrame title={app.title} icon={Icon} maximized={!!maximized[id]} onClose={()=>close(id)} onMinimize={()=>{setMinimized(m=>m.includes(id)?m:m.concat(id));if(active===id)setActive(null)}} onMaximize={()=>setMaximized(m=>({...m,[id]:!m[id]}))} onTitleDoubleClick={()=>setMaximized(m=>({...m,[id]:!m[id]}))} onTitleContextMenu={e=>{e.preventDefault();setSnapMenu({id,x:e.clientX,y:e.clientY});}}>{body}</WindowFrame></div>;
   }
 
   const bg=wallpaper==='aurora'?'mtp11-bg-aurora':wallpaper==='midnight'?'mtp11-bg-midnight':'mtp11-bg-clean';
