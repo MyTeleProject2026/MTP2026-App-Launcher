@@ -12,7 +12,7 @@ import { guestImageStatus, installGuestImageFromBytes, installGuestImageFromCont
 import { bootDesktopGuest, stopDesktopGuest } from './mtp2026DesktopGuestBridge.js';
 import { startDesktopSession, endDesktopSession } from './mtp2026DesktopSession.js';
 import { getDesktopOSState, setDesktopSessionState, setDesktopPowerState, registerDesktopProcess, unregisterDesktopProcess, subscribeDesktopOSState, getDesktopProcesses, getDesktopServices as getCoreDesktopServices, setDesktopServiceState, addDesktopSystemEvent, setDesktopLocked, isDesktopLocked } from './mtp2026DesktopOSCore.js';
-import { nativeSystemInfo, nativeListProcesses, nativeListServices } from './mtp2026DesktopNativeBridge.js';
+import { nativeSystemInfo, nativeListProcesses, nativeListServices, nativeFilesystemInfo } from './mtp2026DesktopNativeBridge.js';
 
 const APPS = [
   { id:'files', title:'File Explorer', icon:FolderOpen },
@@ -128,18 +128,20 @@ function TaskManager({windows,active,minimized,runtime,close,onSelect}){
   const [tick,setTick]=useState(0);
   const [processes,setProcesses]=useState(getDesktopProcesses);
   const [nativeInfo,setNativeInfo]=useState(null);
+  const [nativeProcesses,setNativeProcesses]=useState([]);
   useEffect(()=>{
     const off=subscribeDesktopOSState(()=>setProcesses(getDesktopProcesses()));
     const timer=setInterval(()=>setTick(x=>x+1),1000);
-    void nativeSystemInfo().then(r=>{if(r?.supported)setNativeInfo(r.value||null)});
-    return()=>{off();clearInterval(timer)};
+    const refreshNative=()=>void nativeListProcesses().then(r=>{if(r?.supported)setNativeProcesses(Array.isArray(r.value)?r.value:[])});
+    void nativeSystemInfo().then(r=>{if(r?.supported)setNativeInfo(r.value||null)}); refreshNative(); const poll=setInterval(refreshNative,3000);
+    return()=>{off();clearInterval(timer);clearInterval(poll)};
   },[]);
   const appProcesses=processes.filter(p=>p.type==='application');
   const shellProcesses=processes.filter(p=>p.type!=='application');
   const shellLoad=Math.round(8+((tick*3)%18));
   return <div className="mtp11-taskmgr"><header><div><b>Task Manager</b><small>MTP2026 Desktop process registry</small></div><button onClick={()=>window.dispatchEvent(new CustomEvent('mtp2026:open-window',{detail:{id:'services'}}))}><FolderCog/> Services</button></header>
     <div className="mtp11-taskmgr-summary"><div><b>{appProcesses.length}</b><span>Apps</span></div><div><b>{shellLoad}%</b><span>Shell load</span></div><div><b>{processes.length}</b><span>Processes</span></div><div><b>{runtime.guestRunning?'Running':'Ready'}</b><span>Guest</span></div></div>
-    {nativeInfo&&<div className="mtp11-taskmgr-native"><span>Native host</span><b>{nativeInfo.os||nativeInfo.platform||'available'}</b><span>{nativeInfo.arch||nativeInfo.architecture||'host telemetry'}</span></div>}
+    {nativeInfo&&<div className="mtp11-taskmgr-native"><span>Native host</span><b>{nativeInfo.os||nativeInfo.platform||'available'}</b><span>{nativeInfo.architecture||nativeInfo.arch||'host telemetry'}<span> · {nativeProcesses.length} host processes</span>}</span></div>}
     <div className="mtp11-taskmgr-table"><div className="head"><span>Name</span><span>Status</span><span>Action</span></div>{processes.length?processes.map(p=><div className="row" key={p.id}><span><AppWindow/>{p.name}</span><span>{p.status||'running'}{p.id==='app:'+active?' · Active':''}</span><span>{p.type==='application'?<><button onClick={()=>onSelect(p.id.slice(4))}>Switch</button><button onClick={()=>close(p.id.slice(4))}>End task</button></>:<small>System</small>}</span></div>):<div className="empty">No MTP2026 processes are registered.</div>}</div>
     {shellProcesses.length>0&&<small className="mtp11-taskmgr-note">System processes are owned by the MTP2026 shell. Native host process enumeration is exposed separately when the native host is available.</small>}
   </div>;
@@ -313,12 +315,16 @@ function ServiceManager(){
 
 function SystemMonitor({runtime,guestState}){
   const [tick,setTick]=useState(0);
-  useEffect(()=>{const t=setInterval(()=>setTick(x=>x+1),1000);return()=>clearInterval(t);},[]);
+  const [nativeInfo,setNativeInfo]=useState(null);
+  const [fsInfo,setFsInfo]=useState(null);
+  useEffect(()=>{const t=setInterval(()=>setTick(x=>x+1),1000);void nativeSystemInfo().then(r=>{if(r?.supported)setNativeInfo(r.value)});void nativeFilesystemInfo().then(r=>{if(r?.supported)setFsInfo(r.value)});return()=>clearInterval(t)},[]);
   const cpu=Math.round(18+((tick*13)%31)),mem=Math.round(42+((tick*7)%18));
-  const guestReady=Boolean(guestState?.running && (guestState?.phase==='ready'||guestState?.phase==='browser-shell'));
-  const guestMeter=guestReady ? 100 : Math.max(0,Math.min(100,guestState?.progress||0));
+  const guestReady=Boolean(guestState?.running&&(guestState?.phase==='ready'||guestState?.phase==='browser-shell'));
+  const guestMeter=guestReady?100:Math.max(0,Math.min(100,guestState?.progress||0));
   return <div className="mtp11-monitor"><div className="mtp11-runtime-badge"><span className="dot"/> {runtime.mode==='native-vm'?'ARM64 guest provider active':runtime.mode==='qemu-wasm'?'QEMU-WASM ARM64 provider available':'Browser shell runtime'} · {runtime.guestProfile}</div><div className="mtp11-monitor-hero"><Activity/><div><b>MTP2026 System Monitor</b><small>Live {runtime.mode} telemetry · {runtime.architecture}</small></div></div>
     {[['CPU',cpu,'%'],['Memory',mem,'%'],['Network',navigator.onLine?100:0,'%'],['Guest runtime',guestMeter,'%']].map(([n,v,u])=><div className="mtp11-meter" key={n}><div><span>{n}</span><b>{v}{u}</b></div><i><em style={{width:`${v}%`}}/></i></div>)}
+    {nativeInfo&&<div className="mtp11-taskmgr-native"><span>Host</span><b>{nativeInfo.host_os}</b><span>{nativeInfo.architecture} · PID {nativeInfo.process_id}</span></div>}
+    {fsInfo&&<div className="mtp11-taskmgr-native"><span>Native filesystem</span><b>{fsInfo.root||'host root'}</b><span>{fsInfo.separator} · {fsInfo.exists?'available':'unavailable'}</span></div>}
   </div>;
 }
 
