@@ -198,6 +198,8 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [quickSettings,setQuickSettings]=useState(false);
   const [snapMenu,setSnapMenu]=useState(null);
   const [desktopSelection,setDesktopSelection]=useState(null);
+  const [desktopBox,setDesktopBox]=useState(null);
+  const [draggingIcon,setDraggingIcon]=useState(null);
   const [snapped,setSnapped]=useState(()=>session.snapped||{});
   const [windowGeometry,setWindowGeometry]=useState(()=>session.windowGeometry||{});
   const [browserUrl,setBrowserUrl]=useState('https://www.vexastore.2bd.net/');
@@ -263,7 +265,14 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   }
 
   const bg=wallpaper==='aurora'?'mtp11-bg-aurora':wallpaper==='midnight'?'mtp11-bg-midnight':'mtp11-bg-clean';
-  return <main className={`mtp11-desktop ${bg}`}>
+  const desktopPointerDown=e=>{
+    if(e.button!==0||e.target.closest('.mtp11-desktop-icons')||e.target.closest('.mtp11-taskbar')||e.target.closest('.mtp11-window')) return;
+    const sx=e.clientX,sy=e.clientY;setDesktopBox({x:sx,y:sy,w:0,h:0});
+    const move=ev=>setDesktopBox({x:Math.min(sx,ev.clientX),y:Math.min(sy,ev.clientY),w:Math.abs(ev.clientX-sx),h:Math.abs(ev.clientY-sy)});
+    const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);setDesktopBox(null);};
+    window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
+  };
+  return <main className={`mtp11-desktop ${bg}`} onPointerDown={desktopPointerDown}>
     <div className="mtp11-desktop-shade" onContextMenu={e=>{e.preventDefault();setDesktopMenu({x:e.clientX,y:e.clientY});}} onClick={()=>desktopMenu&&setDesktopMenu(null)} />
     {boot.phase!=='ready'&&<div className="mtp11-boot-screen">
       <div className="mtp11-boot-logo"><img src="/mtp2026-logo.svg" alt="MTP2026"/></div>
@@ -273,11 +282,12 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
       <em>{String(boot.phase).toUpperCase()} · {boot.progress}%</em>
     </div>}
     <div className="mtp11-desktop-icons" onClick={()=>setDesktopSelection(null)}>
+      {desktopBox&&<div className="mtp11-selection-box" style={{left:desktopBox.x,top:desktopBox.y,width:desktopBox.w,height:desktopBox.h}}/>}
       <button className={desktopSelection==='this-pc'?'selected':''} onClick={e=>{e.stopPropagation();setDesktopSelection('this-pc')}} onDoubleClick={()=>open('files')}><span>🖥️</span><b>This PC</b></button>
-      <button className={desktopSelection==='files'?'selected':''} onClick={e=>{e.stopPropagation();setDesktopSelection('files')}} onDoubleClick={()=>open('files')}><FolderOpen/><b>File Explorer</b></button>
-      <button onDoubleClick={()=>open('browser')}><Globe2/><b>MTP2026 Browser</b></button>
-      <button onDoubleClick={()=>open('settings')}><Settings/><b>Settings</b></button>
-      <button onDoubleClick={()=>open('runtime')}><Cpu/><b>Guest Runtime</b></button>
+      <button className={desktopSelection==='files'?'selected':''} onClick={e=>{e.stopPropagation();setDesktopSelection('files')}} onPointerDown={e=>{if(e.button===0)setDraggingIcon('files')}} onPointerUp={()=>setDraggingIcon(null)} onDoubleClick={()=>open('files')}><FolderOpen/><b>File Explorer</b></button>
+      <button onPointerDown={e=>{if(e.button===0)setDraggingIcon('browser')}} onPointerUp={()=>setDraggingIcon(null)} onDoubleClick={()=>open('browser')}><Globe2/><b>MTP2026 Browser</b></button>
+      <button onPointerDown={e=>{if(e.button===0)setDraggingIcon('settings')}} onPointerUp={()=>setDraggingIcon(null)} onDoubleClick={()=>open('settings')}><Settings/><b>Settings</b></button>
+      <button onPointerDown={e=>{if(e.button===0)setDraggingIcon('runtime')}} onPointerUp={()=>setDraggingIcon(null)} onDoubleClick={()=>open('runtime')}><Cpu/><b>Guest Runtime</b></button>
       <button onDoubleClick={()=>open('about')}><Info/><b>System Information</b></button>
       {installed.slice(0,8).map(a=><button key={a.id} onDoubleClick={()=>open(a.id)}><Globe2/><b>{a.title}</b></button>)}
     </div>
