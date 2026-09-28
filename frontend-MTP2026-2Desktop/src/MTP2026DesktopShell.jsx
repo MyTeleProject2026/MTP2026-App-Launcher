@@ -147,6 +147,25 @@ function ControlPanel({onSettings,onOpen}){
 function PropertiesApp({target='MTP2026 Desktop OS'}){
   return <div className="mtp11-properties"><header><Info/><div><b>{target}</b><small>Properties</small></div></header><div className="mtp11-properties-grid"><span>Type</span><b>System object</b><span>Owner</span><b>MTP2026</b><span>Architecture</span><b>ARM64 / AArch64</b><span>Edition</span><b>Desktop Edition</b><span>Version</span><b>2026.1</b><span>Runtime</span><b>Browser shell + supported guest providers</b></div></div>;
 }
+function TerminalApp({onOpen}){
+  const [lines,setLines]=useState(['MTP2026 Desktop Terminal','Type "help" for available commands.']);
+  const [value,setValue]=useState('');
+  const run=cmd=>{const raw=cmd.trim(),v=raw.toLowerCase();if(!v)return;let out='';
+    if(v==='help')out='help  clear  date  systeminfo  apps  taskmgr  control  explorer  settings  open <app>';
+    else if(v==='clear'){setLines([]);return}
+    else if(v==='date')out=new Date().toString();
+    else if(v==='systeminfo')out='MTP2026 Desktop OS | ARM64 / AArch64 | MTP2026 Desktop Shell';
+    else if(v==='apps')out='File Explorer\nMTP2026 Browser\nSettings\nTask Manager\nControl Panel\nGuest Runtime';
+    else if(v==='taskmgr')return onOpen('taskmgr');
+    else if(v==='control')return onOpen('control');
+    else if(v==='explorer')return onOpen('files');
+    else if(v==='settings')return onOpen('settings');
+    else if(v.startsWith('open ')){const n=v.slice(5);const map={browser:'browser',files:'files','file explorer':'files',settings:'settings',runtime:'runtime','task manager':'taskmgr','control panel':'control'};if(map[n])return onOpen(map[n]);out='Application not found: '+n}
+    else out='mtp2026: command not found: '+raw;
+    setLines(x=>[...x,'mtp2026@desktop:~$ '+raw,out]);
+  };
+  return <div className="mtp11-terminal-real" onClick={()=>document.getElementById('mtp-terminal-input')?.focus()}><div className="mtp11-terminal-output">{lines.map((x,i)=><div key={i}>{x}</div>)}</div><div className="mtp11-terminal-prompt"><span>mtp2026@desktop:~$</span><input id="mtp-terminal-input" autoFocus value={value} onChange={e=>setValue(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){run(value);setValue('')}}}/></div></div>;
+}
 function SettingsApp(){
   const sections=[
     {id:'system',label:'System',icon:Cpu},{id:'devices',label:'Bluetooth & devices',icon:Monitor},
