@@ -294,7 +294,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [runDialog,setRunDialog]=useState(false);
   const [search,setSearch]=useState('');
   const session=useMemo(()=>readSession(),[]);
-  const [osState,setOsState]=useState(()=>getDesktopOSState());
+  const [,setOsState]=useState(()=>getDesktopOSState());
   const [windows,setWindows]=useState(()=>Array.isArray(session.windows)?session.windows:[]);
   const [active,setActive]=useState(()=>session.active||null);
   const [maximized,setMaximized]=useState(()=>session.maximized||{});
