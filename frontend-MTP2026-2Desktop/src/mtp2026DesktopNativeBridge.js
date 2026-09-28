@@ -57,3 +57,5 @@ export async function nativeFilesystemInfo() {
 export async function nativeListDirectory(path) {
   return invoke('mtp2026_list_directory', { path });
 }
+
+export async function nativeSystemMetrics() { return invoke('mtp2026_system_metrics'); }
