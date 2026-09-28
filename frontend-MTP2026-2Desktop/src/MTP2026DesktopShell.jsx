@@ -9,6 +9,8 @@ import { bootDesktopOS, shutdownDesktopOS } from './mtp2026DesktopBootManager.js
 import { getDesktopServices, restartDesktopServices } from './mtp2026DesktopServiceManager.js';
 import { createDesktopTextFile, getDesktopFilesystem } from './mtp2026DesktopFilesystem.js';
 import { detectDesktopRuntime } from './mtp2026DesktopRuntimeAdapter.js';
+import { guestImageStatus, installGuestImageFromBytes, installGuestImageFromContract } from './guestImageManager.js';
+import { bootDesktopGuest, stopDesktopGuest } from './mtp2026DesktopGuestBridge.js';
 import { startDesktopSession, endDesktopSession } from './mtp2026DesktopSession.js';
 
 const APPS = [
@@ -18,6 +20,7 @@ const APPS = [
   { id:'store', title:'VexaStore', icon:Store },
   { id:'terminal', title:'Terminal', icon:Terminal },
   { id:'system', title:'System Monitor', icon:Activity },
+  { id:'runtime', title:'Guest Runtime', icon:Cpu },
 ];
 
 const STORAGE_KEY='mtp2026-desktop-files-v1';
@@ -95,6 +98,36 @@ function SettingsApp(){
   </div>;
 }
 
+function GuestRuntime({runtime,guestState,onState}){
+  const [image,setImage]=useState({status:'checking'});
+  const [busy,setBusy]=useState(false);
+  const [message,setMessage]=useState('');
+  const refresh=async()=>{setBusy(true);setMessage('');try{setImage(await guestImageStatus('desktop'));}catch(e){setMessage(e.message||'Unable to inspect guest image.');}finally{setBusy(false);}};
+  useEffect(()=>{void refresh();},[]);
+  const boot=async()=>{setBusy(true);setMessage('');try{const state=await bootDesktopGuest({onState});onState?.(state);}catch(e){setMessage(e.message||'Guest boot failed.');}finally{setBusy(false);}};
+  const stop=async()=>{setBusy(true);setMessage('');try{const state=await stopDesktopGuest();onState?.(state);await refresh();}catch(e){setMessage(e.message||'Guest stop failed.');}finally{setBusy(false);}};
+  const importImage=async(e)=>{const file=e.target.files?.[0];e.target.value='';if(!file)return;setBusy(true);setMessage('Validating and installing ARM64 guest image…');try{await installGuestImageFromBytes('desktop',new Uint8Array(await file.arrayBuffer()),{sourceName:file.name});setMessage('Guest image installed and integrity-checked.');await refresh();}catch(err){setMessage(err.message||'Guest image installation failed.');}finally{setBusy(false);}};
+  const downloadImage=async()=>{setBusy(true);setMessage('Downloading configured guest image…');try{await installGuestImageFromContract('desktop',{sourceName:'configured MTP2026 guest image'});setMessage('Configured guest image installed and integrity-checked.');await refresh();}catch(e){setMessage(e.message||'Configured guest image is unavailable.');}finally{setBusy(false);}};
+  const running=Boolean(guestState?.running);
+  return <div className="mtp11-runtime">
+    <div className="mtp11-runtime-head"><div><div className="mtp11-runtime-kicker">DEVICE VIRTUALIZATION</div><h2>Guest Runtime</h2><p>Manage the MTP2026 Desktop ARM64 guest without bundling proprietary operating-system files.</p></div><button onClick={refresh} disabled={busy}><RefreshCw/></button></div>
+    <div className="mtp11-runtime-status"><div><span className="dot"/><b>{running?'Running':'Stopped'}</b><small>{runtime.mode} · {runtime.architecture.toUpperCase()}</small></div><div><b>{guestState?.phase||'idle'}</b><small>{guestState?.progress||0}% boot progress</small></div></div>
+    <div className="mtp11-runtime-grid">
+      <div className="mtp11-runtime-card"><Cpu/><b>Architecture</b><span>ARM64 / AArch64</span></div>
+      <div className="mtp11-runtime-card"><Monitor/><b>Profile</b><span>desktop · qemu-aarch64-virt compatible</span></div>
+      <div className="mtp11-runtime-card"><HardDrive/><b>Guest image</b><span>{image.status==='installed'?'Installed · verified':'Not installed'}</span></div>
+      <div className="mtp11-runtime-card"><ShieldCheck/><b>Runtime policy</b><span>MTP2026-owned shell + supplied guest image</span></div>
+    </div>
+    <div className="mtp11-runtime-actions">
+      {!running?<button onClick={boot} disabled={busy}><Power/> Boot guest</button>:<button onClick={stop} disabled={busy}><Power/> Stop guest</button>}
+      <label><Download/> Import ARM64 image<input type="file" accept=".img,.raw,.bin,.qcow2,.iso,application/octet-stream" onChange={importImage}/></label>
+      <button onClick={downloadImage} disabled={busy}><RefreshCw/> Use configured source</button>
+    </div>
+    {message&&<div className="mtp11-runtime-message">{message}</div>}
+    <div className="mtp11-runtime-note">Only an actual verified guest image plus a supported native or QEMU-WASM provider can execute a real guest. Otherwise MTP2026 continues in its browser shell.</div>
+  </div>;
+}
+
 function ServiceManager(){
   const [services,setServices]=useState(getDesktopServices);
   const restart=()=>setServices(restartDesktopServices());
@@ -159,6 +192,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     if(id==='files')body=<FileExplorer/>;
     if(id==='settings')body=<SettingsApp/>;
     if(id==='system')body=<SystemMonitor runtime={runtime} guestState={guestState}/>;
+    if(id==='runtime')body=<GuestRuntime runtime={runtime} guestState={guestState} onState={setGuestState}/>;
     if(id==='services')body=<ServiceManager/>;
     if(id==='terminal')body=<div className="mtp11-terminal"><div>mtp2026@desktop:~$ system-info</div><div>MTP2026 Desktop OS</div><div>Architecture: aarch64</div><div>Runtime: browser-shell / native-vm compatible</div><div>Guest profile: desktop</div><div className="cursor">█</div></div>;
     if(id==='browser')body=<div className="mtp11-browser"><form onSubmit={e=>{e.preventDefault();setBrowserUrl(browserUrl);}}><Globe2/><input value={browserUrl} onChange={e=>setBrowserUrl(e.target.value)}/><button>Go</button></form><iframe title="MTP2026 Browser" src={browserUrl} allow="fullscreen; clipboard-read; clipboard-write; autoplay; gamepad" sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-pointer-lock allow-scripts allow-same-origin"/></div>;
@@ -181,6 +215,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
       <button onDoubleClick={()=>open('files')}><FolderOpen/><b>File Explorer</b></button>
       <button onDoubleClick={()=>open('browser')}><Globe2/><b>MTP2026 Browser</b></button>
       <button onDoubleClick={()=>open('settings')}><Settings/><b>Settings</b></button>
+      <button onDoubleClick={()=>open('runtime')}><Cpu/><b>Guest Runtime</b></button>
       {installed.slice(0,8).map(a=><button key={a.id} onDoubleClick={()=>open(a.id)}><Globe2/><b>{a.title}</b></button>)}
     </div>
     {windows.map(renderWindow)}
@@ -195,7 +230,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     <nav className="mtp11-taskbar">
       <button className="mtp11-start-button" onClick={()=>setStart(v=>!v)} aria-label="Start"><Grid2X2/></button>
       <button className="mtp11-search-button" onClick={()=>setStart(true)}><Search/><span>Search</span></button>
-      <div className="mtp11-pinned">{[['files',FolderOpen],['browser',Globe2],['settings',Settings],['system',Activity],['services',ServerCog]].map(([id,I])=><button key={id} className={active===id?'active':''} onClick={()=>open(id)}><I/></button>)}</div>
+      <div className="mtp11-pinned">{[['files',FolderOpen],['browser',Globe2],['settings',Settings],['system',Activity],['runtime',Cpu],['services',ServerCog]].map(([id,I])=><button key={id} className={active===id?'active':''} onClick={()=>open(id)}><I/></button>)}</div>
       <div className="mtp11-tray"><Wifi/><ShieldCheck/><button onClick={()=>setNotifications(v=>!v)}><Bell/></button><button className="mtp11-clock"><b>{clock.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</b><small>{clock.toLocaleDateString([], {month:'numeric',day:'numeric',year:'numeric'})}</small></button><button onClick={()=>setPower(v=>!v)}><Power/></button></div>
     </nav>
   </main>;
