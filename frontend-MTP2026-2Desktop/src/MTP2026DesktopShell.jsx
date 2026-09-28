@@ -194,6 +194,9 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [clock,setClock]=useState(new Date());
   const [power,setPower]=useState(false);
   const [desktopMenu,setDesktopMenu]=useState(null);
+  const [quickSettings,setQuickSettings]=useState(false);
+  const [snapMenu,setSnapMenu]=useState(null);
+  const [desktopSelection,setDesktopSelection]=useState(null);
   const [browserUrl,setBrowserUrl]=useState('https://www.vexastore.2bd.net/');
   const [wallpaper,setWallpaper]=useState('aurora');
   const [boot,setBoot]=useState({phase:'ready',progress:100,provider:'browser-shell'});
@@ -230,6 +233,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     setActive(id);setStart(false);
   }
   function launchWeb(url){if(url){setBrowserUrl(url);open('browser');}}
+  function snapWindow(id,position){setMaximized(m=>{const n={...m};delete n[id];return n});setSnapMenu(null);window.dispatchEvent(new CustomEvent('mtp2026:snap',{detail:{id,position}}));}
   function renderWindow(id){
     const app=allApps.find(a=>a.id===id)||APPS.find(a=>a.id===id);
     if(!app)return null;
@@ -258,9 +262,9 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
       <div className="mtp11-boot-progress"><i style={{width:`${boot.progress}%`}}/></div>
       <em>{String(boot.phase).toUpperCase()} · {boot.progress}%</em>
     </div>}
-    <div className="mtp11-desktop-icons">
-      <button onDoubleClick={()=>open('files')}><span>🖥️</span><b>This PC</b></button>
-      <button onDoubleClick={()=>open('files')}><FolderOpen/><b>File Explorer</b></button>
+    <div className="mtp11-desktop-icons" onClick={()=>setDesktopSelection(null)}>
+      <button className={desktopSelection==='this-pc'?'selected':''} onClick={e=>{e.stopPropagation();setDesktopSelection('this-pc')}} onDoubleClick={()=>open('files')}><span>🖥️</span><b>This PC</b></button>
+      <button className={desktopSelection==='files'?'selected':''} onClick={e=>{e.stopPropagation();setDesktopSelection('files')}} onDoubleClick={()=>open('files')}><FolderOpen/><b>File Explorer</b></button>
       <button onDoubleClick={()=>open('browser')}><Globe2/><b>MTP2026 Browser</b></button>
       <button onDoubleClick={()=>open('settings')}><Settings/><b>Settings</b></button>
       <button onDoubleClick={()=>open('runtime')}><Cpu/><b>Guest Runtime</b></button>
@@ -275,6 +279,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
       <button onClick={()=>{setDesktopMenu(null);open('settings')}}><Settings/> Personalize</button>
       <button onClick={()=>navigator.clipboard?.writeText('MTP2026 Desktop OS') }><Clipboard/> Copy system name</button>
     </div>}
+    {snapMenu&&<div className="mtp11-snap-menu" style={{left:snapMenu.x,top:snapMenu.y}} onClick={e=>e.stopPropagation()}><button onClick={()=>snapWindow(snapMenu.id,'left')}>◧ Left half</button><button onClick={()=>snapWindow(snapMenu.id,'right')}>◨ Right half</button><button onClick={()=>snapWindow(snapMenu.id,'top')}>▣ Top</button><button onClick={()=>snapWindow(snapMenu.id,'restore')}>□ Restore</button></div>}
     <div className="mtp11-window-switcher">{windows.map(id=>{const a=allApps.find(x=>x.id===id);if(!a)return null;const I=a.icon||Globe2;return <button key={id} className={active===id?'active':''} onClick={()=>{setActive(id);setMinimized(m=>m.filter(x=>x!==id));}} title={a.title}><I/></button>})}</div>
     {start&&<div className="mtp11-start">
       <div className="mtp11-start-search"><Search/><input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search apps, settings, and files"/></div>
@@ -282,13 +287,14 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
       <div className="mtp11-start-grid">{visible.map(a=>{const I=a.icon||Globe2;return <button key={a.id} onClick={()=>a.kind==='web'?launchWeb(a.url):open(a.id)}><span><I/></span><b>{a.title}</b></button>})}</div>
       <div className="mtp11-start-footer"><div><div className="mtp11-avatar">M</div><span>MTP2026 User<small>VexaAccount</small></span></div><button onClick={()=>setPower(v=>!v)}><Power/></button></div>
     </div>}
+    {quickSettings&&<div className="mtp11-quick-settings"><header><b>Quick Settings</b><button onClick={()=>setQuickSettings(false)}><X/></button></header><div className="mtp11-quick-grid"><button className={navigator.onLine?'on':''}><Wifi/><span>Network<small>{navigator.onLine?'Connected':'Offline'}</small></span></button><button><ShieldCheck/><span>Security<small>Protected</small></span></button><button><Monitor/><span>Display<small>Desktop</small></span></button><button onClick={()=>setStart(true)}><Settings/><span>Settings<small>Open system settings</small></span></button></div></div>}
     {notifications&&<div className="mtp11-notification-panel"><header><b>Notifications</b><button onClick={()=>setNotifications(false)}><X/></button></header><div><Bell/><p>You're all caught up.</p><small>MTP2026 system events will appear here.</small></div></div>}
     {power&&<div className="mtp11-power"><button onClick={()=>window.location.reload()}><RefreshCw/> Restart shell</button><button onClick={onExit}><LockKeyhole/> Exit Desktop OS</button><button onClick={()=>setPower(false)}>Cancel</button></div>}
     <nav className="mtp11-taskbar">
       <button className="mtp11-start-button" onClick={()=>setStart(v=>!v)} aria-label="Start"><Grid2X2/></button>
       <button className="mtp11-search-button" onClick={()=>setStart(true)}><Search/><span>Search</span></button>
       <div className="mtp11-pinned">{[['files',FolderOpen],['browser',Globe2],['settings',Settings],['system',Activity],['runtime',Cpu],['about',Info],['services',ServerCog]].map(([id,I])=><button key={id} className={active===id?'active':''} onClick={()=>open(id)}><I/></button>)}</div>
-      <div className="mtp11-tray"><Wifi/><ShieldCheck/><button onClick={()=>setNotifications(v=>!v)}><Bell/></button><button className="mtp11-clock"><b>{clock.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</b><small>{clock.toLocaleDateString([], {month:'numeric',day:'numeric',year:'numeric'})}</small></button><button onClick={()=>setPower(v=>!v)}><Power/></button></div>
+      <div className="mtp11-tray"><Wifi/><ShieldCheck/><button onClick={()=>setNotifications(v=>!v)}><Bell/></button><button onClick={()=>setQuickSettings(v=>!v)}><Wifi/></button><button className="mtp11-clock"><b>{clock.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</b><small>{clock.toLocaleDateString([], {month:'numeric',day:'numeric',year:'numeric'})}</small></button><button onClick={()=>setPower(v=>!v)}><Power/></button></div>
     </nav>
   </main>;
 }
