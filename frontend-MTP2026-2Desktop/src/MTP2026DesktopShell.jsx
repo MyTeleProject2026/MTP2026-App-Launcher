@@ -50,6 +50,7 @@ function FileExplorer(){
   const [folder,setFolder]=useState('This PC');
   const folders=['Desktop','Documents','Downloads','Pictures','Music','Videos','MTP2026 Cloud'];
   const refresh=()=>{setFiles(readFiles());setNativeFs(getDesktopFilesystem())};
+  const currentFiles=folder==='This PC' ? Object.keys(files) : (nativeFs[folder]||[]).map(f=>f.name);
   const createFile=()=>{
     const target=folder==='This PC'?'Documents':folder;
     const result=createDesktopTextFile(target);
@@ -65,7 +66,7 @@ function FileExplorer(){
     <main className="mtp11-file-main">
       <div className="mtp11-toolbar">
         <button onClick={refresh}><RefreshCw/></button><button onClick={createFile}><File/> New file</button>
-        <span>{folder} · {Object.keys(nativeFs).length} managed folders</span>
+        <span>{folder} · {currentFiles.length} item{currentFiles.length===1?'':'s'} · {Object.keys(nativeFs).length} managed folders</span>
       </div>
       <div className="mtp11-file-grid">
         {(folder==='This PC'?folders:[]).map(x=><button className="mtp11-file-card" key={x} onDoubleClick={()=>setFolder(x)}><Folder/><b>{x}</b><small>Folder</small></button>)}
@@ -117,7 +118,7 @@ function SystemMonitor({runtime,guestState}){
 export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [start,setStart]=useState(false);
   const [search,setSearch]=useState('');
-  const session=useMemo(readSession,[]);
+  const session=useMemo(()=>readSession(),[]);
   const [windows,setWindows]=useState(()=>Array.isArray(session.windows)?session.windows:[]);
   const [active,setActive]=useState(()=>session.active||null);
   const [maximized,setMaximized]=useState(()=>session.maximized||{});
