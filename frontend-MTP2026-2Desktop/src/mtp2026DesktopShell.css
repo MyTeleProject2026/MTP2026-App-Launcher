@@ -72,3 +72,38 @@
 .mtp11-desktop[data-theme="light"] .mtp11-setting-card select,.mtp11-desktop[data-theme="light"] .mtp11-setting-card button{background:#edf4fa;color:#203247;border-color:rgba(40,65,90,.16)}
 .mtp11-desktop[data-theme="light"] .mtp11-start-grid button:hover,.mtp11-desktop[data-theme="light"] .mtp11-quick-grid button:hover{background:rgba(50,130,210,.1)}
 @media(max-width:800px){.mtp11-desktop-icons button{width:72px;height:76px}.mtp11-desktop-icons{inset:8px 8px 68px}}
+
+/* MTP2026 shell utilities */
+.mtp11-taskbar-run{display:grid;place-items:center;min-width:38px;height:38px;border:0;background:transparent;color:inherit;border-radius:9px}
+.mtp11-taskbar-run:hover,.mtp11-pinned button:hover{background:rgba(255,255,255,.1)}
+.mtp11-taskmgr,.mtp11-control-panel,.mtp11-properties{height:100%;overflow:auto;padding:24px;box-sizing:border-box}
+.mtp11-taskmgr header,.mtp11-control-panel header,.mtp11-properties header{display:flex;align-items:center;gap:12px;padding-bottom:18px;border-bottom:1px solid rgba(148,190,255,.12)}
+.mtp11-taskmgr header>svg,.mtp11-control-panel header>svg,.mtp11-properties header>svg{width:30px;height:30px}
+.mtp11-taskmgr header div,.mtp11-control-panel header div,.mtp11-properties header div{display:grid;gap:3px;flex:1}
+.mtp11-taskmgr header small,.mtp11-control-panel header small,.mtp11-properties header small{color:#8fa4bd}
+.mtp11-taskmgr header button,.mtp11-control-panel header button{display:flex;align-items:center;gap:7px;border:1px solid rgba(148,190,255,.16);background:rgba(255,255,255,.05);color:inherit;border-radius:9px;padding:8px 11px}
+.mtp11-taskmgr-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0}
+.mtp11-taskmgr-summary div{padding:16px;border:1px solid rgba(148,190,255,.12);border-radius:14px;background:rgba(255,255,255,.035);display:grid;gap:5px}
+.mtp11-taskmgr-summary b{font-size:21px}.mtp11-taskmgr-summary span{color:#8fa4bd;font-size:12px}
+.mtp11-taskmgr-table{border:1px solid rgba(148,190,255,.12);border-radius:14px;overflow:hidden}
+.mtp11-taskmgr-table .head,.mtp11-taskmgr-table .row{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:12px;align-items:center;padding:12px 14px}
+.mtp11-taskmgr-table .head{font-size:11px;color:#8fa4bd;background:rgba(255,255,255,.04)}
+.mtp11-taskmgr-table .row{border-top:1px solid rgba(148,190,255,.08);font-size:12px}
+.mtp11-taskmgr-table .row>span:first-child{display:flex;align-items:center;gap:8px}
+.mtp11-taskmgr-table .row button{margin-right:6px;border:1px solid rgba(148,190,255,.15);background:rgba(255,255,255,.05);color:inherit;border-radius:7px;padding:6px 8px}
+.mtp11-taskmgr-table .empty{padding:30px;text-align:center;color:#8fa4bd}
+.mtp11-run-dialog{position:fixed;left:50%;top:30%;transform:translate(-50%,-50%);z-index:3000;width:min(560px,calc(100vw - 32px));padding:20px;border:1px solid rgba(148,190,255,.2);border-radius:18px;background:rgba(9,19,35,.97);box-shadow:0 25px 80px rgba(0,0,0,.55);color:#eef6ff}
+.mtp11-run-dialog header{display:flex;align-items:center;gap:11px}.mtp11-run-dialog header>div{flex:1;display:grid;gap:3px}.mtp11-run-dialog header small,.mtp11-run-dialog p{color:#8fa4bd;font-size:12px}
+.mtp11-run-dialog header button{border:0;background:transparent;color:inherit}.mtp11-run-dialog>input{width:100%;box-sizing:border-box;margin:18px 0 9px;padding:12px;border-radius:9px;border:1px solid rgba(148,190,255,.18);background:#07111f;color:inherit}
+.mtp11-run-dialog footer{display:flex;justify-content:flex-end;gap:8px}.mtp11-run-dialog footer button{border:1px solid rgba(148,190,255,.18);background:rgba(255,255,255,.06);color:inherit;border-radius:8px;padding:8px 16px}
+.mtp11-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:18px}
+.mtp11-control-grid button{display:flex;align-items:center;gap:15px;text-align:left;border:1px solid rgba(148,190,255,.12);background:rgba(255,255,255,.035);color:inherit;border-radius:14px;padding:17px}
+.mtp11-control-grid button:hover{background:rgba(255,255,255,.08);border-color:rgba(100,210,255,.35)}
+.mtp11-control-grid button div{flex:1;display:grid;gap:5px}.mtp11-control-grid span{color:#8fa4bd;font-size:12px}
+.mtp11-properties-grid{display:grid;grid-template-columns:180px 1fr;gap:1px;margin-top:20px;border:1px solid rgba(148,190,255,.12);border-radius:12px;overflow:hidden}
+.mtp11-properties-grid>*{padding:12px;background:rgba(255,255,255,.035)}.mtp11-properties-grid span{color:#8fa4bd}
+.mtp11-terminal-real{height:100%;display:flex;flex-direction:column;background:#03070d;color:#d7f7df;font:13px ui-monospace,SFMono-Regular,Consolas,monospace}
+.mtp11-terminal-output{flex:1;overflow:auto;padding:18px;white-space:pre-wrap}.mtp11-terminal-prompt{display:flex;gap:8px;padding:12px;border-top:1px solid rgba(255,255,255,.08)}.mtp11-terminal-prompt span{color:#72e6a1}.mtp11-terminal-prompt input{flex:1;border:0;outline:0;background:transparent;color:inherit;font:inherit}
+.mtp11-calendar-panel{position:absolute;right:14px;bottom:76px;width:310px;z-index:2500;padding:18px;border:1px solid rgba(148,190,255,.18);border-radius:18px;background:rgba(8,18,35,.96);box-shadow:0 24px 70px rgba(0,0,0,.45)}
+.mtp11-calendar-panel header{display:flex;justify-content:space-between}.mtp11-calendar-panel header button{border:0;background:transparent;color:inherit}.mtp11-calendar-today{display:grid;gap:8px;padding:24px 4px}.mtp11-calendar-today span{font-size:30px}.mtp11-calendar-note{color:#8fa4bd;font-size:12px}
+@media(max-width:720px){.mtp11-taskmgr-summary{grid-template-columns:repeat(2,1fr)}.mtp11-taskmgr-table .head,.mtp11-taskmgr-table .row{grid-template-columns:1fr}.mtp11-control-grid{grid-template-columns:1fr}.mtp11-calendar-panel{right:8px;left:8px;width:auto}}
