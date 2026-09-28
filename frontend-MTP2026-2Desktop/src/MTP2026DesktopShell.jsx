@@ -12,6 +12,7 @@ import { detectDesktopRuntime } from './mtp2026DesktopRuntimeAdapter.js';
 import { guestImageStatus, installGuestImageFromBytes, installGuestImageFromContract } from './guestImageManager.js';
 import { bootDesktopGuest, stopDesktopGuest } from './mtp2026DesktopGuestBridge.js';
 import { startDesktopSession, endDesktopSession } from './mtp2026DesktopSession.js';
+import { getDesktopOSState, setDesktopSessionState, setDesktopPowerState, registerDesktopProcess, unregisterDesktopProcess, subscribeDesktopOSState } from './mtp2026DesktopOSCore.js';
 
 const APPS = [
   { id:'files', title:'File Explorer', icon:FolderOpen },
@@ -293,6 +294,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [runDialog,setRunDialog]=useState(false);
   const [search,setSearch]=useState('');
   const session=useMemo(()=>readSession(),[]);
+  const [osState,setOsState]=useState(()=>getDesktopOSState());
   const [windows,setWindows]=useState(()=>Array.isArray(session.windows)?session.windows:[]);
   const [active,setActive]=useState(()=>session.active||null);
   const [maximized,setMaximized]=useState(()=>session.maximized||{});
@@ -337,6 +339,9 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     return()=>window.removeEventListener('mtp2026:guest-state',handler);
   },[]);
   useEffect(()=>{writeSession({windows,active,maximized,minimized,snapped,windowGeometry,updatedAt:new Date().toISOString()})},[windows,active,maximized,minimized,snapped,windowGeometry]);
+  useEffect(()=>subscribeDesktopOSState(setOsState),[]);
+  useEffect(()=>{ setDesktopSessionState('active'); return ()=>setDesktopSessionState('inactive'); },[]);
+  useEffect(()=>{ const activeIds=new Set(windows); const state=getDesktopOSState(); Object.keys(state.processes||{}).filter(id=>id.startsWith('app:')).forEach(id=>{const appId=id.slice(4);if(!activeIds.has(appId))unregisterDesktopProcess(id)}); windows.forEach(id=>{registerDesktopProcess({id:'app:'+id,name:id,type:'application',status:minimized.includes(id)?'suspended':'running'});}); },[windows,minimized]);
   useEffect(()=>{try{localStorage.setItem('mtp2026:desktop:icon-positions:v1',JSON.stringify(iconPositions))}catch{}},[iconPositions]);
   useEffect(()=>{
     const onKey=e=>{
@@ -354,11 +359,11 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const allApps=[...APPS,{id:'services',title:'System Services',icon:ServerCog},...installed];
   const visible=allApps.filter(a=>a.title.toLowerCase().includes(search.toLowerCase()));
 
-  function close(id){setWindows(ws=>ws.filter(w=>w!==id));setMinimized(m=>m.filter(x=>x!==id));setMaximized(m=>{const next={...m};delete next[id];return next});if(active===id)setActive(null);setSnapped(s=>{const n={...s};delete n[id];return n});}
+  function close(id){unregisterDesktopProcess('app:'+id);setWindows(ws=>ws.filter(w=>w!==id));setMinimized(m=>m.filter(x=>x!==id));setMaximized(m=>{const next={...m};delete next[id];return next});if(active===id)setActive(null);setSnapped(s=>{const n={...s};delete n[id];return n});}
   function open(id){
     if(id==='store'){window.open('https://www.vexastore.2bd.net/','_blank','noopener,noreferrer');setStart(false);return;}
     const existing=windows.find(w=>w===id);
-    if(!existing)setWindows(ws=>[...ws,id]);
+    if(!existing){setWindows(ws=>[...ws,id]);registerDesktopProcess({id:'app:'+id,name:id,type:'application',status:'running'});}else{registerDesktopProcess({id:'app:'+id,name:id,type:'application',status:'running'});}
     setMinimized(m=>m.filter(x=>x!==id));
     setActive(id);setStart(false);
   }
@@ -478,7 +483,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     </div></div>}
     {calendar&&<div className="mtp11-calendar-panel"><header><b>{clock.toLocaleString([], {month:'long',year:'numeric'})}</b><button onClick={()=>setCalendar(false)}><X/></button></header><div className="mtp11-calendar-today"><b>{clock.toLocaleDateString([], {weekday:'long',month:'long',day:'numeric'})}</b><span>{clock.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span></div><div className="mtp11-calendar-note">MTP2026 Desktop calendar</div></div>}
     {notifications&&<div className="mtp11-notification-panel"><header><b>Notifications</b><button onClick={()=>setNotifications(false)}><X/></button></header><div><Bell/><p>You're all caught up.</p><small>MTP2026 system events will appear here.</small></div></div>}
-    {power&&<div className="mtp11-power"><button onClick={()=>window.location.reload()}><RefreshCw/> Restart shell</button><button onClick={onExit}><LockKeyhole/> Exit Desktop OS</button><button onClick={()=>setPower(false)}>Cancel</button></div>}
+    {power&&<div className="mtp11-power"><button onClick={()=>{setDesktopPowerState('restarting');window.location.reload()}}><RefreshCw/> Restart shell</button><button onClick={onExit}><LockKeyhole/> Exit Desktop OS</button><button onClick={()=>setPower(false)}>Cancel</button></div>}
     <nav className="mtp11-taskbar">
       <button className="mtp11-start-button" onClick={()=>setStart(v=>!v)} aria-label="Start"><Grid2X2/></button>
       <button className="mtp11-search-button" onClick={()=>setStart(true)}><Search/><span>Search</span></button>
