@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Bell, ChevronDown, File, Folder, FolderOpen, Globe2, Grid2X2, HardDrive, Info, Clipboard,
   Monitor, Power, Search, Settings, ShieldCheck, Store, Terminal, UserRound,
-  Wifi, X, Minus, Maximize2, RefreshCw, Download, Cpu, Activity, LockKeyhole, ServerCog, CheckCircle2
+  Wifi, X, Minus, Maximize2, RefreshCw, Download, Cpu, Activity, LockKeyhole, ServerCog, CheckCircle2, Calendar, Volume2, Battery, Network, FolderCog, AppWindow, List, Command, SlidersHorizontal
 } from 'lucide-react';
 import { MTP2026_DESKTOP_BRANDING } from './mtp2026DesktopBranding.js';
 import { bootDesktopOS, shutdownDesktopOS } from './mtp2026DesktopBootManager.js';
@@ -22,6 +22,9 @@ const APPS = [
   { id:'system', title:'System Monitor', icon:Activity },
   { id:'runtime', title:'Guest Runtime', icon:Cpu },
   { id:'about', title:'System Information', icon:Info },
+  { id:'taskmgr', title:'Task Manager', icon:Activity },
+  { id:'run', title:'Run', icon:Command },
+  { id:'control', title:'Control Panel', icon:SlidersHorizontal },
 ];
 
 const STORAGE_KEY='mtp2026-desktop-files-v1';
