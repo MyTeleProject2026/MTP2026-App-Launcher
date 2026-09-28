@@ -1,3 +1,5 @@
+import { setDesktopBootState, addDesktopSystemEvent } from './mtp2026DesktopOSCore.js';
+
 const KEY='mtp2026:desktop:boot-state:v1';
 
 const initial=()=>({phase:'off',progress:0,provider:'browser-shell',startedAt:null,readyAt:null,error:null,guestState:null});
@@ -5,7 +7,7 @@ const initial=()=>({phase:'off',progress:0,provider:'browser-shell',startedAt:nu
 export function readDesktopBootState(){
   try{return {...initial(),...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{return initial()}
 }
-function persist(state){try{localStorage.setItem(KEY,JSON.stringify(state))}catch{}}
+function persist(state){try{localStorage.setItem(KEY,JSON.stringify(state))}catch{};try{setDesktopBootState({phase:state.phase,progress:state.progress})}catch{}}
 
 function progressForPhase(phase){
   return {
@@ -45,10 +47,10 @@ export async function bootDesktopOS({provider='browser-shell',onProgress}={}){
     const message=String(error?.message||error||'GUEST_BOOT_FAILED');
     if (/^(GUEST_MANIFEST_UNAVAILABLE|GUEST_PROFILE_NOT_FOUND_|MTP2026_GUEST_BUNDLE_UNAVAILABLE|GUEST_IMAGE_NOT_INSTALLED|GUEST_IMAGE_UNAVAILABLE|GUEST_RUNTIME_UNAVAILABLE|GUEST_PROVIDER_UNAVAILABLE)/.test(message)) {
       state={...state,phase:'ready',progress:100,provider:'browser-shell',error:null,readyAt:new Date().toISOString(),guestState:{phase:'browser-shell',running:true,provider:'browser-shell',progress:100,error:null}};
-      persist(state); onProgress?.(state); return state;
+      persist(state); onProgress?.(state); addDesktopSystemEvent('boot.fallback',{provider:'browser-shell'}); return state;
     }
     state={...state,phase:'error',progress:0,error:message};
-    persist(state); onProgress?.(state);
+    persist(state); onProgress?.(state); addDesktopSystemEvent('boot.error',{error:message});
     return state;
   }
 }
