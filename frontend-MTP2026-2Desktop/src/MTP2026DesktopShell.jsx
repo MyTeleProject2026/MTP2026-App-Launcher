@@ -140,6 +140,13 @@ function RunDialog({onClose,onOpen}){
   };
   return <div className="mtp11-run-dialog"><header><Command/><div><b>Run</b><small>Open a program, folder, document, or website</small></div><button onClick={onClose}><X/></button></header><input autoFocus value={value} onChange={e=>setValue(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')execute();if(e.key==='Escape')onClose()}} placeholder="Type a command, app name, or URL"/><p>Try <code>cmd</code>, <code>taskmgr</code>, <code>control</code>, <code>explorer</code>, or <code>settings</code>.</p><footer><button onClick={execute}>OK</button><button onClick={onClose}>Cancel</button></footer></div>;
 }
+function ControlPanel({onSettings,onOpen}){
+  const items=[['System','MTP2026 device and runtime information','about'],['Network and Internet','Connection and browser networking','settings'],['Appearance','Theme, wallpaper and desktop layout','settings'],['Apps','Application and store management','settings'],['Accounts','VexaAccount desktop identity','settings'],['Security','Privacy and session protection','settings'],['Devices','Display and connectivity','settings'],['System Services','Desktop service supervisor','services']];
+  return <div className="mtp11-control-panel"><header><SlidersHorizontal/><div><b>Control Panel</b><small>MTP2026 system configuration</small></div><button onClick={onSettings}><Settings/> Settings</button></header><div className="mtp11-control-grid">{items.map(([name,desc,id])=><button key={name} onClick={()=>onOpen(id)}><div><b>{name}</b><span>{desc}</span></div><span>›</span></button>)}</div></div>;
+}
+function PropertiesApp({target='MTP2026 Desktop OS'}){
+  return <div className="mtp11-properties"><header><Info/><div><b>{target}</b><small>Properties</small></div></header><div className="mtp11-properties-grid"><span>Type</span><b>System object</b><span>Owner</span><b>MTP2026</b><span>Architecture</span><b>ARM64 / AArch64</b><span>Edition</span><b>Desktop Edition</b><span>Version</span><b>2026.1</b><span>Runtime</span><b>Browser shell + supported guest providers</b></div></div>;
+}
 function SettingsApp(){
   const sections=[
     {id:'system',label:'System',icon:Cpu},{id:'devices',label:'Bluetooth & devices',icon:Monitor},
