@@ -200,6 +200,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [desktopSelection,setDesktopSelection]=useState(null);
   const [desktopBox,setDesktopBox]=useState(null);
   const [draggingIcon,setDraggingIcon]=useState(null);
+  const [iconPositions,setIconPositions]=useState(()=>{try{return JSON.parse(localStorage.getItem('mtp2026:desktop:icon-positions:v1')||'{}')}catch{return {}}});
   const [taskbarMenu,setTaskbarMenu]=useState(null);
   const [snapped,setSnapped]=useState(()=>session.snapped||{});
   const [windowGeometry,setWindowGeometry]=useState(()=>session.windowGeometry||{});
@@ -215,6 +216,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     return()=>window.removeEventListener('mtp2026:guest-state',handler);
   },[]);
   useEffect(()=>{writeSession({windows,active,maximized,minimized,snapped,windowGeometry,updatedAt:new Date().toISOString()})},[windows,active,maximized,minimized,snapped,windowGeometry]);
+  useEffect(()=>{try{localStorage.setItem('mtp2026:desktop:icon-positions:v1',JSON.stringify(iconPositions))}catch{}},[iconPositions]);
   useEffect(()=>{
     const onKey=e=>{
       if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='l'){e.preventDefault();setStart(true);setSearch('');return;}
@@ -273,6 +275,13 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   }
 
   const bg=wallpaper==='aurora'?'mtp11-bg-aurora':wallpaper==='midnight'?'mtp11-bg-midnight':'mtp11-bg-clean';
+  const moveIcon=(id,e)=>{
+    if(e.button!==0)return;
+    const startX=e.clientX,startY=e.clientY,base=iconPositions[id]||{x:18,y:18};
+    const move=ev=>setIconPositions(p=>({...p,[id]:{x:Math.max(4,base.x+ev.clientX-startX),y:Math.max(4,base.y+ev.clientY-startY)}}));
+    const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);setDraggingIcon(null)};
+    setDraggingIcon(id);window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
+  };
   const desktopPointerDown=e=>{
     if(e.button!==0||e.target.closest('.mtp11-desktop-icons')||e.target.closest('.mtp11-taskbar')||e.target.closest('.mtp11-window')) return;
     const sx=e.clientX,sy=e.clientY;setDesktopBox({x:sx,y:sy,w:0,h:0});
@@ -291,8 +300,8 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     </div>}
     <div className="mtp11-desktop-icons" onClick={()=>setDesktopSelection(null)}>
       {desktopBox&&<div className="mtp11-selection-box" style={{left:desktopBox.x,top:desktopBox.y,width:desktopBox.w,height:desktopBox.h}}/>}
-      <button className={desktopSelection==='this-pc'?'selected':''} onClick={e=>{e.stopPropagation();setDesktopSelection('this-pc')}} onDoubleClick={()=>open('files')}><span>🖥️</span><b>This PC</b></button>
-      <button className={desktopSelection==='files'?'selected':''} onClick={e=>{e.stopPropagation();setDesktopSelection('files')}} onPointerDown={e=>{if(e.button===0)setDraggingIcon('files')}} onPointerUp={()=>setDraggingIcon(null)} onDoubleClick={()=>open('files')}><FolderOpen/><b>File Explorer</b></button>
+      <button style={{left:iconPositions['this-pc']?.x,top:iconPositions['this-pc']?.y}} className={`mtp11-desktop-icon ${desktopSelection==='this-pc'?'selected':''} ${draggingIcon==='this-pc'?'dragging':''}`} onPointerDown={e=>{e.stopPropagation();moveIcon('this-pc',e)}} onClick={e=>{e.stopPropagation();setDesktopSelection('this-pc')}} onDoubleClick={()=>open('files')}><span>🖥️</span><b>This PC</b></button>
+      <button style={{left:iconPositions.files?.x,top:iconPositions.files?.y}} className={`mtp11-desktop-icon ${desktopSelection==='files'?'selected':''} ${draggingIcon==='files'?'dragging':''}`} onPointerDown={e=>{e.stopPropagation();moveIcon('files',e)}} onClick={e=>{e.stopPropagation();setDesktopSelection('files')}} onPointerDown={e=>{if(e.button===0)setDraggingIcon('files')}} onPointerUp={()=>setDraggingIcon(null)} onDoubleClick={()=>open('files')}><FolderOpen/><b>File Explorer</b></button>
       <button onPointerDown={e=>{if(e.button===0)setDraggingIcon('browser')}} onPointerUp={()=>setDraggingIcon(null)} onDoubleClick={()=>open('browser')}><Globe2/><b>MTP2026 Browser</b></button>
       <button onPointerDown={e=>{if(e.button===0)setDraggingIcon('settings')}} onPointerUp={()=>setDraggingIcon(null)} onDoubleClick={()=>open('settings')}><Settings/><b>Settings</b></button>
       <button onPointerDown={e=>{if(e.button===0)setDraggingIcon('runtime')}} onPointerUp={()=>setDraggingIcon(null)} onDoubleClick={()=>open('runtime')}><Cpu/><b>Guest Runtime</b></button>
