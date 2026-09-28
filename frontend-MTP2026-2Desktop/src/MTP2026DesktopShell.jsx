@@ -75,7 +75,7 @@ function FileExplorer(){
   const filtered=items.filter(x=>x.name.toLowerCase().includes(query.toLowerCase()));
   const selectedEntry=selected&&readDesktopEntry(folder,selected);
   const copySelected=()=>{if(!selectedEntry||folder==='This PC')return;const item={...selectedEntry,sourceFolder:folder};setClipboard(item);try{localStorage.setItem('mtp2026:desktop:clipboard:v1',JSON.stringify(item))}catch{}};
-  const paste=()=>{if(!clipboard)return;const target=folder==='This PC'?'Documents':folder;const name=clipboard.name;const exists=(nativeFs[target]||[]).some(x=>x.name===name);const pastedName=exists?name.replace(/(\.[^.]+)?$/,' copy$1'):name;createDesktopTextFile(target,pastedName);refresh();};
+  const paste=()=>{if(!clipboard)return;const target=folder==='This PC'?'Documents':folder;let pastedName=clipboard.name;let n=1;while((getDesktopFilesystem()[target]||[]).some(x=>x.name===pastedName)){pastedName=clipboard.name.replace(/(\.[^.]+)?$/,' copy'+(n>1?' '+n:'')+'$1');n++;}copyDesktopEntry(clipboard.sourceFolder,clipboard.name,target,pastedName);refresh();};
 
   return <div className="mtp11-files">
     <aside className="mtp11-file-nav">
