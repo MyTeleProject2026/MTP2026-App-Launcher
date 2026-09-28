@@ -35,11 +35,15 @@ export function subscribeDesktopGuestState(listener) {
 export function getDesktopGuestCapabilities() {
   const native = globalThis.MTP2026NativeGuestRuntime;
   const qemu = globalThis.MTP2026QemuWasmGuestRuntime;
+  const state = getGuestState();
   return Object.freeze({
     architecture: 'arm64',
     guestProfile: 'desktop',
     nativeProvider: Boolean(native?.bootGuest),
     qemuWasmProvider: Boolean(qemu?.qemuWasmCapabilities?.().available || qemu?.boot),
-    controller: true,
+    controller: Boolean(globalThis.MTP2026GuestBoot),
+    running: Boolean(state?.running),
+    phase: state?.phase || 'idle',
+    provider: state?.provider || 'none',
   });
 }
