@@ -103,12 +103,14 @@ function ServiceManager(){
   </div>;
 }
 
-function SystemMonitor({runtime}){
+function SystemMonitor({runtime,guestState}){
   const [tick,setTick]=useState(0);
   useEffect(()=>{const t=setInterval(()=>setTick(x=>x+1),1000);return()=>clearInterval(t);},[]);
   const cpu=Math.round(18+((tick*13)%31)),mem=Math.round(42+((tick*7)%18));
-  return <div className="mtp11-monitor"><div className="mtp11-runtime-badge"><span className="dot"/> {runtime.mode==='native-vm'?'ARM64 guest provider active':'Browser shell runtime'} · {runtime.guestProfile}</div><div className="mtp11-monitor-hero"><Activity/><div><b>MTP2026 System Monitor</b><small>Live {runtime.mode} telemetry · {runtime.architecture}</small></div></div>
-    {[['CPU',cpu,'%'],['Memory',mem,'%'],['Network',navigator.onLine?100:0,'%'],['ARM64 Guest',100,'%']].map(([n,v,u])=><div className="mtp11-meter" key={n}><div><span>{n}</span><b>{v}{u}</b></div><i><em style={{width:`${v}%`}}/></i></div>)}
+  const guestReady=Boolean(guestState?.running && (guestState?.phase==='ready'||guestState?.phase==='browser-shell'));
+  const guestMeter=guestReady ? 100 : Math.max(0,Math.min(100,guestState?.progress||0));
+  return <div className="mtp11-monitor"><div className="mtp11-runtime-badge"><span className="dot"/> {runtime.mode==='native-vm'?'ARM64 guest provider active':runtime.mode==='qemu-wasm'?'QEMU-WASM ARM64 provider available':'Browser shell runtime'} · {runtime.guestProfile}</div><div className="mtp11-monitor-hero"><Activity/><div><b>MTP2026 System Monitor</b><small>Live {runtime.mode} telemetry · {runtime.architecture}</small></div></div>
+    {[['CPU',cpu,'%'],['Memory',mem,'%'],['Network',navigator.onLine?100:0,'%'],['Guest runtime',guestMeter,'%']].map(([n,v,u])=><div className="mtp11-meter" key={n}><div><span>{n}</span><b>{v}{u}</b></div><i><em style={{width:`${v}%`}}/></i></div>)}
   </div>;
 }
 
@@ -126,7 +128,13 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [wallpaper,setWallpaper]=useState('aurora');
   const [boot,setBoot]=useState({phase:'ready',progress:100,provider:'browser-shell'});
   const [runtime,setRuntime]=useState(()=>detectDesktopRuntime());
+  const [guestState,setGuestState]=useState(()=>globalThis.MTP2026GuestBoot?.getGuestState?.()||null);
   useEffect(()=>{const t=setInterval(()=>setClock(new Date()),1000);return()=>clearInterval(t);},[]);
+  useEffect(()=>{
+    const handler=e=>{setGuestState(e.detail||null);setRuntime(detectDesktopRuntime());};
+    window.addEventListener('mtp2026:guest-state',handler);
+    return()=>window.removeEventListener('mtp2026:guest-state',handler);
+  },[]);
   useEffect(()=>{writeSession({windows,active,maximized,updatedAt:new Date().toISOString()})},[windows,active,maximized]);
   useEffect(()=>{const w=localStorage.getItem('mtp2026-desktop-wallpaper');if(w)setWallpaper(w); setRuntime(detectDesktopRuntime()); startDesktopSession('desktop'); void bootDesktopOS({provider:detectDesktopRuntime().mode,onProgress:setBoot}); return ()=>{shutdownDesktopOS();endDesktopSession();};},[]);
 
@@ -149,7 +157,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     let body=<div className="mtp11-app-placeholder"><Icon/><h3>{app.title}</h3><p>MTP2026 Desktop application surface.</p></div>;
     if(id==='files')body=<FileExplorer/>;
     if(id==='settings')body=<SettingsApp/>;
-    if(id==='system')body=<SystemMonitor runtime={runtime}/>;
+    if(id==='system')body=<SystemMonitor runtime={runtime} guestState={guestState}/>;
     if(id==='services')body=<ServiceManager/>;
     if(id==='terminal')body=<div className="mtp11-terminal"><div>mtp2026@desktop:~$ system-info</div><div>MTP2026 Desktop OS</div><div>Architecture: aarch64</div><div>Runtime: browser-shell / native-vm compatible</div><div>Guest profile: desktop</div><div className="cursor">█</div></div>;
     if(id==='browser')body=<div className="mtp11-browser"><form onSubmit={e=>{e.preventDefault();setBrowserUrl(browserUrl);}}><Globe2/><input value={browserUrl} onChange={e=>setBrowserUrl(e.target.value)}/><button>Go</button></form><iframe title="MTP2026 Browser" src={browserUrl} allow="fullscreen; clipboard-read; clipboard-write; autoplay; gamepad" sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-pointer-lock allow-scripts allow-same-origin"/></div>;
