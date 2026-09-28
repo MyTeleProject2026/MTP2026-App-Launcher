@@ -153,7 +153,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   return <main className={`mtp11-desktop ${bg}`}>
     <div className="mtp11-desktop-shade" onContextMenu={e=>e.preventDefault()} />
     {boot.phase!=='ready'&&<div className="mtp11-boot-screen">
-      <div className="mtp11-boot-logo"><span>{MTP2026_DESKTOP_BRANDING.logoText}</span></div>
+      <div className="mtp11-boot-logo"><img src="/mtp2026-logo.svg" alt="MTP2026"/></div>
       <b>{MTP2026_DESKTOP_BRANDING.productName}</b>
       <small>Starting MTP2026 Desktop services · {MTP2026_DESKTOP_BRANDING.architecture}</small>
       <div className="mtp11-boot-progress"><i style={{width:`${boot.progress}%`}}/></div>
