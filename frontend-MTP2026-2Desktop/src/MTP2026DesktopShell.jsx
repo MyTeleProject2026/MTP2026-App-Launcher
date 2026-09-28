@@ -293,6 +293,10 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [start,setStart]=useState(false);
   const [runDialog,setRunDialog]=useState(false);
   const [search,setSearch]=useState('');
+  const [startTab,setStartTab]=useState('home');
+  const [accountMenu,setAccountMenu]=useState(false);
+  const [pinnedApps,setPinnedApps]=useState(()=>{try{return JSON.parse(localStorage.getItem('mtp2026:desktop:pinned-apps:v1')||'["files","browser","settings","terminal","taskmgr","control"]')}catch{return ['files','browser','settings','terminal','taskmgr','control']}});
+  const [recentApps,setRecentApps]=useState(()=>{try{return JSON.parse(localStorage.getItem('mtp2026:desktop:recent-apps:v1')||'[]')}catch{return []}});
   const session=useMemo(()=>readSession(),[]);
   const [,setOsState]=useState(()=>getDesktopOSState());
   const [windows,setWindows]=useState(()=>Array.isArray(session.windows)?session.windows:[]);
@@ -363,7 +367,8 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   function open(id){
     if(id==='store'){window.open('https://www.vexastore.2bd.net/','_blank','noopener,noreferrer');setStart(false);return;}
     const existing=windows.find(w=>w===id);
-    if(!existing){setWindows(ws=>[...ws,id]);registerDesktopProcess({id:'app:'+id,name:id,type:'application',status:'running'});}else{registerDesktopProcess({id:'app:'+id,name:id,type:'application',status:'running'});}
+    if(!existing){setWindows(ws=>[...ws,id]);registerDesktopProcess({id:'app:'+id,name:id,type:'application',status:'running'});}else{registerDesktopProcess({id:'app:'+id,name:id,type:'application',status:'running'});
+    setRecentApps(prev=>{const next=[id,...prev.filter(x=>x!==id)].slice(0,6);try{localStorage.setItem('mtp2026:desktop:recent-apps:v1',JSON.stringify(next))}catch{};return next;});}
     setMinimized(m=>m.filter(x=>x!==id));
     setActive(id);setStart(false);
   }
@@ -470,9 +475,16 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     {runDialog&&<RunDialog onClose={()=>setRunDialog(false)} onOpen={id=>{setRunDialog(false);open(id)}}/>}
     {start&&<div className="mtp11-start">
       <div className="mtp11-start-search"><Search/><input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search apps, settings, and files"/></div>
-      <div className="mtp11-start-head"><b>All</b><span>{visible.length} apps</span></div>
-      <div className="mtp11-start-grid">{visible.map(a=>{const I=a.icon||Globe2;return <button key={a.id} onClick={()=>a.kind==='web'?launchWeb(a.url):open(a.id)}><span><I/></span><b>{a.title}</b></button>})}</div>
-      <div className="mtp11-start-footer"><div><div className="mtp11-avatar">M</div><span>MTP2026 User<small>VexaAccount</small></span></div><button onClick={()=>setPower(v=>!v)}><Power/></button></div>
+      <div className="mtp11-start-tabs"><button className={startTab==='home'?'active':''} onClick={()=>setStartTab('home')}>Home</button><button className={startTab==='all'?'active':''} onClick={()=>setStartTab('all')}>All apps</button></div>
+      {startTab==='home'&&<div className="mtp11-start-home">
+        <div className="mtp11-start-head"><b>Pinned</b><button onClick={()=>setStartTab('all')}>All apps ›</button></div>
+        <div className="mtp11-start-grid">{pinnedApps.map(id=>{const a=allApps.find(x=>x.id===id);if(!a)return null;const I=a.icon||Globe2;return <button key={id} onClick={()=>a.kind==='web'?launchWeb(a.url):open(id)}><span><I/></span><b>{a.title}</b></button>})}</div>
+        <div className="mtp11-start-head"><b>Recommended</b><span>{recentApps.length ? recentApps.length+" recent" : "No recent apps"}</span></div>
+        <div className="mtp11-start-recent">{recentApps.map(id=>{const a=allApps.find(x=>x.id===id);if(!a)return null;const I=a.icon||Globe2;return <button key={id} onClick={()=>open(id)}><I/><span><b>{a.title}</b><small>Recently opened</small></span></button>})}</div>
+      </div>}
+      {startTab==='all'&&<><div className="mtp11-start-head"><b>All apps</b><span>{visible.length} apps</span></div><div className="mtp11-start-grid">{visible.map(a=>{const I=a.icon||Globe2;return <button key={a.id} onClick={()=>a.kind==='web'?launchWeb(a.url):open(a.id)}><span><I/></span><b>{a.title}</b></button>})}</div></>}
+      <div className="mtp11-start-footer"><button className="mtp11-account" onClick={()=>setAccountMenu(v=>!v)}><div className="mtp11-avatar">M</div><span>MTP2026 User<small>VexaAccount</small></span></button><button onClick={()=>setPower(v=>!v)}><Power/></button></div>
+      {accountMenu&&<div className="mtp11-account-menu"><button onClick={()=>open('settings')}><UserRound/> Account settings</button><button onClick={()=>{setRecentApps([]);localStorage.removeItem('mtp2026:desktop:recent-apps:v1')}}><RefreshCw/> Clear recent</button><button onClick={()=>setAccountMenu(false)}><X/> Close</button></div>}
     </div>}
     {quickSettings&&<div className="mtp11-quick-settings"><header><b>Quick Settings</b><button onClick={()=>setQuickSettings(false)}><X/></button></header><div className="mtp11-quick-grid">
       <button className={wifiEnabled?'on':''} onClick={()=>{setWifiEnabled(v=>{localStorage.setItem('mtp2026-desktop-wifi',v?'off':'on');return !v})}}><Wifi/><span>Wi-Fi<small>{wifiEnabled&&navigator.onLine?'Connected':'Off'}</small></span></button>
