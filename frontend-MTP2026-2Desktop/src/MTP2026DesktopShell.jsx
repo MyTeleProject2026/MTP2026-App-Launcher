@@ -7,7 +7,7 @@ import {
 import { MTP2026_DESKTOP_BRANDING } from './mtp2026DesktopBranding.js';
 import { bootDesktopOS, shutdownDesktopOS } from './mtp2026DesktopBootManager.js';
 import { getDesktopServices, restartDesktopServices } from './mtp2026DesktopServiceManager.js';
-import { createDesktopTextFile, getDesktopFilesystem } from './mtp2026DesktopFilesystem.js';
+import { createDesktopTextFile, getDesktopFilesystem, createDesktopFolder, renameDesktopEntry, deleteDesktopEntry, readDesktopEntry } from './mtp2026DesktopFilesystem.js';
 import { detectDesktopRuntime } from './mtp2026DesktopRuntimeAdapter.js';
 import { guestImageStatus, installGuestImageFromBytes, installGuestImageFromContract } from './guestImageManager.js';
 import { bootDesktopGuest, stopDesktopGuest } from './mtp2026DesktopGuestBridge.js';
@@ -49,35 +49,51 @@ function WindowFrame({title,icon:Icon,children,onClose,onMinimize,onMaximize,max
 }
 
 function FileExplorer(){
-  const [files,setFiles]=useState(readFiles);
   const [nativeFs,setNativeFs]=useState(getDesktopFilesystem);
   const [folder,setFolder]=useState('This PC');
-  const folders=['Desktop','Documents','Downloads','Pictures','Music','Videos','MTP2026 Cloud'];
-  const refresh=()=>{setFiles(readFiles());setNativeFs(getDesktopFilesystem())};
-  const currentFiles=folder==='This PC' ? Object.keys(files) : (nativeFs[folder]||[]).map(f=>f.name);
-  const createFile=()=>{
-    const target=folder==='This PC'?'Documents':folder;
-    const result=createDesktopTextFile(target);
-    setNativeFs(result.fs);
-    const next={...files,[result.file.name]:result.file.content};
-    writeFiles(next); setFiles(next);
-  };
+  const [history,setHistory]=useState(['This PC']);
+  const [historyIndex,setHistoryIndex]=useState(0);
+  const [query,setQuery]=useState('');
+  const [selected,setSelected]=useState(null);
+  const folders=['Desktop','Documents','Downloads','Pictures','Music','Videos'];
+  const refresh=()=>{setNativeFs(getDesktopFilesystem());setSelected(null);};
+  const navigate=next=>{const h=history.slice(0,historyIndex+1).concat(next);setHistory(h);setHistoryIndex(h.length-1);setFolder(next);setSelected(null);};
+  const back=()=>historyIndex>0&&(setHistoryIndex(i=>i-1),setFolder(history[historyIndex-1]),setSelected(null));
+  const forward=()=>historyIndex<history.length-1&&(setHistoryIndex(i=>i+1),setFolder(history[historyIndex+1]),setSelected(null));
+  const makeFile=()=>{const target=folder==='This PC'?'Documents':folder;createDesktopTextFile(target);refresh();if(folder==='This PC')navigate('Documents');};
+  const makeFolder=()=>{const target=folder==='This PC'?'Documents':folder;const name=prompt('Folder name','New folder');if(name) {createDesktopFolder(target,name);refresh();}};
+  const rename=()=>{if(!selected||folder==='This PC')return;const next=prompt('Rename item',selected);if(next&&next!==selected){renameDesktopEntry(folder,selected,next);refresh();setSelected(next);}};
+  const remove=()=>{if(!selected||folder==='This PC')return;if(confirm('Delete “'+selected+'” from '+folder+'?')){deleteDesktopEntry(folder,selected);refresh();}};
+  const openEntry=name=>{if(folders.includes(name))navigate(name);};
+  const items=folder==='This PC'
+    ? folders.map(name=>({name,type:'Folder',isFolder:true}))
+    : (nativeFs[folder]||[]).map(f=>({...f,isFolder:false}));
+  const filtered=items.filter(x=>x.name.toLowerCase().includes(query.toLowerCase()));
+  const selectedEntry=selected&&readDesktopEntry(folder,selected);
   return <div className="mtp11-files">
     <aside className="mtp11-file-nav">
-      <button className={folder==='This PC'?'active':''} onClick={()=>setFolder('This PC')}><HardDrive/> This PC</button>
-      {folders.map(x=><button key={x} className={folder===x?'active':''} onClick={()=>setFolder(x)}><Folder/> {x}</button>)}
+      <button className={folder==='This PC'?'active':''} onClick={()=>navigate('This PC')}><HardDrive/> This PC</button>
+      {folders.map(x=><button key={x} className={folder===x?'active':''} onClick={()=>navigate(x)}><Folder/> {x}</button>)}
     </aside>
     <main className="mtp11-file-main">
+      <div className="mtp11-file-address">
+        <button onClick={back} disabled={historyIndex===0}>‹</button><button onClick={forward} disabled={historyIndex===history.length-1}>›</button>
+        <div className="mtp11-file-breadcrumb"><HardDrive/> This PC {folder!=='This PC'&&<> <span>›</span> <b>{folder}</b></>}</div>
+        <div className="mtp11-file-search"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search this location"/></div>
+      </div>
       <div className="mtp11-toolbar">
-        <button onClick={refresh}><RefreshCw/></button><button onClick={createFile}><File/> New file</button>
-        <span>{folder} · {currentFiles.length} item{currentFiles.length===1?'':'s'} · {Object.keys(nativeFs).length} managed folders</span>
+        <button onClick={refresh}><RefreshCw/> Refresh</button><button onClick={makeFile}><File/> New file</button><button onClick={makeFolder}><Folder/> New folder</button>
+        <button disabled={!selected||folder==='This PC'} onClick={rename}>Rename</button><button disabled={!selected||folder==='This PC'} onClick={remove}>Delete</button>
+        <span>{filtered.length} item{filtered.length===1?'':'s'}{selected?' · '+selected:''}</span>
       </div>
       <div className="mtp11-file-grid">
-        {(folder==='This PC'?folders:[]).map(x=><button className="mtp11-file-card" key={x} onDoubleClick={()=>setFolder(x)}><Folder/><b>{x}</b><small>Folder</small></button>)}
-        {folder==='This PC' && Object.keys(files).map(x=><button className="mtp11-file-card" key={x}><File/><b>{x}</b><small>Text document</small></button>)}
-        {folder!=='This PC' && (nativeFs[folder]||[]).map(f=><button className="mtp11-file-card" key={f.name}><File/><b>{f.name}</b><small>{f.type} · {f.size} B</small></button>)}
-        {folder!=='This PC' && !(nativeFs[folder]||[]).length && <div className="mtp11-empty">This folder is empty.</div>}
+        {filtered.map(x=><button className={`mtp11-file-card ${selected===x.name?'selected':''}`} key={x.name}
+          onClick={()=>setSelected(x.name)} onDoubleClick={()=>x.isFolder?openEntry(x.name):setSelected(x.name)}>
+          {x.isFolder?<FolderOpen/>:<File/>}<b>{x.name}</b><small>{x.isFolder?'Folder':`${x.type||'file'} · ${x.size||0} B`}</small>
+        </button>)}
+        {!filtered.length&&<div className="mtp11-empty">{query?'No matching items.':'This folder is empty.'}</div>}
       </div>
+      {selectedEntry&&<div className="mtp11-file-details"><Info/><div><b>{selectedEntry.name}</b><small>{selectedEntry.type||'text'} · {selectedEntry.size||0} bytes · Updated {new Date(selectedEntry.updatedAt||Date.now()).toLocaleString()}</small></div></div>}
     </main>
   </div>;
 }
