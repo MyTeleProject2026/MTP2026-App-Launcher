@@ -103,7 +103,7 @@ function ServiceManager(){
   </div>;
 }
 
-function SystemMonitor(){
+function SystemMonitor({runtime}){
   const [tick,setTick]=useState(0);
   useEffect(()=>{const t=setInterval(()=>setTick(x=>x+1),1000);return()=>clearInterval(t);},[]);
   const cpu=Math.round(18+((tick*13)%31)),mem=Math.round(42+((tick*7)%18));
@@ -149,7 +149,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     let body=<div className="mtp11-app-placeholder"><Icon/><h3>{app.title}</h3><p>MTP2026 Desktop application surface.</p></div>;
     if(id==='files')body=<FileExplorer/>;
     if(id==='settings')body=<SettingsApp/>;
-    if(id==='system')body=<SystemMonitor/>;
+    if(id==='system')body=<SystemMonitor runtime={runtime}/>;
     if(id==='services')body=<ServiceManager/>;
     if(id==='terminal')body=<div className="mtp11-terminal"><div>mtp2026@desktop:~$ system-info</div><div>MTP2026 Desktop OS</div><div>Architecture: aarch64</div><div>Runtime: browser-shell / native-vm compatible</div><div>Guest profile: desktop</div><div className="cursor">█</div></div>;
     if(id==='browser')body=<div className="mtp11-browser"><form onSubmit={e=>{e.preventDefault();setBrowserUrl(browserUrl);}}><Globe2/><input value={browserUrl} onChange={e=>setBrowserUrl(e.target.value)}/><button>Go</button></form><iframe title="MTP2026 Browser" src={browserUrl} allow="fullscreen; clipboard-read; clipboard-write; autoplay; gamepad" sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-pointer-lock allow-scripts allow-same-origin"/></div>;
