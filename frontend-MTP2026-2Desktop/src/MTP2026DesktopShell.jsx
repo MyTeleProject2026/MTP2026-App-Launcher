@@ -2,8 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Bell, ChevronDown, File, Folder, FolderOpen, Globe2, Grid2X2, HardDrive,
   Monitor, Power, Search, Settings, ShieldCheck, Store, Terminal, UserRound,
-  Wifi, X, Minus, Maximize2, RefreshCw, Download, Cpu, Activity, LockKeyhole
+  Wifi, X, Minus, Maximize2, RefreshCw, Download, Cpu, Activity, LockKeyhole, ServerCog, CheckCircle2
 } from 'lucide-react';
+import { MTP2026_DESKTOP_BRANDING } from './mtp2026DesktopBranding.js';
+import { bootDesktopOS, shutdownDesktopOS } from './mtp2026DesktopBootManager.js';
+import { getDesktopServices, restartDesktopServices } from './mtp2026DesktopServiceManager.js';
+import { createDesktopTextFile, getDesktopFilesystem } from './mtp2026DesktopFilesystem.js';
 
 const APPS = [
   { id:'files', title:'File Explorer', icon:FolderOpen },
@@ -37,6 +41,8 @@ function WindowFrame({title,icon:Icon,children,onClose,onMinimize,onMaximize,max
 
 function FileExplorer(){
   const [files,setFiles]=useState(readFiles);
+  const [nativeFs,setNativeFs]=useState(getDesktopFilesystem);
+  const refresh=()=>{setFiles(readFiles());setNativeFs(getDesktopFilesystem())};
   const [folder,setFolder]=useState('This PC');
   const folders=['Desktop','Documents','Downloads','Pictures','Music','Videos','MTP2026 Cloud'];
   const refresh=()=>setFiles(readFiles);
@@ -84,6 +90,15 @@ function SettingsApp(){
   </div>;
 }
 
+function ServiceManager(){
+  const [services,setServices]=useState(getDesktopServices);
+  const restart=()=>setServices(restartDesktopServices());
+  return <div className="mtp11-monitor">
+    <div className="mtp11-monitor-hero"><ServerCog/><div><b>MTP2026 System Services</b><small>Desktop service supervisor</small></div><button className="mtp11-service-restart" onClick={restart}><RefreshCw/> Restart services</button></div>
+    {services.map(s=><div className="mtp11-service-row" key={s.id}><div><b>{s.name}</b><small>{s.critical?'Critical service':'Optional service'}</small></div><span className={s.status==='running'?'ok':''}><CheckCircle2/> {s.status}</span></div>)}
+  </div>;
+}
+
 function SystemMonitor(){
   const [tick,setTick]=useState(0);
   useEffect(()=>{const t=setInterval(()=>setTick(x=>x+1),1000);return()=>clearInterval(t);},[]);
@@ -104,11 +119,12 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [power,setPower]=useState(false);
   const [browserUrl,setBrowserUrl]=useState('https://www.vexastore.2bd.net/');
   const [wallpaper,setWallpaper]=useState('aurora');
+  const [boot,setBoot]=useState({phase:'ready',progress:100,provider:'browser-shell'});
   useEffect(()=>{const t=setInterval(()=>setClock(new Date()),1000);return()=>clearInterval(t);},[]);
-  useEffect(()=>{const w=localStorage.getItem('mtp2026-desktop-wallpaper');if(w)setWallpaper(w);},[]);
+  useEffect(()=>{const w=localStorage.getItem('mtp2026-desktop-wallpaper');if(w)setWallpaper(w); void bootDesktopOS({onProgress:setBoot}); return ()=>{shutdownDesktopOS();};},[]);
 
   const installed=useMemo(()=>apps.map(a=>({id:`web-${a.id}`,title:a.title||a.name||'Web App',icon:Globe2,kind:'web',url:a.url})),[apps]);
-  const allApps=[...APPS,...installed];
+  const allApps=[...APPS,{id:'services',title:'System Services',icon:ServerCog},...installed];
   const visible=allApps.filter(a=>a.title.toLowerCase().includes(search.toLowerCase()));
 
   function close(id){setWindows(ws=>ws.filter(w=>w!==id));if(active===id)setActive(null);}
@@ -127,6 +143,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     if(id==='files')body=<FileExplorer/>;
     if(id==='settings')body=<SettingsApp/>;
     if(id==='system')body=<SystemMonitor/>;
+    if(id==='services')body=<ServiceManager/>;
     if(id==='terminal')body=<div className="mtp11-terminal"><div>mtp2026@desktop:~$ system-info</div><div>MTP2026 Desktop OS</div><div>Architecture: aarch64</div><div>Runtime: browser-shell / native-vm compatible</div><div>Guest profile: desktop</div><div className="cursor">█</div></div>;
     if(id==='browser')body=<div className="mtp11-browser"><form onSubmit={e=>{e.preventDefault();setBrowserUrl(browserUrl);}}><Globe2/><input value={browserUrl} onChange={e=>setBrowserUrl(e.target.value)}/><button>Go</button></form><iframe title="MTP2026 Browser" src={browserUrl} allow="fullscreen; clipboard-read; clipboard-write; autoplay; gamepad" sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-pointer-lock allow-scripts allow-same-origin"/></div>;
     if(app.kind==='web')body=<div className="mtp11-browser"><div className="mtp11-browser-note">MTP2026 WebApp · VexaAccount application workspace</div><iframe title={app.title} src={app.url} allow="fullscreen; clipboard-read; clipboard-write; autoplay; gamepad" sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-pointer-lock allow-scripts allow-same-origin"/></div>;
@@ -136,6 +153,13 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const bg=wallpaper==='aurora'?'mtp11-bg-aurora':wallpaper==='midnight'?'mtp11-bg-midnight':'mtp11-bg-clean';
   return <main className={`mtp11-desktop ${bg}`}>
     <div className="mtp11-desktop-shade" onContextMenu={e=>e.preventDefault()} />
+    {boot.phase!=='ready'&&<div className="mtp11-boot-screen">
+      <div className="mtp11-boot-logo"><span>{MTP2026_DESKTOP_BRANDING.logoText}</span></div>
+      <b>{MTP2026_DESKTOP_BRANDING.productName}</b>
+      <small>Starting MTP2026 Desktop services · {MTP2026_DESKTOP_BRANDING.architecture}</small>
+      <div className="mtp11-boot-progress"><i style={{width:`${boot.progress}%`}}/></div>
+      <em>{String(boot.phase).toUpperCase()} · {boot.progress}%</em>
+    </div>}
     <div className="mtp11-desktop-icons">
       <button onDoubleClick={()=>open('files')}><span>🖥️</span><b>This PC</b></button>
       <button onDoubleClick={()=>open('files')}><FolderOpen/><b>File Explorer</b></button>
@@ -155,7 +179,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     <nav className="mtp11-taskbar">
       <button className="mtp11-start-button" onClick={()=>setStart(v=>!v)} aria-label="Start"><Grid2X2/></button>
       <button className="mtp11-search-button" onClick={()=>setStart(true)}><Search/><span>Search</span></button>
-      <div className="mtp11-pinned">{[['files',FolderOpen],['browser',Globe2],['settings',Settings],['system',Activity]].map(([id,I])=><button key={id} className={active===id?'active':''} onClick={()=>open(id)}><I/></button>)}</div>
+      <div className="mtp11-pinned">{[['files',FolderOpen],['browser',Globe2],['settings',Settings],['system',Activity],['services',ServerCog]].map(([id,I])=><button key={id} className={active===id?'active':''} onClick={()=>open(id)}><I/></button>)}</div>
       <div className="mtp11-tray"><Wifi/><ShieldCheck/><button onClick={()=>setNotifications(v=>!v)}><Bell/></button><button className="mtp11-clock"><b>{clock.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</b><small>{clock.toLocaleDateString([], {month:'numeric',day:'numeric',year:'numeric'})}</small></button><button onClick={()=>setPower(v=>!v)}><Power/></button></div>
     </nav>
   </main>;
