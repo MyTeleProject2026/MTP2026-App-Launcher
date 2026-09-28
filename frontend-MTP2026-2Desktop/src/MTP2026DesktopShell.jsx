@@ -25,6 +25,7 @@ const APPS = [
   { id:'taskmgr', title:'Task Manager', icon:Activity },
   { id:'run', title:'Run', icon:Command },
   { id:'control', title:'Control Panel', icon:SlidersHorizontal },
+  { id:'properties', title:'Properties', icon:Info },
 ];
 
 const STORAGE_KEY='mtp2026-desktop-files-v1';
@@ -456,6 +457,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
       <button onClick={()=>{setDesktopMenu(null);open('about')}}><Info/> System information</button>
       <button onClick={()=>{setDesktopMenu(null);open('settings')}}><Settings/> Personalize</button>
       <button onClick={()=>navigator.clipboard?.writeText('MTP2026 Desktop OS') }><Clipboard/> Copy system name</button>
+      <button onClick={()=>{setDesktopMenu(null);open('properties')}}><Info/> Properties</button>
     </div>}
     {snapMenu&&<div className="mtp11-snap-menu" style={{left:snapMenu.x,top:snapMenu.y}} onClick={e=>e.stopPropagation()}><button onClick={()=>snapWindow(snapMenu.id,'left')}>◧ Left half</button><button onClick={()=>snapWindow(snapMenu.id,'right')}>◨ Right half</button><button onClick={()=>snapWindow(snapMenu.id,'top')}>▣ Top</button><button onClick={()=>snapWindow(snapMenu.id,'restore')}>□ Restore</button></div>}
     <div className="mtp11-window-switcher">{windows.map(id=>{const a=allApps.find(x=>x.id===id);if(!a)return null;const I=a.icon||Globe2;return <button key={id} className={active===id?'active':''} onClick={()=>{setActive(id);setMinimized(m=>m.filter(x=>x!==id));}} title={a.title}><I/></button>})}</div>
