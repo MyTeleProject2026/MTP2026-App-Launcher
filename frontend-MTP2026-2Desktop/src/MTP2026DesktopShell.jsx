@@ -135,7 +135,7 @@ function SettingsApp(){
   const [notifications,setNotifications]=useState(()=>localStorage.getItem('mtp2026-desktop-notifications')!=='off');
   const toggle=(setter,key,value)=>{setter(!value);localStorage.setItem(key,!value?'off':'on');};
   const event=(name,detail={})=>window.dispatchEvent(new CustomEvent(name,{detail}));
-  const themeCard=<div className="mtp11-setting-card"><Monitor/><div><b>Theme</b><span>Desktop shell appearance</span></div><select value={theme} onChange={e=>{setTheme(e.target.value);localStorage.setItem('mtp2026-desktop-theme',e.target.value)}}><option value="dark">Dark</option><option value="light">Light</option></select></div>;
+  const themeCard=<div className="mtp11-setting-card"><Monitor/><div><b>Theme</b><span>Desktop shell appearance</span></div><select value={theme} onChange={e=>{setTheme(e.target.value);localStorage.setItem('mtp2026-desktop-theme',e.target.value);event('mtp2026:theme-changed',{theme:e.target.value})}}><option value="dark">Dark</option><option value="light">Light</option></select></div>;
   const content={
     system:<><h2>System</h2><p>Manage your MTP2026 Desktop OS experience.</p>
       <div className="mtp11-setting-card"><Cpu/><div><b>About</b><span>MTP2026 Desktop OS · ARM64 / AArch64 · MTP2026 guest runtime</span></div><button onClick={()=>event('mtp2026:open-window',{id:'about'})}>Open</button></div>
@@ -263,7 +263,17 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [windowGeometry,setWindowGeometry]=useState(()=>session.windowGeometry||{});
   const [browserUrl,setBrowserUrl]=useState('https://www.vexastore.2bd.net/');
   useEffect(()=>{const h=e=>{if(e.detail?.url){setBrowserUrl(e.detail.url);open('browser')}};window.addEventListener('mtp2026:browser-open',h);return()=>window.removeEventListener('mtp2026:browser-open',h)},[]);
+  useEffect(()=>{
+    const openWindow=e=>{const id=e.detail?.id;if(id)open(id)};
+    const resetLayout=()=>resetDesktopLayout();
+    const theme=e=>setDesktopTheme(e.detail?.theme||localStorage.getItem('mtp2026-desktop-theme')||'dark');
+    window.addEventListener('mtp2026:open-window',openWindow);
+    window.addEventListener('mtp2026:reset-desktop-layout',resetLayout);
+    window.addEventListener('mtp2026:theme-changed',theme);
+    return()=>{window.removeEventListener('mtp2026:open-window',openWindow);window.removeEventListener('mtp2026:reset-desktop-layout',resetLayout);window.removeEventListener('mtp2026:theme-changed',theme)};
+  },[]);
   const [wallpaper,setWallpaper]=useState('aurora');
+  const [desktopTheme,setDesktopTheme]=useState(()=>localStorage.getItem('mtp2026-desktop-theme')||'dark');
   const [boot,setBoot]=useState({phase:'ready',progress:100,provider:'browser-shell'});
   const [runtime,setRuntime]=useState(()=>detectDesktopRuntime());
   const [guestState,setGuestState]=useState(()=>globalThis.MTP2026GuestBoot?.getGuestState?.()||null);
