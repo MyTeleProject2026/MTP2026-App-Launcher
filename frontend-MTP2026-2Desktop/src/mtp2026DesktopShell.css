@@ -36,3 +36,16 @@
 .mtp11-resize-handle{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 45%,rgba(150,190,220,.35) 46%,rgba(150,190,220,.35) 53%,transparent 54%),linear-gradient(135deg,transparent 60%,rgba(150,190,220,.22) 61%,rgba(150,190,220,.22) 68%,transparent 69%)}.mtp11-window-layer{min-width:320px;min-height:220px}.mtp11-window-layer.snap-left,.mtp11-window-layer.snap-right,.mtp11-window-layer.snap-top{min-width:0;min-height:0}@media(max-width:650px){.mtp11-window-layer{min-width:0;max-width:calc(100vw - 10px)}.mtp11-resize-handle{width:24px;height:24px}}
 
 .mtp11-selection-box{position:fixed;z-index:95;border:1px solid rgba(110,202,255,.65);background:rgba(65,160,235,.12);pointer-events:none}.mtp11-desktop-icons button{touch-action:none}.mtp11-desktop-icons button:active{transform:scale(.98)}
+
+/* Stable geometry for interactive windows and snap layouts */
+.mtp11-window-layer{box-sizing:border-box;min-width:320px;min-height:220px}
+.mtp11-window-layer.snap-left,.mtp11-window-layer.snap-right{top:0!important;bottom:66px!important;width:50%!important;height:auto!important;right:auto!important}
+.mtp11-window-layer.snap-left{left:0!important}
+.mtp11-window-layer.snap-right{left:50%!important}
+.mtp11-window-layer.snap-top{left:0!important;right:auto!important;top:0!important;bottom:auto!important;width:100%!important;height:50%!important}
+.mtp11-window-layer.snap-left .mtp11-window,.mtp11-window-layer.snap-right .mtp11-window,.mtp11-window-layer.snap-top .mtp11-window{width:100%;height:100%}
+.mtp11-window-layer.max{width:auto!important;height:auto!important;min-width:0;min-height:0}
+.mtp11-taskbar .running{box-shadow:inset 0 -2px 0 rgba(139,220,255,.9)}
+.mtp11-context-menu{position:fixed;z-index:900;min-width:190px;padding:6px;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(10,20,34,.97);box-shadow:0 18px 55px rgba(0,0,0,.55);backdrop-filter:blur(20px)}
+.mtp11-context-menu button{width:100%;display:flex;align-items:center;gap:9px;padding:9px 11px;border:0;border-radius:8px;background:transparent;color:#dceaf8;text-align:left}.mtp11-context-menu button:hover{background:rgba(255,255,255,.08)}.mtp11-context-menu svg{width:15px}
+@media(max-width:650px){.mtp11-window-layer{min-width:0;min-height:0}.mtp11-window-layer.snap-left,.mtp11-window-layer.snap-right{width:50%!important}.mtp11-context-menu{min-width:170px}}
