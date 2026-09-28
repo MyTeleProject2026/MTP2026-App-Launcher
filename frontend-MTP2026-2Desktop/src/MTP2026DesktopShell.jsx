@@ -12,7 +12,7 @@ import { guestImageStatus, installGuestImageFromBytes, installGuestImageFromCont
 import { bootDesktopGuest, stopDesktopGuest } from './mtp2026DesktopGuestBridge.js';
 import { startDesktopSession, endDesktopSession } from './mtp2026DesktopSession.js';
 import { getDesktopOSState, setDesktopSessionState, setDesktopPowerState, registerDesktopProcess, unregisterDesktopProcess, subscribeDesktopOSState, getDesktopProcesses, getDesktopServices as getCoreDesktopServices, setDesktopServiceState, addDesktopSystemEvent, setDesktopLocked, isDesktopLocked } from './mtp2026DesktopOSCore.js';
-import { nativeSystemInfo, nativeListProcesses, nativeListServices, nativeFilesystemInfo } from './mtp2026DesktopNativeBridge.js';
+import { nativeSystemInfo, nativeListProcesses, nativeListServices, nativeFilesystemInfo, nativeListDirectory, nativeOpenPath, nativeRevealPath, getNativeDesktopCapabilities } from './mtp2026DesktopNativeBridge.js';
 
 const APPS = [
   { id:'files', title:'File Explorer', icon:FolderOpen },
@@ -64,65 +64,54 @@ function TextEditor({folder,name,onClose}){
 }
 function FileExplorer(){
   const [clipboard,setClipboard]=useState(()=>{try{return JSON.parse(localStorage.getItem('mtp2026:desktop:clipboard:v1')||'null')}catch{return null}});
-  const [nativeFs,setNativeFs]=useState(getDesktopFilesystem);
+  const [virtualFs,setVirtualFs]=useState(getDesktopFilesystem);
+  const [nativeInfo,setNativeInfo]=useState(null);
+  const [nativeEntries,setNativeEntries]=useState([]);
+  const [nativePath,setNativePath]=useState('');
+  const [nativeLoading,setNativeLoading]=useState(false);
+  const [nativeError,setNativeError]=useState('');
+  const [mode,setMode]=useState('virtual');
   const [folder,setFolder]=useState('This PC');
-  const [history,setHistory]=useState(['This PC']);
+  const [history,setHistory]=useState([{label:'This PC',path:''}]);
   const [historyIndex,setHistoryIndex]=useState(0);
   const [query,setQuery]=useState('');
   const [selected,setSelected]=useState(null);
   const [editor,setEditor]=useState(null);
-  useEffect(()=>{const handler=e=>{if(e.detail?.folder){setQuery('');navigate(e.detail.folder)}};window.addEventListener('mtp2026:explorer-navigate',handler);return()=>window.removeEventListener('mtp2026:explorer-navigate',handler)},[]);
-  useEffect(()=>{const key=e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'){e.preventDefault();copySelected()}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'){e.preventDefault();paste()}if(e.key==='Delete'){e.preventDefault();remove()}if(e.key==='Enter'&&selected){const entry=readDesktopEntry(folder,selected);if(entry?.name&&folders.includes(entry.name))navigate(entry.name)}};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)},[selected,folder,clipboard]);
+  const capabilities=getNativeDesktopCapabilities();
   const folders=['Desktop','Documents','Downloads','Pictures','Music','Videos'];
-  const refresh=()=>{setNativeFs(getDesktopFilesystem());setSelected(null);};
-  const navigate=next=>{const h=history.slice(0,historyIndex+1).concat(next);setHistory(h);setHistoryIndex(h.length-1);setFolder(next);setSelected(null);};
-  const back=()=>historyIndex>0&&(setHistoryIndex(i=>i-1),setFolder(history[historyIndex-1]),setSelected(null));
-  const forward=()=>historyIndex<history.length-1&&(setHistoryIndex(i=>i+1),setFolder(history[historyIndex+1]),setSelected(null));
-  const makeFile=()=>{const target=folder==='This PC'?'Documents':folder;createDesktopTextFile(target);refresh();if(folder==='This PC')navigate('Documents');};
-  const makeFolder=()=>{const target=folder==='This PC'?'Documents':folder;const name=prompt('Folder name','New folder');if(name) {createDesktopFolder(target,name);refresh();}};
-  const rename=()=>{if(!selected||folder==='This PC')return;const next=prompt('Rename item',selected);if(next&&next!==selected){renameDesktopEntry(folder,selected,next);refresh();setSelected(next);}};
-  const remove=()=>{if(!selected||folder==='This PC')return;if(confirm('Delete “'+selected+'” from '+folder+'?')){deleteDesktopEntry(folder,selected);refresh();}};
-  const openEntry=name=>{
-    if(folders.includes(name)){navigate(name);return;}
-    const entry=readDesktopEntry(folder,name);
-    if(entry?.type==='text'){setEditor({folder,name});return;}
-    if(entry?.type==='url'&&entry.url){window.dispatchEvent(new CustomEvent('mtp2026:browser-open',{detail:{url:entry.url}}));}
-  };
-  const items=folder==='This PC'
-    ? folders.map(name=>({name,type:'Folder',isFolder:true}))
-    : (nativeFs[folder]||[]).map(f=>({...f,isFolder:false}));
+  const loadNative=async path=>{setNativeLoading(true);setNativeError('');const r=await nativeListDirectory(path);if(r?.supported){setNativeEntries(Array.isArray(r.value)?r.value:[]);setNativePath(path);setMode('native');}else{setNativeEntries([]);setNativeError(r?.error||'Native filesystem is unavailable in this host.');}setNativeLoading(false);};
+  const pushHistory=(label,path)=>{const h=history.slice(0,historyIndex+1).concat({label,path});setHistory(h);setHistoryIndex(h.length-1);setFolder(label);setSelected(null);};
+  const navigateVirtual=next=>{setMode('virtual');setQuery('');pushHistory(next,next);setVirtualFs(getDesktopFilesystem());};
+  const navigateNative=(label,path)=>{setQuery('');setMode('native');pushHistory(label,path);void loadNative(path);};
+  useEffect(()=>{void nativeFilesystemInfo().then(r=>{if(r?.supported&&r.value?.root){setNativeInfo(r.value);setHistory([{label:'This PC',path:r.value.root}]);setHistoryIndex(0);setFolder('This PC');void loadNative(r.value.root);}});},[]);
+  useEffect(()=>{const handler=e=>{if(!e.detail?.folder)return;const target=e.detail.folder;setQuery('');if(target==='This PC'&&nativeInfo?.root){navigateNative('This PC',nativeInfo.root);return;}navigateVirtual(target);};window.addEventListener('mtp2026:explorer-navigate',handler);return()=>window.removeEventListener('mtp2026:explorer-navigate',handler);},[nativeInfo]);
+  useEffect(()=>{const key=e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'){e.preventDefault();copySelected();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'){e.preventDefault();paste();}if(e.key==='Delete'&&!editor&&mode==='virtual'){e.preventDefault();remove();}if(e.key==='Enter'&&selected)openEntry(selected);};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);},[selected,folder,clipboard,mode,nativePath,editor]);
+  const refresh=()=>{setSelected(null);if(mode==='native'&&nativePath){void loadNative(nativePath);}else setVirtualFs(getDesktopFilesystem());};
+  const back=()=>{if(historyIndex<=0)return;const target=history[historyIndex-1];setHistoryIndex(i=>i-1);setFolder(target.label);setSelected(null);setQuery('');if(target.path){void loadNative(target.path);}else{setMode('virtual');setVirtualFs(getDesktopFilesystem());}};
+  const forward=()=>{if(historyIndex>=history.length-1)return;const target=history[historyIndex+1];setHistoryIndex(i=>i+1);setFolder(target.label);setSelected(null);setQuery('');if(target.path){void loadNative(target.path);}else{setMode('virtual');setVirtualFs(getDesktopFilesystem());}};
+  const switchMode=next=>{setSelected(null);setQuery('');if(next==='native'&&nativeInfo?.root){setHistory([{label:'This PC',path:nativeInfo.root}]);setHistoryIndex(0);setFolder('This PC');void loadNative(nativeInfo.root);}else{setMode('virtual');setHistory([{label:'This PC',path:''}]);setHistoryIndex(0);setFolder('This PC');setVirtualFs(getDesktopFilesystem());}};
+  const makeFile=()=>{if(mode==='native')return;const target=folder==='This PC'?'Documents':folder;createDesktopTextFile(target);refresh();if(folder==='This PC')navigateVirtual('Documents');};
+  const makeFolder=()=>{if(mode==='native')return;const target=folder==='This PC'?'Documents':folder;const name=prompt('Folder name','New folder');if(name){createDesktopFolder(target,name);refresh();}};
+  const rename=()=>{if(mode==='native'||!selected||folder==='This PC')return;const next=prompt('Rename item',selected);if(next&&next!==selected){renameDesktopEntry(folder,selected,next);refresh();setSelected(next);}};
+  const remove=()=>{if(mode==='native'||!selected||folder==='This PC')return;if(confirm('Delete “'+selected+'” from '+folder+'?')){deleteDesktopEntry(folder,selected);refresh();}};
+  const openEntry=async name=>{if(mode==='native'){const entry=nativeEntries.find(x=>x.name===name);if(!entry)return;if(entry.directory){navigateNative(name,entry.path);return;}await nativeOpenPath(entry.path);return;}if(folders.includes(name)){navigateVirtual(name);return;}const entry=readDesktopEntry(folder,name);if(entry?.type==='text'){setEditor({folder,name});return;}if(entry?.type==='url'&&entry.url)window.dispatchEvent(new CustomEvent('mtp2026:browser-open',{detail:{url:entry.url}}));};
+  const items=mode==='native'?nativeEntries.map(x=>({name:x.name,type:x.directory?'Folder':'File',isFolder:x.directory,nativePath:x.path})):folder==='This PC'?folders.map(name=>({name,type:'Folder',isFolder:true})):(virtualFs[folder]||[]).map(f=>({...f,isFolder:false}));
   const filtered=items.filter(x=>x.name.toLowerCase().includes(query.toLowerCase()));
-  const selectedEntry=selected&&readDesktopEntry(folder,selected);
-  const copySelected=()=>{if(!selectedEntry||folder==='This PC')return;const item={...selectedEntry,sourceFolder:folder};setClipboard(item);try{localStorage.setItem('mtp2026:desktop:clipboard:v1',JSON.stringify(item))}catch{}};
-  const paste=()=>{if(!clipboard)return;const target=folder==='This PC'?'Documents':folder;let pastedName=clipboard.name;let n=1;while((getDesktopFilesystem()[target]||[]).some(x=>x.name===pastedName)){pastedName=clipboard.name.replace(/(\.[^.]+)?$/,' copy'+(n>1?' '+n:'')+'$1');n++;}copyDesktopEntry(clipboard.sourceFolder,clipboard.name,target,pastedName);refresh();};
-
+  const selectedEntry=mode==='virtual'&&selected&&readDesktopEntry(folder,selected);
+  const copySelected=()=>{if(mode==='native'||!selectedEntry||folder==='This PC')return;const item={...selectedEntry,sourceFolder:folder};setClipboard(item);try{localStorage.setItem('mtp2026:desktop:clipboard:v1',JSON.stringify(item))}catch{}};
+  const paste=()=>{if(mode==='native'||!clipboard)return;const target=folder==='This PC'?'Documents':folder;let pastedName=clipboard.name,n=1;while((getDesktopFilesystem()[target]||[]).some(x=>x.name===pastedName)){pastedName=clipboard.name.replace(/(\.[^.]+)?$/,' copy'+(n>1?' '+n:'')+'$1');n++;}copyDesktopEntry(clipboard.sourceFolder,clipboard.name,target,pastedName);refresh();};
+  const locationLabel=mode==='native'?(nativePath||'Native Host'):(folder==='This PC'?'This PC':'This PC › '+folder);
   return <div className="mtp11-files">
-    <aside className="mtp11-file-nav">
-      <button className={folder==='This PC'?'active':''} onClick={()=>navigate('This PC')}><HardDrive/> This PC</button>
-      {folders.map(x=><button key={x} className={folder===x?'active':''} onClick={()=>navigate(x)}><Folder/> {x}</button>)}
+    <aside className="mtp11-file-nav"><div className="mtp11-file-source"><span>Explorer source</span><div><button className={mode==='virtual'?'active':''} onClick={()=>switchMode('virtual')}><HardDrive/> Virtual</button><button className={mode==='native'?'active':''} disabled={!nativeInfo} onClick={()=>switchMode('native')}><Monitor/> Native</button></div></div>
+      <button className={mode==='native'&&folder==='This PC'?'active':''} onClick={()=>nativeInfo?.root?switchMode('native'):navigateVirtual('This PC')}><HardDrive/> This PC</button>{folders.map(x=><button key={x} className={mode==='virtual'&&folder===x?'active':''} onClick={()=>navigateVirtual(x)}><Folder/> {x}</button>)}
     </aside>
     <main className="mtp11-file-main">
-      <div className="mtp11-file-address">
-        <button onClick={back} disabled={historyIndex===0}>‹</button><button onClick={forward} disabled={historyIndex===history.length-1}>›</button>
-        <div className="mtp11-file-breadcrumb"><HardDrive/> This PC {folder!=='This PC'&&<> <span>›</span> <b>{folder}</b></>}</div>
-        <div className="mtp11-file-search"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search this location"/></div>
-      </div>
-      <div className="mtp11-toolbar">
-        <button onClick={refresh}><RefreshCw/> Refresh</button><button onClick={makeFile}><File/> New file</button><button onClick={makeFolder}><Folder/> New folder</button>
-        <button disabled={!selected||folder==='This PC'} onClick={copySelected}>Copy</button><button disabled={!clipboard} onClick={paste}>Paste</button><button disabled={!selected||folder==='This PC'} onClick={rename}>Rename</button><button disabled={!selected||folder==='This PC'} onClick={remove}>Delete</button>
-        <span>{filtered.length} item{filtered.length===1?'':'s'}{selected?' · '+selected:''}</span>
-      </div>
-      <div className="mtp11-file-grid">
-        {filtered.map(x=><button className={`mtp11-file-card ${selected===x.name?'selected':''}`} key={x.name}
-          onClick={()=>setSelected(x.name)} onDoubleClick={()=>openEntry(x.name)}>
-          {x.isFolder?<FolderOpen/>:<File/>}<b>{x.name}</b><small>{x.isFolder?'Folder':`${x.type||'file'} · ${x.size||0} B`}</small>
-        </button>)}
-        {!filtered.length&&<div className="mtp11-empty">{query?'No matching items.':'This folder is empty.'}</div>}
-      </div>
-      {editor&&<TextEditor {...editor} onClose={()=>{setEditor(null);refresh()}}/>}
-      {selectedEntry&&<div className="mtp11-file-details"><Info/><div><b>{selectedEntry.name}</b><small>{selectedEntry.type||'text'} · {selectedEntry.size||0} bytes · Updated {new Date(selectedEntry.updatedAt||Date.now()).toLocaleString()}</small></div></div>}
-    </main>
-  </div>;
+      <div className="mtp11-file-address"><button onClick={back} disabled={historyIndex===0}>‹</button><button onClick={forward} disabled={historyIndex===history.length-1}>›</button><div className="mtp11-file-breadcrumb"><HardDrive/> <b>{mode==='native'?'Native Host':'Virtual Filesystem'}</b> <span>›</span> {locationLabel}</div><div className="mtp11-file-search"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search this location"/></div></div>
+      <div className="mtp11-toolbar"><button onClick={refresh}><RefreshCw/> Refresh</button><button disabled={mode==='native'} onClick={makeFile}><File/> New file</button><button disabled={mode==='native'} onClick={makeFolder}><Folder/> New folder</button><button disabled={!selected||mode==='native'||folder==='This PC'} onClick={copySelected}>Copy</button><button disabled={!clipboard||mode==='native'} onClick={paste}>Paste</button><button disabled={!selected||mode==='native'||folder==='This PC'} onClick={rename}>Rename</button><button disabled={!selected||mode==='native'||folder==='This PC'} onClick={remove}>Delete</button>{mode==='native'&&<button disabled={!selected} onClick={()=>{const e=nativeEntries.find(x=>x.name===selected);if(e)void nativeRevealPath(e.path);}}>Reveal</button>}<span>{nativeLoading?'Loading…':nativeError?'Native error: '+nativeError:(filtered.length+' item'+(filtered.length===1?'':'s')+(selected?' · '+selected:''))}</span></div>
+      {mode==='native'&&<div className="mtp11-file-source-banner"><Monitor/><div><b>Native Host Filesystem</b><small>Read-only integration. File creation, rename, delete and paste remain in the MTP2026 virtual filesystem.</small></div></div>}
+      <div className="mtp11-file-grid">{filtered.map(x=><button className={'mtp11-file-card '+(selected===x.name?'selected':'')} key={x.name} onClick={()=>setSelected(x.name)} onDoubleClick={()=>openEntry(x.name)}>{x.isFolder?<FolderOpen/>:<File/>}<b>{x.name}</b><small>{x.isFolder?'Folder':mode==='native'?'Native file':(x.type||'file')+' · '+(x.size||0)+' B'}</small></button>)}{!filtered.length&&<div className="mtp11-empty">{query?'No matching items.':nativeLoading?'Loading native directory…':'This folder is empty.'}</div>}</div>
+      {editor&&<TextEditor {...editor} onClose={()=>{setEditor(null);refresh()}}/>}{selectedEntry&&<div className="mtp11-file-details"><Info/><div><b>{selectedEntry.name}</b><small>{selectedEntry.type||'text'} · {selectedEntry.size||0} bytes · Updated {new Date(selectedEntry.updatedAt||Date.now()).toLocaleString()}</small></div></div>}{!capabilities.nativeHost&&<div className="mtp11-file-details"><Info/><div><b>Browser mode</b><small>Native Host integration is unavailable; MTP2026 virtual filesystem is active.</small></div></div>}
+    </main></div>;
 }
 function TaskManager({windows,active,minimized,runtime,close,onSelect}){
   const [tick,setTick]=useState(0);
