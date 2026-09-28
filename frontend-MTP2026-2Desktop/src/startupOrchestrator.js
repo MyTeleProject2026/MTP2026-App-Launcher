@@ -11,7 +11,7 @@ const MODE_ALIASES = Object.freeze({ ios: 'mtp2026', 'ios-device': 'mtp2026' });
 function normalizeMode(value) { const mode = MODE_ALIASES[value] || value; return MODES[mode] ? mode : null; }
 function selected() { try { const value = normalizeMode(sessionStorage.getItem(SESSION_SELECTION)); return value || null; } catch (_) { return null; } }
 function saveMode(mode) { const value = normalizeMode(mode); if (!value) return; try { localStorage.setItem(MODE_KEY, value); sessionStorage.setItem(SESSION_SELECTION, value); } catch (_) {} }
-function currentMode() { try { return normalizeMode(localStorage.getItem(MODE_KEY)); } catch (_) { return null; } }
+function currentMode() { try { return normalizeMode(window.__MTP2026_SITE_PROFILE?.deviceMode || localStorage.getItem(MODE_KEY)); } catch (_) { return null; } }
 function pickerMode(value) { return normalizeMode(value); }
 let reactReady = false;
 function hidePicker() { const picker = document.getElementById('mtp-os-picker'); if (picker) { picker.classList.add('mtp-os-hidden'); setTimeout(() => picker.remove(), 320); } }
@@ -58,8 +58,9 @@ async function continueAfterSelection(mode) {
 }
 
 async function run() {
-  const inProgress = selected();
-  const mode = inProgress || currentMode();
+  const siteMode = normalizeMode(window.__MTP2026_SITE_PROFILE?.deviceMode);
+  const inProgress = siteMode || selected();
+  const mode = siteMode || inProgress || currentMode();
   if (!inProgress) {
     const picker = ensurePicker();
     document.documentElement.dataset.mtpStartup = 'selecting';
