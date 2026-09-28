@@ -42,13 +42,14 @@ function WindowFrame({title,icon:Icon,children,onClose,onMinimize,onMaximize,max
 function FileExplorer(){
   const [files,setFiles]=useState(readFiles);
   const [nativeFs,setNativeFs]=useState(getDesktopFilesystem);
-  const refresh=()=>{setFiles(readFiles());setNativeFs(getDesktopFilesystem())};
   const [folder,setFolder]=useState('This PC');
   const folders=['Desktop','Documents','Downloads','Pictures','Music','Videos','MTP2026 Cloud'];
-  const refresh=()=>setFiles(readFiles);
+  const refresh=()=>{setFiles(readFiles());setNativeFs(getDesktopFilesystem())};
   const createFile=()=>{
-    const name=`New Text Document ${Date.now().toString().slice(-4)}.txt`;
-    const next={...files,[name]:'MTP2026 Desktop OS document\n'};
+    const target=folder==='This PC'?'Documents':folder;
+    const result=createDesktopTextFile(target);
+    setNativeFs(result.fs);
+    const next={...files,[result.file.name]:result.file.content};
     writeFiles(next); setFiles(next);
   };
   return <div className="mtp11-files">
@@ -59,19 +60,17 @@ function FileExplorer(){
     <main className="mtp11-file-main">
       <div className="mtp11-toolbar">
         <button onClick={refresh}><RefreshCw/></button><button onClick={createFile}><File/> New file</button>
-        <span>{folder}</span>
+        <span>{folder} · {Object.keys(nativeFs).length} managed folders</span>
       </div>
       <div className="mtp11-file-grid">
-        {(folder==='This PC'?folders:Object.keys(files).filter(x=>x.toLowerCase().includes(folder.toLowerCase().slice(0,3)))).map(x=>
-          <button className="mtp11-file-card" key={x}><Folder/><b>{x}</b><small>Folder</small></button>
-        )}
+        {(folder==='This PC'?folders:[]).map(x=><button className="mtp11-file-card" key={x} onDoubleClick={()=>setFolder(x)}><Folder/><b>{x}</b><small>Folder</small></button>)}
         {folder==='This PC' && Object.keys(files).map(x=><button className="mtp11-file-card" key={x}><File/><b>{x}</b><small>Text document</small></button>)}
-        {folder!=='This PC' && !Object.keys(files).length && <div className="mtp11-empty">This folder is empty.</div>}
+        {folder!=='This PC' && (nativeFs[folder]||[]).map(f=><button className="mtp11-file-card" key={f.name}><File/><b>{f.name}</b><small>{f.type} · {f.size} B</small></button>)}
+        {folder!=='This PC' && !(nativeFs[folder]||[]).length && <div className="mtp11-empty">This folder is empty.</div>}
       </div>
     </main>
   </div>;
 }
-
 function SettingsApp(){
   const [theme,setTheme]=useState(()=>localStorage.getItem('mtp2026-desktop-theme')||'dark');
   const [animations,setAnimations]=useState(()=>localStorage.getItem('mtp2026-desktop-animations')!=='off');
