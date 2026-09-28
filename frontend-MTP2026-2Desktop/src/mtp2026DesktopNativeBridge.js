@@ -41,3 +41,15 @@ export async function nativeProcessAction(action, pid) {
 export async function nativeSystemInfo() {
   return invoke('mtp2026_system_info');
 }
+
+export async function nativeListProcesses() {
+  return invoke('mtp2026_list_processes');
+}
+
+export async function nativeListServices() {
+  return invoke('mtp2026_list_services');
+}
+
+export async function nativeFilesystemInfo() {
+  return invoke('mtp2026_filesystem_info');
+}
