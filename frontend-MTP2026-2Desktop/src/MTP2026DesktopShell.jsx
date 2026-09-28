@@ -367,8 +367,9 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   function open(id){
     if(id==='store'){window.open('https://www.vexastore.2bd.net/','_blank','noopener,noreferrer');setStart(false);return;}
     const existing=windows.find(w=>w===id);
-    if(!existing){setWindows(ws=>[...ws,id]);registerDesktopProcess({id:'app:'+id,name:id,type:'application',status:'running'});}else{registerDesktopProcess({id:'app:'+id,name:id,type:'application',status:'running'});
-    setRecentApps(prev=>{const next=[id,...prev.filter(x=>x!==id)].slice(0,6);try{localStorage.setItem('mtp2026:desktop:recent-apps:v1',JSON.stringify(next))}catch{};return next;});}
+    if(!existing)setWindows(ws=>[...ws,id]);
+    registerDesktopProcess({id:'app:'+id,name:id,type:'application',status:'running'});
+    setRecentApps(prev=>{const next=[id,...prev.filter(x=>x!==id)].slice(0,6);try{localStorage.setItem('mtp2026:desktop:recent-apps:v1',JSON.stringify(next))}catch{};return next;});
     setMinimized(m=>m.filter(x=>x!==id));
     setActive(id);setStart(false);
   }
