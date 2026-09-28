@@ -42,7 +42,12 @@ export async function bootDesktopOS({provider='browser-shell',onProgress}={}){
     persist(state); onProgress?.(state);
     return state;
   }catch(error){
-    state={...state,phase:'error',progress:0,error:String(error?.message||error||'GUEST_BOOT_FAILED')};
+    const message=String(error?.message||error||'GUEST_BOOT_FAILED');
+    if (/^(GUEST_MANIFEST_UNAVAILABLE|GUEST_PROFILE_NOT_FOUND_|MTP2026_GUEST_BUNDLE_UNAVAILABLE)/.test(message)) {
+      state={...state,phase:'ready',progress:100,provider:'browser-launcher',error:null,readyAt:new Date().toISOString(),guestState:{phase:'browser-shell',running:true,provider:'browser-launcher',progress:100,error:null}};
+      persist(state); onProgress?.(state); return state;
+    }
+    state={...state,phase:'error',progress:0,error:message};
     persist(state); onProgress?.(state);
     return state;
   }
