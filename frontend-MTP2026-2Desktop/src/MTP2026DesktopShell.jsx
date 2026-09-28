@@ -245,8 +245,10 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   function minimizeWindow(id){setMinimized(m=>m.includes(id)?m:[...m,id]);setActive(a=>a===id?null:a);}
   function resizeWindow(id,e){
     e.preventDefault(); e.stopPropagation();
+    if(maximized[id]||snapped[id]){setMaximized(m=>{const n={...m};delete n[id];return n});setSnapped(s=>{const n={...s};delete n[id];return n});}
     const startX=e.clientX,startY=e.clientY,base=windowGeometry[id]||{width:720,height:520};
-    const move=ev=>setWindowGeometry(g=>({...g,[id]:{width:Math.max(320,base.width+ev.clientX-startX),height:Math.max(220,base.height+ev.clientY-startY)}}));
+    const maxW=Math.max(320,window.innerWidth-24),maxH=Math.max(220,window.innerHeight-150);
+    const move=ev=>setWindowGeometry(g=>({...g,[id]:{width:Math.min(maxW,Math.max(320,base.width+ev.clientX-startX)),height:Math.min(maxH,Math.max(220,base.height+ev.clientY-startY))}}));
     const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
     window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
   }
