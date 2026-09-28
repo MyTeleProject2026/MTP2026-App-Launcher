@@ -166,6 +166,8 @@ export async function bootGuest(mode, options = {}) {
   }
 }
 
+export { installGuestImage } from './arm64GuestRuntime.js';
+
 export async function stopGuest() {
   const id = state.id;
   const native = nativeProvider();
