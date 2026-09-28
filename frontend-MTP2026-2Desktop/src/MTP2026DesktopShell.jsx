@@ -241,6 +241,19 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     setActive(id);setStart(false);
   }
   function launchWeb(url){if(url){setBrowserUrl(url);open('browser');}}
+  function openFilesAt(folder){
+    open('files');
+    window.dispatchEvent(new CustomEvent('mtp2026:explorer-navigate',{detail:{folder}}));
+  }
+  function desktopShortcutAction(id){
+    if(id==='this-pc') openFilesAt('This PC');
+    else if(id==='files') openFilesAt('This PC');
+    else open(id);
+  }
+  function resetDesktopLayout(){
+    setIconPositions({});
+    setDesktopSelection(null);
+  }
   function restoreWindow(id){
     setMinimized(m=>m.filter(x=>x!==id));setMaximized(m=>{const n={...m};delete n[id];return n});setSnapped(s=>{const n={...s};delete n[id];return n});setActive(id);
   }
@@ -300,8 +313,8 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     </div>}
     <div className="mtp11-desktop-icons" onClick={()=>setDesktopSelection(null)}>
       {desktopBox&&<div className="mtp11-selection-box" style={{left:desktopBox.x,top:desktopBox.y,width:desktopBox.w,height:desktopBox.h}}/>}
-      <button style={{left:iconPositions['this-pc']?.x,top:iconPositions['this-pc']?.y}} className={`mtp11-desktop-icon ${desktopSelection==='this-pc'?'selected':''} ${draggingIcon==='this-pc'?'dragging':''}`} onPointerDown={e=>{e.stopPropagation();moveIcon('this-pc',e)}} onClick={e=>{e.stopPropagation();setDesktopSelection('this-pc')}} onDoubleClick={()=>open('files')}><span>🖥️</span><b>This PC</b></button>
-      <button style={{left:iconPositions.files?.x,top:iconPositions.files?.y}} className={`mtp11-desktop-icon ${desktopSelection==='files'?'selected':''} ${draggingIcon==='files'?'dragging':''}`} onPointerDown={e=>{e.stopPropagation();moveIcon('files',e)}} onClick={e=>{e.stopPropagation();setDesktopSelection('files')}} onPointerDown={e=>{if(e.button===0)setDraggingIcon('files')}} onPointerUp={()=>setDraggingIcon(null)} onDoubleClick={()=>open('files')}><FolderOpen/><b>File Explorer</b></button>
+      <button style={{left:iconPositions['this-pc']?.x,top:iconPositions['this-pc']?.y}} className={`mtp11-desktop-icon ${desktopSelection==='this-pc'?'selected':''} ${draggingIcon==='this-pc'?'dragging':''}`} onPointerDown={e=>{e.stopPropagation();moveIcon('this-pc',e)}} onClick={e=>{e.stopPropagation();setDesktopSelection('this-pc')}} onDoubleClick={()=>desktopShortcutAction('files')}><span>🖥️</span><b>This PC</b></button>
+      <button style={{left:iconPositions.files?.x,top:iconPositions.files?.y}} className={`mtp11-desktop-icon ${desktopSelection==='files'?'selected':''} ${draggingIcon==='files'?'dragging':''}`} onPointerDown={e=>{e.stopPropagation();moveIcon('files',e)}} onClick={e=>{e.stopPropagation();setDesktopSelection('files')}} onPointerDown={e=>{if(e.button===0)setDraggingIcon('files')}} onPointerUp={()=>setDraggingIcon(null)} onDoubleClick={()=>desktopShortcutAction('this-pc')}><FolderOpen/><b>File Explorer</b></button>
       <button onPointerDown={e=>{if(e.button===0)setDraggingIcon('browser')}} onPointerUp={()=>setDraggingIcon(null)} onDoubleClick={()=>open('browser')}><Globe2/><b>MTP2026 Browser</b></button>
       <button onPointerDown={e=>{if(e.button===0)setDraggingIcon('settings')}} onPointerUp={()=>setDraggingIcon(null)} onDoubleClick={()=>open('settings')}><Settings/><b>Settings</b></button>
       <button onPointerDown={e=>{if(e.button===0)setDraggingIcon('runtime')}} onPointerUp={()=>setDraggingIcon(null)} onDoubleClick={()=>open('runtime')}><Cpu/><b>Guest Runtime</b></button>
@@ -311,7 +324,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     {windows.map(renderWindow)}
     {desktopMenu&&<div className="mtp11-context-menu" style={{left:Math.min(desktopMenu.x,window.innerWidth-210),top:Math.min(desktopMenu.y,window.innerHeight-190)}} onClick={e=>e.stopPropagation()}>
       <button onClick={()=>{setDesktopMenu(null);setWindows([]);setActive(null);}}><RefreshCw/> Refresh desktop</button>
-      <button onClick={()=>{setDesktopMenu(null);open('files')}}><FolderOpen/> Open File Explorer</button>
+      <button onClick={()=>{setDesktopMenu(null);desktopShortcutAction('files')}}><FolderOpen/> Open File Explorer</button><button onClick={()=>{resetDesktopLayout();setDesktopMenu(null)}}><Grid2X2/> Reset icon layout</button>
       <button onClick={()=>{setDesktopMenu(null);open('about')}}><Info/> System information</button>
       <button onClick={()=>{setDesktopMenu(null);open('settings')}}><Settings/> Personalize</button>
       <button onClick={()=>navigator.clipboard?.writeText('MTP2026 Desktop OS') }><Clipboard/> Copy system name</button>
