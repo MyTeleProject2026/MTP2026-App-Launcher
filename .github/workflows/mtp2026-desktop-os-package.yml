@@ -16,6 +16,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: mtp2026-desktop-os-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   desktop-os:
     name: Build MTP2026 Desktop Edition static application
@@ -56,7 +60,6 @@ jobs:
           test -s dist/arm64/guest-manifest.json
           test -s dist/site-profile.js
           test -s dist/build-info.json
-          test -s dist/arm64/mtp2026-arm64-kernel.bin || true
           node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync('dist/manifest.webmanifest','utf8')); if(m.name!=='MTP2026 Desktop Edition'||m.start_url!=='/'||m.display!=='standalone') process.exit(1)"
           node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('dist/arm64/guest-manifest.json','utf8')); const g=p.guests?.desktop; if(!g||g.id!=='desktop'||g.architecture!=='arm64'||g.imageRequired!==true) process.exit(1); console.log('Desktop guest contract:',JSON.stringify(g))"
           node -e "const fs=require('fs'); const b=JSON.parse(fs.readFileSync('dist/build-info.json','utf8')); if(b.product!=='MTP2026 Desktop Edition'||b.architecture!=='arm64'||b.commit!==process.env.EXPECTED_COMMIT) process.exit(1); console.log('Build contract:',JSON.stringify(b))"
