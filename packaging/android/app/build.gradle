@@ -8,6 +8,7 @@ def requiredEnv = { String name ->
 
 def webAppUrl = project.findProperty('webAppUrl') ?: 'https://mtp2026-app-launcher.onrender.com'
 def ownerWebAppUrl = project.findProperty('ownerWebAppUrl') ?: 'https://vexaaccount-management.onrender.com/super-admin.html'
+def desktopWebAppUrl = project.findProperty('desktopWebAppUrl') ?: 'https://mtp2026-desktopos.onrender.com'
 
 android {
     namespace 'com.mytele.mtp2026.launcher'
@@ -33,6 +34,14 @@ android {
             buildConfigField 'String', 'ALLOWED_HOSTS', '"vexaaccount-management.onrender.com,api-vexaaccount.onrender.com"'
         }
     }
+        desktop {
+            dimension 'edition'
+            applicationId 'com.mtp2026.desktop'
+            resValue 'string', 'app_name', 'MTP2026 Desktop Edition'
+            buildConfigField 'String', 'WEB_APP_URL', '"' + desktopWebAppUrl + '"'
+            buildConfigField 'String', 'EDITION', '"desktop"'
+            buildConfigField 'String', 'ALLOWED_HOSTS', '"mtp2026-desktopos.onrender.com,api-vexaaccount.onrender.com,vexaaccount-management.onrender.com,www.vexastore.2bd.net,vexastore.2bd.net,api-vexastore.onrender.com"'
+        }
 
     signingConfigs {
         release {
