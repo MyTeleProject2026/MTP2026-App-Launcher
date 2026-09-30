@@ -540,6 +540,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     let body=<div className="mtp11-app-placeholder"><Icon/><h3>{app.title}</h3><p>MTP2026 Desktop application surface.</p></div>;
     if(id==='files')body=<FileExplorer/>;
     if(id==='settings')body=<SettingsApp/>;
+    if(id==='account')body=<AccountCenter onLock={()=>setLocked(true)} onClose={()=>close('account')}/>;
     if(id==='system')body=<SystemMonitor runtime={runtime} guestState={guestState}/>;
     if(id==='taskmgr')body=<TaskManager windows={windows} active={active} minimized={minimized} runtime={runtime} close={close} onSelect={id=>{setActive(id);setMinimized(m=>m.filter(x=>x!==id));}}/>;
     if(id==='control')body=<ControlPanel onSettings={()=>open('settings')} onOpen={open}/>;
