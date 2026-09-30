@@ -61,3 +61,11 @@ export async function nativeListDirectory(path) {
 export async function nativeSystemMetrics() { return invoke('mtp2026_system_metrics'); }
 
 export async function nativeQemuCapabilities() { return invoke('mtp2026_qemu_capabilities'); }
+
+export async function nativeQemuStatus() { return invoke('mtp2026_qemu_status'); }
+
+export async function nativeQemuLaunch({ kernel, initrd = null, disk = null, memoryMb = 1024, append = null }) {
+  return invoke('mtp2026_qemu_launch', { kernel, initrd, disk, memoryMb, append });
+}
+
+export async function nativeQemuStop() { return invoke('mtp2026_qemu_stop'); }
