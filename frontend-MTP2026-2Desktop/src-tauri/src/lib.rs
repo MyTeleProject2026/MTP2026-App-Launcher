@@ -251,6 +251,29 @@ fn mtp2026_process_action(action: String, pid: u32) -> Result<String, String> {
     }
 }
 
+#[tauri::command]
+fn mtp2026_qemu_capabilities() -> serde_json::Value {
+    let executable = if cfg!(target_os = "windows") { "qemu-system-aarch64.exe" } else { "qemu-system-aarch64" };
+    let probe = std::process::Command::new(executable).arg("--version").output();
+    match probe {
+        Ok(output) if output.status.success() => serde_json::json!({
+            "available": true,
+            "executable": executable,
+            "version": String::from_utf8_lossy(&output.stdout).trim(),
+            "architecture": "arm64",
+            "machine": "qemu-aarch64-virt",
+            "provider": "native-qemu-system-aarch64"
+        }),
+        _ => serde_json::json!({
+            "available": false,
+            "executable": executable,
+            "architecture": "arm64",
+            "machine": "qemu-aarch64-virt",
+            "provider": "native-qemu-system-aarch64"
+        })
+    }
+}
+
 pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -263,7 +286,8 @@ pub fn run() {
             mtp2026_open_path,
             mtp2026_reveal_path,
             mtp2026_power_action,
-            mtp2026_process_action
+            mtp2026_process_action,
+            mtp2026_qemu_capabilities
         ])
         .run(tauri::generate_context!())
         .expect("error while running MTP2026 Desktop native host");
