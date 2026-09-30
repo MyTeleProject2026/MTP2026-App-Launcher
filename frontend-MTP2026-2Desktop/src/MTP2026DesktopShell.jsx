@@ -12,7 +12,7 @@ import { guestImageStatus, installGuestImageFromBytes, installGuestImageFromCont
 import { bootDesktopGuest, stopDesktopGuest } from './mtp2026DesktopGuestBridge.js';
 import { startDesktopSession, endDesktopSession } from './mtp2026DesktopSession.js';
 import { getDesktopOSState, setDesktopSessionState, setDesktopPowerState, registerDesktopProcess, unregisterDesktopProcess, subscribeDesktopOSState, getDesktopProcesses, getDesktopServices as getCoreDesktopServices, setDesktopServiceState, addDesktopSystemEvent, setDesktopLocked, isDesktopLocked } from './mtp2026DesktopOSCore.js';
-import { nativeSystemInfo, nativeListProcesses, nativeListServices, nativeFilesystemInfo, nativeListDirectory, nativeOpenPath, nativeRevealPath, nativeSystemMetrics, nativeQemuCapabilities, nativeQemuStatus, getNativeDesktopCapabilities } from './mtp2026DesktopNativeBridge.js';
+import { nativeSystemInfo, nativeListProcesses, nativeListServices, nativeFilesystemInfo, nativeListDirectory, nativeOpenPath, nativeRevealPath, nativeSystemMetrics, nativeQemuCapabilities, nativeQemuStatus, nativeQemuLaunch, nativeQemuStop, getNativeDesktopCapabilities } from './mtp2026DesktopNativeBridge.js';
 
 const DESKTOP_SYSTEM_APPS = Object.freeze([
   { id:'files', title:'File Explorer', category:'System', description:'Browse MTP2026 virtual and native storage.' },
@@ -249,6 +249,16 @@ function SettingsApp(){
   };
   return <div className="mtp11-settings"><aside><div className="mtp11-settings-user"><div className="mtp11-avatar">M</div><div><b>MTP2026 User</b><small>VexaAccount protected</small></div></div>{sections.map(({id,label,icon:Icon})=><button key={id} className={section===id?'active':''} onClick={()=>setSection(id)}><Icon/> {label}</button>)}</aside><main>{content[section]}</main></div>;
 }
+function NativeQemuPanel(){
+  const [kernel,setKernel]=useState(''); const [initrd,setInitrd]=useState(''); const [disk,setDisk]=useState('');
+  const [memory,setMemory]=useState('1024'); const [append,setAppend]=useState('console=ttyAMA0'); const [state,setState]=useState(null); const [busy,setBusy]=useState(false); const [message,setMessage]=useState('');
+  const refresh=async()=>{const r=await nativeQemuStatus();if(r?.supported)setState(r.value||null);};
+  useEffect(()=>{void refresh();const t=setInterval(()=>void refresh(),2000);return()=>clearInterval(t)},[]);
+  const launch=async()=>{setBusy(true);setMessage('');try{const r=await nativeQemuLaunch({kernel,initrd:initrd||null,disk:disk||null,memoryMb:Number(memory)||1024,append:append||null});if(!r?.supported)throw new Error(r?.error||'Native QEMU is unavailable.');setState(r.value||null);setMessage('ARM64 guest process launched.');}catch(e){setMessage(e.message||String(e));}finally{setBusy(false);}};
+  const stop=async()=>{setBusy(true);try{const r=await nativeQemuStop();if(!r?.supported)throw new Error(r?.error||'Native QEMU is unavailable.');setState(r.value||null);setMessage('ARM64 guest process stopped.');}catch(e){setMessage(e.message||String(e));}finally{setBusy(false);}};
+  return <div className="mtp11-runtime-native-qemu"><header><div><b>Native QEMU ARM64</b><small>Launches a verified native guest kernel/initramfs/disk through qemu-system-aarch64.</small></div><span>{state?.running?'Running':'Stopped'}</span></header><div className="mtp11-qemu-fields"><label>Kernel<input value={kernel} onChange={e=>setKernel(e.target.value)} placeholder="/path/to/Image"/></label><label>Initramfs<input value={initrd} onChange={e=>setInitrd(e.target.value)} placeholder="/path/to/initramfs"/></label><label>Guest disk<input value={disk} onChange={e=>setDisk(e.target.value)} placeholder="/path/to/guest.img"/></label><label>Memory MB<input type="number" min="256" max="8192" value={memory} onChange={e=>setMemory(e.target.value)}/></label><label>Kernel arguments<input value={append} onChange={e=>setAppend(e.target.value)} placeholder="console=ttyAMA0"/></label></div><div className="mtp11-runtime-actions">{state?.running?<button onClick={stop} disabled={busy}><Power/> Stop native QEMU</button>:<button onClick={launch} disabled={busy||!kernel}><Power/> Launch native QEMU</button>}<button onClick={refresh} disabled={busy}><RefreshCw/> Refresh status</button></div>{message&&<div className="mtp11-runtime-message">{message}</div>}<small className="mtp11-runtime-note">Native launch requires actual ARM64 guest files on the native host. Browser IndexedDB storage is not treated as a native disk path.</small></div>;
+}
+
 function GuestRuntime({runtime,guestState,onState}){
   const [image,setImage]=useState({status:'checking'});
   const [busy,setBusy]=useState(false);
@@ -275,7 +285,7 @@ function GuestRuntime({runtime,guestState,onState}){
       <button onClick={downloadImage} disabled={busy}><RefreshCw/> Use configured source</button>
     </div>
     {message&&<div className="mtp11-runtime-message">{message}</div>}
-    <div className="mtp11-runtime-note">Only an actual verified guest image plus a supported native or QEMU-WASM provider can execute a real guest. Otherwise MTP2026 continues in its browser shell.</div>
+    <div className="mtp11-runtime-note">Only an actual verified guest image plus a supported native or QEMU-WASM provider can execute a real guest. Otherwise MTP2026 continues in its browser shell.</div><NativeQemuPanel/>
   </div>;
 }
 
