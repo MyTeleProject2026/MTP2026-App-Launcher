@@ -48,3 +48,9 @@ cd packaging/android
 ```
 
 The dedicated GitHub Actions workflow publishes an installable debug APK and a debug AAB as the `mtp2026-desktop-edition-android` artifact. The package is an Android application host for the existing MTP2026 Desktop Edition shell; it does not replace Android's kernel or claim that Android itself is a bootable MTP2026 kernel.
+
+## Desktop APK guest core
+
+The Desktop flavor is built as a self-contained Android application host for the MTP2026 Desktop Edition. Its CI workflow first builds the real MTP2026 ARM64 `desktop` guest profile, including the Linux ARM64 kernel, initramfs, native MTP2026 UI/services, ARM64 browser runtime, firmware, and boot disk. Those verified guest artifacts are copied into the APK under `assets/desktop-guest/` and are automatically imported into the application's private guest storage on first launch.
+
+The Android host therefore carries the Desktop OS guest media instead of merely linking to the web shell. The APK is still an Android host: importing a Linux ARM64 guest does not replace the Android kernel or make arbitrary Android hardware boot MTP2026. Actual direct device boot requires a device-specific native QEMU/bootloader or hardware port.
