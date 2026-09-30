@@ -627,7 +627,8 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);setDesktopBox(null);};
     window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
   };
-  return <main className={`mtp11-desktop ${bg}`} onPointerDown={desktopPointerDown}>
+  return (
+    <main className={`mtp11-desktop ${bg}`} onPointerDown={desktopPointerDown}>
     {locked&&<div className="mtp11-lock-screen" role="dialog" aria-modal="true">
       <div className="mtp11-lock-card">
         <LockKeyhole/>
@@ -704,7 +705,8 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
       <div className="mtp11-pinned">{[...new Set([...pinnedApps,...windows])].map(id=>{const a=allApps.find(x=>x.id===id);if(!a)return null;const I=a.icon||Globe2;return <button key={id} className={`${active===id?'active ':''}${windows.includes(id)?'running':''}`} onContextMenu={e=>{e.preventDefault();setTaskbarMenu({id,x:e.clientX,y:e.clientY});}} onClick={()=>open(id)} title={a.title}><I/></button>})}</div>
       <div className="mtp11-tray"><Wifi/><ShieldCheck/><button onClick={()=>{const next=!notifications;setNotifications(next);if(next){const now=Date.now();setNotificationSeenAt(now);try{localStorage.setItem('mtp2026:desktop:notifications-seen-at',String(now))}catch{}}}} aria-label="Notifications"><Bell/>{(osState.events||[]).filter(e=>e.at>notificationSeenAt).length>0&&<span className="mtp11-notification-badge">{Math.min((osState.events||[]).filter(e=>e.at>notificationSeenAt).length,99)}</span>}</button><button onClick={()=>setQuickSettings(v=>!v)}><Wifi/></button><button className="mtp11-clock" onClick={()=>{setCalendar(v=>!v);setNotifications(false)}}><b>{clock.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</b><small>{clock.toLocaleDateString([], {month:'numeric',day:'numeric',year:'numeric'})}</small></button><button onClick={()=>setPower(v=>!v)}><Power/></button></div>
     </nav>
-  </main>;
+    </main>
+  );
 }
 
 export default MTP2026DesktopShell;
