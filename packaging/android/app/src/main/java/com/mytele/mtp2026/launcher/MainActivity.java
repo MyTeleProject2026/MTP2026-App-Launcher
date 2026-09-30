@@ -63,6 +63,7 @@ public final class MainActivity extends Activity {
     ));
     private BroadcastReceiver installReceiver;
     private static final String DESKTOP_GUEST_ASSET_ROOT = "desktop-guest";
+    private static final String DESKTOP_GUEST_PREFS = "mtp2026_guest";
 
     private static final int IMMERSIVE_FLAGS =
             View.SYSTEM_UI_FLAG_FULLSCREEN |
@@ -267,15 +268,26 @@ public final class MainActivity extends Activity {
                     if (name == null || name.contains("/") || name.contains("..")) continue;
                     copyAsset(DESKTOP_GUEST_ASSET_ROOT + "/" + name, new File(root, name));
                 }
-                getSharedPreferences("mtp2026_guest", MODE_PRIVATE).edit()
+                String manifest = readAssetText(DESKTOP_GUEST_ASSET_ROOT + "/guest-manifest.json");
+                getSharedPreferences(DESKTOP_GUEST_PREFS, MODE_PRIVATE).edit()
                         .putString("desktop_status", "bundled-imported")
-                        .putString("desktop_root", root.getAbsolutePath()).apply();
+                        .putString("desktop_root", root.getAbsolutePath())
+                        .putString("desktop_manifest", manifest)
+                        .putLong("desktop_imported_at", System.currentTimeMillis()).apply();
             } catch (Exception error) {
                 getSharedPreferences("mtp2026_guest", MODE_PRIVATE).edit()
                         .putString("desktop_status", "import-failed")
                         .putString("desktop_error", String.valueOf(error.getMessage())).apply();
             }
         }).start();
+    }
+
+    private String readAssetText(String assetPath) throws IOException {
+        try (InputStream input = getAssets().open(assetPath)) {
+            byte[] buffer = new byte[8192]; int read; StringBuilder out = new StringBuilder();
+            while ((read = input.read(buffer)) != -1) out.append(new String(buffer, 0, read, java.nio.charset.StandardCharsets.UTF_8));
+            return out.toString();
+        }
     }
 
     private void copyAsset(String assetPath, File destination) throws IOException {
@@ -298,7 +310,7 @@ public final class MainActivity extends Activity {
         @JavascriptInterface public String getCapabilities() { return "{\"native\":true,\"orientation\":true,\"fullscreen\":true,\"filesystem\":false,\"notifications\":true,\"clipboard\":true,\"externalApps\":true,\"gamepad\":true,\"filePicker\":true,\"apkInstaller\":true,\"packageInstaller\":true}"; }
         @JavascriptInterface public String getDesktopGuestStatus() {
             if (!"desktop".equals(BuildConfig.EDITION)) return "{\\"state\\":\\"not-desktop-edition\\"}";
-            android.content.SharedPreferences prefs = getSharedPreferences("mtp2026_guest", MODE_PRIVATE);
+            android.content.SharedPreferences prefs = getSharedPreferences(DESKTOP_GUEST_PREFS, MODE_PRIVATE);
             String state = prefs.getString("desktop_status", "not-imported");
             String root = prefs.getString("desktop_root", "");
             return "{\\"state\\":\\"" + jsonSafe(state) + "\\",\\"root\\":\\"" + jsonSafe(root) + "\\",\\"profile\\":\\"desktop\\",\\"architecture\\":\\"arm64\\",\\"imageRuntime\\":\\"qemu-aarch64-virt\\"}";
