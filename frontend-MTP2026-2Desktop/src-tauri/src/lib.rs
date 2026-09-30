@@ -3,6 +3,9 @@ use std::fs;
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 use std::process::{Child, Command, Stdio};
+use std::fs::File;
+use std::io::Read;
+use sha2::{Digest, Sha256};
 
 #[derive(Serialize)]
 struct SystemInfo {
@@ -29,6 +32,69 @@ struct ProcessInfo {
 }
 
 
+
+
+#[derive(Serialize)]
+struct NativeGuestInstall {
+    id: String, bundle: String, kernel: String, initrd: String, firmware: String, boot_disk: String, sha256: String
+}
+
+fn guest_profile_artifacts(id: &str) -> Result<(&'static str, &'static str, &'static str, String), String> {
+    let kernel = match id {
+        "mtp2026" => "mtp2026-mtp2026-arm64-linux.Image", "android" => "mtp2026-android-arm64-linux.Image",
+        "desktop" => "mtp2026-desktop-arm64-linux.Image", "gaming" => "mtp2026-gaming-arm64-linux.Image",
+        _ => return Err("UNSUPPORTED_MTP2026_GUEST_PROFILE".into())
+    };
+    let initrd = match id {
+        "mtp2026" => "mtp2026-mtp2026-initramfs.cpio.gz", "android" => "mtp2026-android-initramfs.cpio.gz",
+        "desktop" => "mtp2026-desktop-initramfs.cpio.gz", "gaming" => "mtp2026-gaming-initramfs.cpio.gz",
+        _ => return Err("UNSUPPORTED_MTP2026_GUEST_PROFILE".into())
+    };
+    let firmware = "mtp2026-arm64-boot-firmware.bin";
+    Ok((kernel, initrd, firmware, format!("mtp2026-{}-boot-disk.img", id)))
+}
+
+fn verify_sha256_hex(path: &Path, expected: &str) -> Result<(), String> {
+    let expected = expected.trim().to_ascii_lowercase();
+    if expected.len() != 64 { return Err("GUEST_IMAGE_SHA256_INVALID".into()); }
+    let mut file = File::open(path).map_err(|e| e.to_string())?;
+    let mut hasher = Sha256::new(); let mut buf = [0u8; 1024 * 1024];
+    loop { let n = file.read(&mut buf).map_err(|e| e.to_string())?; if n == 0 { break; } hasher.update(&buf[..n]); }
+    if format!("{:x}", hasher.finalize()) == expected { Ok(()) } else { Err("GUEST_IMAGE_SHA256_MISMATCH".into()) }
+}
+
+fn safe_archive_listing(bundle: &Path) -> Result<(), String> {
+    let output = Command::new("tar").args(["-tzf"]).arg(bundle).output().map_err(|e| format!("GUEST_BUNDLE_TAR_UNAVAILABLE: {e}"))?;
+    if !output.status.success() { return Err("GUEST_BUNDLE_ARCHIVE_INVALID".into()); }
+    for raw in String::from_utf8_lossy(&output.stdout).lines() {
+        let item = raw.trim();
+        let normalized = item.replace('\\', "/");
+        if normalized.starts_with('/') || normalized.split('/').any(|part| part == "..") {
+            return Err("GUEST_BUNDLE_UNSAFE_PATH".into());
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn mtp2026_qemu_install_bundle(app: tauri::AppHandle, id: String, bundle_url: String, bundle_sha256: String) -> Result<NativeGuestInstall, String> {
+    let (kernel_name, initrd_name, firmware_name, disk_name) = guest_profile_artifacts(&id)?;
+    if !bundle_url.starts_with("https://") { return Err("GUEST_IMAGE_HTTPS_REQUIRED".into()); }
+    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?.join("mtp2026").join("guests").join(&id);
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let bundle = dir.join("guest.tar.gz");
+    let tmp = dir.join("guest.tar.gz.part");
+    let status = Command::new("curl").args(["--fail","--location","--retry","3","--silent","--show-error","--output"]).arg(&tmp).arg(&bundle_url).status().map_err(|e| format!("GUEST_IMAGE_CURL_UNAVAILABLE: {e}"))?;
+    if !status.success() { let _=fs::remove_file(&tmp); return Err("GUEST_IMAGE_DOWNLOAD_FAILED".into()); }
+    verify_sha256_hex(&tmp, &bundle_sha256)?;
+    safe_archive_listing(&tmp)?;
+    fs::rename(&tmp, &bundle).map_err(|e| e.to_string())?;
+    let status = Command::new("tar").args(["-xzf"]).arg(&bundle).arg("-C").arg(&dir).status().map_err(|e| format!("GUEST_BUNDLE_TAR_UNAVAILABLE: {e}"))?;
+    if !status.success() { return Err("GUEST_BUNDLE_EXTRACT_FAILED".into()); }
+    let kernel=dir.join(kernel_name); let initrd=dir.join(initrd_name); let firmware=dir.join(firmware_name); let boot_disk=dir.join(&disk_name);
+    if !kernel.is_file() || !initrd.is_file() || !firmware.is_file() || !boot_disk.is_file() { return Err("GUEST_BUNDLE_MISSING_FIRMWARE_BOOT_ARTIFACTS".into()); }
+    Ok(NativeGuestInstall{id,bundle:bundle.to_string_lossy().into(),kernel:kernel.to_string_lossy().into(),initrd:initrd.to_string_lossy().into(),firmware:firmware.to_string_lossy().into(),boot_disk:boot_disk.to_string_lossy().into(),sha256:bundle_sha256.trim().to_ascii_lowercase()})
+}
 
 static QEMU_CHILD: OnceLock<Mutex<Option<Child>>> = OnceLock::new();
 
@@ -346,6 +412,7 @@ pub fn run() {
             mtp2026_process_action,
             mtp2026_qemu_capabilities,
             mtp2026_qemu_status,
+            mtp2026_qemu_install_bundle,
             mtp2026_qemu_launch,
             mtp2026_qemu_stop
         ])
