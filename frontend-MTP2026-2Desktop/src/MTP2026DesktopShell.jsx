@@ -12,7 +12,7 @@ import { guestImageStatus, installGuestImageFromBytes, installGuestImageFromCont
 import { bootDesktopGuest, stopDesktopGuest } from './mtp2026DesktopGuestBridge.js';
 import { startDesktopSession, endDesktopSession } from './mtp2026DesktopSession.js';
 import { getDesktopOSState, setDesktopSessionState, setDesktopPowerState, registerDesktopProcess, unregisterDesktopProcess, subscribeDesktopOSState, getDesktopProcesses, getDesktopServices as getCoreDesktopServices, setDesktopServiceState, addDesktopSystemEvent, setDesktopLocked, isDesktopLocked } from './mtp2026DesktopOSCore.js';
-import { nativeSystemInfo, nativeListProcesses, nativeListServices, nativeFilesystemInfo, nativeListDirectory, nativeOpenPath, nativeRevealPath, nativeSystemMetrics, nativeQemuCapabilities, nativeQemuStatus, nativeQemuLaunch, nativeQemuStop, nativeQemuInstallBundle, getNativeDesktopCapabilities } from './mtp2026DesktopNativeBridge.js';
+import { nativeSystemInfo, nativeListProcesses, nativeListServices, nativeFilesystemInfo, nativeListDirectory, nativeOpenPath, nativeRevealPath, nativeSystemMetrics, nativeQemuCapabilities, nativeQemuStatus, nativeQemuLaunch, nativeQemuStop, nativeQemuInstallBundle, nativeQemuBootInstalled, getNativeDesktopCapabilities } from './mtp2026DesktopNativeBridge.js';
 
 const DESKTOP_SYSTEM_APPS = Object.freeze([
   { id:'files', title:'File Explorer', category:'System', description:'Browse MTP2026 virtual and native storage.' },
@@ -266,6 +266,7 @@ function GuestRuntime({runtime,guestState,onState}){
   const refresh=async()=>{setBusy(true);setMessage('');try{setImage(await guestImageStatus('desktop'));}catch(e){setMessage(e.message||'Unable to inspect guest image.');}finally{setBusy(false);}};
   useEffect(()=>{void refresh();},[]);
   const boot=async()=>{setBusy(true);setMessage('');try{const state=await bootDesktopGuest({onState});onState?.(state);}catch(e){setMessage(e.message||'Guest boot failed.');}finally{setBusy(false);}};
+  const bootInstalled=async()=>{setBusy(true);setMessage('Starting the installed MTP2026 Desktop Edition guest…');try{const r=await nativeQemuBootInstalled('desktop');if(!r?.supported)throw new Error(r?.error||'Native installed-guest boot is unavailable.');const state={running:true,phase:'native-qemu',progress:100,provider:'native-qemu',value:r.value||null};onState?.(state);setMessage('Installed MTP2026 Desktop Edition guest is running on native QEMU.');}catch(e){setMessage(e.message||'Installed guest boot failed.');}finally{setBusy(false);}};
   const stop=async()=>{setBusy(true);setMessage('');try{const state=await stopDesktopGuest();onState?.(state);await refresh();}catch(e){setMessage(e.message||'Guest stop failed.');}finally{setBusy(false);}};
   const importImage=async(e)=>{const file=e.target.files?.[0];e.target.value='';if(!file)return;setBusy(true);setMessage('Validating and installing ARM64 guest image…');try{await installGuestImageFromBytes('desktop',new Uint8Array(await file.arrayBuffer()),{sourceName:file.name});setMessage('Guest image installed and integrity-checked.');await refresh();}catch(err){setMessage(err.message||'Guest image installation failed.');}finally{setBusy(false);}};
   const downloadImage=async()=>{setBusy(true);setMessage('Downloading configured guest image…');try{if(window.__MTP2026_SITE_PROFILE?.deviceMode==='desktop'&&window.__TAURI_INTERNALS__){const contract=await import('./guestRuntimeManifest.js').then(m=>m.getGuestImageSource('desktop'));const r=await nativeQemuInstallBundle({id:'desktop',bundleUrl:contract.url,bundleSha256:contract.sha256});if(!r?.supported)throw new Error(r?.error||'Native guest installation unavailable.');setMessage('ARM64 guest bundle installed, verified and extracted on the native host.');}else{await installGuestImageFromContract('desktop',{sourceName:'configured MTP2026 guest image'});setMessage('Configured guest image installed and integrity-checked.');}await refresh();}catch(e){setMessage(e.message||'Configured guest image is unavailable.');}finally{setBusy(false);}};
@@ -281,6 +282,7 @@ function GuestRuntime({runtime,guestState,onState}){
     </div>
     <div className="mtp11-runtime-actions">
       {!running?<button onClick={boot} disabled={busy}><Power/> Boot guest</button>:<button onClick={stop} disabled={busy}><Power/> Stop guest</button>}
+      {getNativeDesktopCapabilities().nativeHost&&!running&&image.status==='installed'&&<button onClick={bootInstalled} disabled={busy}><Monitor/> Boot installed Desktop Edition</button>}
       <label><Download/> Import ARM64 image<input type="file" accept=".img,.raw,.bin,.qcow2,.iso,application/octet-stream" onChange={importImage}/></label>
       <button onClick={downloadImage} disabled={busy}><RefreshCw/> Use configured source</button>
     </div>
