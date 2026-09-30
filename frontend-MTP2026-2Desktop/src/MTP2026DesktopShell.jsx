@@ -292,7 +292,7 @@ function GuestRuntime({runtime,guestState,onState}){
 function SystemInformation({runtime,guestState}){
   const session=getDesktopSessionSafe();
   return <div className="mtp11-info">
-    <div className="mtp11-info-hero"><div className="mtp11-info-mark">M</div><div><div className="mtp11-runtime-kicker">ABOUT THIS DEVICE</div><h2>MTP2026 Desktop OS</h2><p>Desktop Edition · version {MTP2026_DESKTOP_BRANDING.version}</p></div></div>
+    <div className="mtp11-info-hero"><div className="mtp11-info-mark">M</div><div><div className="mtp11-runtime-kicker">ABOUT THIS DEVICE</div><h2>{MTP2026_DESKTOP_BRANDING.productName}</h2><p>{MTP2026_DESKTOP_BRANDING.edition} · version {MTP2026_DESKTOP_BRANDING.version}</p></div></div>
     <div className="mtp11-info-grid">
       <div><span>Architecture</span><b>ARM64 / AArch64</b></div>
       <div><span>Shell</span><b>{MTP2026_DESKTOP_BRANDING.shell}</b></div>
@@ -513,7 +513,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     if(id==='network'||id==='devices'||id==='storage'||id==='security'||id==='calendar'||id==='notifications')body=<DesktopSystemCenter onOpen={open}/>;
     if(id==='services')body=<ServiceManager/>;
     if(id==='terminal')body=<TerminalApp onOpen={open}/>;
-    if(id==='legacy-terminal')body=<div className="mtp11-terminal"><div>mtp2026@desktop:~$ system-info</div><div>MTP2026 Desktop OS</div><div>Architecture: aarch64</div><div>Runtime: browser-shell / native-vm compatible</div><div>Guest profile: desktop</div><div className="cursor">█</div></div>;
+    if(id==='legacy-terminal')body=<div className="mtp11-terminal"><div>mtp2026@desktop:~$ system-info</div><div>{MTP2026_DESKTOP_BRANDING.productName}</div><div>Architecture: aarch64</div><div>Runtime: browser-shell / native-vm compatible</div><div>Guest profile: desktop</div><div className="cursor">█</div></div>;
     if(id==='browser')body=<div className="mtp11-browser"><form onSubmit={e=>{e.preventDefault();setBrowserUrl(browserUrl);}}><Globe2/><input value={browserUrl} onChange={e=>setBrowserUrl(e.target.value)}/><button>Go</button></form><iframe title="MTP2026 Browser" src={browserUrl} allow="fullscreen; clipboard-read; clipboard-write; autoplay; gamepad" sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-pointer-lock allow-scripts allow-same-origin"/></div>;
     if(app.kind==='web')body=<div className="mtp11-browser"><div className="mtp11-browser-note">MTP2026 WebApp · VexaAccount application workspace</div><iframe title={app.title} src={app.url} allow="fullscreen; clipboard-read; clipboard-write; autoplay; gamepad" sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-pointer-lock allow-scripts allow-same-origin"/></div>;
     if(minimized.includes(id)) return null;
@@ -572,7 +572,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
       <button onClick={()=>{setDesktopMenu(null);desktopShortcutAction('files')}}><FolderOpen/> Open File Explorer</button><button onClick={()=>{resetDesktopLayout();setDesktopMenu(null)}}><Grid2X2/> Reset icon layout</button>
       <button onClick={()=>{setDesktopMenu(null);open('about')}}><Info/> System information</button>
       <button onClick={()=>{setDesktopMenu(null);open('settings')}}><Settings/> Personalize</button>
-      <button onClick={()=>navigator.clipboard?.writeText('MTP2026 Desktop OS') }><Clipboard/> Copy system name</button>
+      <button onClick={()=>navigator.clipboard?.writeText(MTP2026_DESKTOP_BRANDING.productName) }><Clipboard/> Copy system name</button>
       <button onClick={()=>{setDesktopMenu(null);open('properties')}}><Info/> Properties</button>
     </div>}
     {snapMenu&&<div className="mtp11-snap-menu" style={{left:snapMenu.x,top:snapMenu.y}} onClick={e=>e.stopPropagation()}><button onClick={()=>snapWindow(snapMenu.id,'left')}>◧ Left half</button><button onClick={()=>snapWindow(snapMenu.id,'right')}>◨ Right half</button><button onClick={()=>snapWindow(snapMenu.id,'top')}>▣ Top</button><button onClick={()=>snapWindow(snapMenu.id,'restore')}>□ Restore</button></div>}
