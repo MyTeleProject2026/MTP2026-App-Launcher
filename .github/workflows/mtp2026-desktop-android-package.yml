@@ -1,0 +1,70 @@
+name: MTP2026 Desktop OS Android package
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend-MTP2026-2Desktop/**"
+      - "packaging/android/**"
+      - ".github/workflows/mtp2026-desktop-android-package.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "frontend-MTP2026-2Desktop/**"
+      - "packaging/android/**"
+      - ".github/workflows/mtp2026-desktop-android-package.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-android:
+    name: Build MTP2026 Desktop Edition Android APK/AAB
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android SDK components
+        run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;35.0.0"
+
+      - name: Build Desktop Android packages
+        working-directory: packaging/android
+        run: |
+          set -euo pipefail
+          chmod +x ./gradlew
+          ./gradlew --no-daemon clean assembleDesktopDebug bundleDesktopDebug
+
+      - name: Verify Desktop APK
+        working-directory: packaging/android
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/desktop/debug/app-desktop-debug.apk"
+          AAB="app/build/outputs/bundle/desktopDebug/app-desktop-debug.aab"
+          test -s "$APK"
+          test -s "$AAB"
+          unzip -t "$APK" >/dev/null
+          unzip -t "$AAB" >/dev/null
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging "$APK" | grep -E "package: name='com.mtp2026.desktop'|application-label:'MTP2026 Desktop Edition'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          unzip -p "$AAB" base/manifest/AndroidManifest.xml >/dev/null
+          echo "MTP2026 Desktop Edition Android package verified."
+
+      - name: Upload Desktop Android packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: mtp2026-desktop-edition-android
+          if-no-files-found: error
+          path: |
+            packaging/android/app/build/outputs/apk/desktop/debug/app-desktop-debug.apk
+            packaging/android/app/build/outputs/bundle/desktopDebug/app-desktop-debug.aab
