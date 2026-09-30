@@ -185,3 +185,5 @@
 
 .mtp11-tray button{position:relative}
 .mtp11-notification-badge{position:absolute;top:2px;right:2px;min-width:13px;height:13px;padding:0 3px;border-radius:999px;background:#ef4444;color:#fff;font-size:7px;font-weight:800;line-height:13px;text-align:center;box-shadow:0 0 0 2px rgba(8,18,35,.9)}
+
+.mtp11-notification-item.error .mtp11-notification-icon{background:rgba(239,68,68,.14);color:#fca5a5}.mtp11-notification-item.warning .mtp11-notification-icon{background:rgba(245,158,11,.14);color:#fcd34d}.mtp11-notification-item.security .mtp11-notification-icon{background:rgba(168,85,247,.14);color:#d8b4fe}.mtp11-notification-item.success .mtp11-notification-icon{background:rgba(34,197,94,.14);color:#86efac}
