@@ -435,12 +435,14 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   useEffect(()=>{const h=e=>{if(e.detail?.url){setBrowserUrl(e.detail.url);open('browser')}};window.addEventListener('mtp2026:browser-open',h);return()=>window.removeEventListener('mtp2026:browser-open',h)},[]);
   useEffect(()=>{
     const openWindow=e=>{const id=e.detail?.id;if(id)open(id)};
+    const openAccount=()=>open('account');
     const resetLayout=()=>resetDesktopLayout();
     const theme=e=>setDesktopTheme(e.detail?.theme||localStorage.getItem('mtp2026-desktop-theme')||'dark');
     window.addEventListener('mtp2026:open-window',openWindow);
+    window.addEventListener('mtp2026:open-account',openAccount);
     window.addEventListener('mtp2026:reset-desktop-layout',resetLayout);
     window.addEventListener('mtp2026:theme-changed',theme);
-    return()=>{window.removeEventListener('mtp2026:open-window',openWindow);window.removeEventListener('mtp2026:reset-desktop-layout',resetLayout);window.removeEventListener('mtp2026:theme-changed',theme)};
+    return()=>{window.removeEventListener('mtp2026:open-window',openWindow);window.removeEventListener('mtp2026:open-account',openAccount);window.removeEventListener('mtp2026:reset-desktop-layout',resetLayout);window.removeEventListener('mtp2026:theme-changed',theme)};
   },[]);
   const [wallpaper,setWallpaper]=useState('aurora');
   const [desktopTheme,setDesktopTheme]=useState(()=>localStorage.getItem('mtp2026-desktop-theme')||'dark');
