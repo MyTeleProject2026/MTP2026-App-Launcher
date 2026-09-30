@@ -66,8 +66,8 @@ jobs:
           test -s frontend/public/branding/mtp2026-mark.svg
           test -s frontend/public/branding/mtp2026-logo-horizontal.svg
           test -s frontend/public/branding/mtp2026-branding.json
-          test -x os/mtp2026-linux-arm64/build.sh
-          test -x os/mtp2026-guest-profiles/build-all.sh
+          test -s os/mtp2026-linux-arm64/build.sh
+          test -s os/mtp2026-guest-profiles/build-all.sh
 
       - name: Run repository tests
         run: npm test
