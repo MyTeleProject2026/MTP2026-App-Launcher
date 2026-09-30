@@ -82,13 +82,16 @@ class LauncherErrorBoundary extends React.Component {
       <section style={{width:'min(620px,100%)',padding:28,border:'1px solid rgba(139,92,246,.35)',borderRadius:20,background:'rgba(18,22,40,.9)',boxShadow:'0 24px 80px rgba(0,0,0,.45)'}}>
         <div style={{fontSize:12,letterSpacing:'.14em',fontWeight:800,color:'#22d3ee'}}>MTP2026 APP LAUNCHER</div>
         <h1 style={{margin:'8px 0 10px'}}>Launcher UI failed to render</h1>
-        <p style={{color:'#aab5ca'}}>The authenticated session is still protected. Reload the launcher to restart the UI.</p>
-        <button type="button" onClick={() => window.location.reload()} style={{padding:'11px 16px',border:0,borderRadius:10,cursor:'pointer',fontWeight:800}}>Reload launcher</button>
+        <p style={{color:'#aab5ca'}}>The Desktop shell encountered a runtime error. Your VexaAccount session is not being discarded.</p>
+        <pre style={{whiteSpace:'pre-wrap',wordBreak:'break-word',margin:'14px 0',padding:12,borderRadius:10,background:'rgba(0,0,0,.25)',color:'#fca5a5',fontSize:12}}>{String(this.state.error?.message || this.state.error || 'Unknown launcher error')}</pre>
+        <button type="button" onClick={() => { try { sessionStorage.setItem(DESKTOP_SAFE_MODE_KEY, '1'); } catch {} window.location.reload(); }} style={{padding:'11px 16px',border:0,borderRadius:10,cursor:'pointer',fontWeight:800}}>Open recovery launcher</button>
       </section>
     </main>;
     return this.props.children;
   }
 }
+
+const DESKTOP_SAFE_MODE_KEY = 'mtp2026:desktop:safe-mode:v1';
 
 function App() {
   const [guestProfile, setGuestProfile] = useState(null); const [apps, setApps] = useState([]); const [recentApps, setRecentApps] = useState([]); const [notifications, setNotifications] = useState([]); const [settings, setSettings] = useState(defaults); const [profile, setProfile] = useState(null); const [logged, setLogged] = useState(false); const [view, setView] = useState('launcher'); const [filter, setFilter] = useState('all'); const [query, setQuery] = useState(''); const [url, setUrl] = useState(''); const [error, setError] = useState(''); const [syncing, setSyncing] = useState(false); const [loading, setLoading] = useState(false); const [menu, setMenu] = useState(false); const [sidebar, setSidebar] = useState(false); const [showAdd, setShowAdd] = useState(false); const [showSettings, setShowSettings] = useState(false); const [showNotifications, setShowNotifications] = useState(false); const [showProfile, setShowProfile] = useState(false); const [installPrompt, setInstallPrompt] = useState(null); const [selectedApp, setSelectedApp] = useState(null); const [workspaceApp, setWorkspaceApp] = useState(null); const [workspaceFull, setWorkspaceFull] = useState(false); const workspaceRef = useRef(null);
@@ -107,7 +110,8 @@ function App() {
   async function install() { if (installPrompt) { await installPrompt.prompt(); setInstallPrompt(null); } } async function toggleWorkspaceFullscreen() { try { if (!document.fullscreenElement) { await workspaceRef.current?.requestFullscreen?.(); setWorkspaceFull(true); } else { await document.exitFullscreen?.(); setWorkspaceFull(false); } } catch { setWorkspaceFull(false); } }
   const filtered = useMemo(() => { let list = view === 'recent' ? recentApps : apps; if (view === 'favorites') list = list.filter(a => a.favorite); if (filter === 'favorite') list = list.filter(a => a.favorite); if (filter === 'pwa') list = list.filter(a => a.pwaSupported); if (filter === 'web') list = list.filter(a => !a.pwaSupported); const q = query.trim().toLowerCase(); return list.filter(a => `${a.title} ${a.url} ${a.description || ''} ${a.category || ''}`.toLowerCase().includes(q)); }, [apps, recentApps, query, view, filter]);
   const isDedicatedDesktopSite = window.__MTP2026_SITE_PROFILE?.deviceMode === 'desktop';
-  if (isDedicatedDesktopSite) return <MTP2026DesktopShell apps={apps} onExit={() => doLogout(false)}/>;
+  const safeMode = (() => { try { return sessionStorage.getItem(DESKTOP_SAFE_MODE_KEY) === '1'; } catch { return false; } })();
+  if (isDedicatedDesktopSite && !safeMode) return <MTP2026DesktopShell apps={apps} onExit={() => doLogout(false)}/>;
   if (guestProfile) return <GuestAccess initialProfile={guestProfile} onLogin={() => setGuestProfile(null)} />;
   if (!logged) return <LoginScreen error={error} onGuest={() => setGuestProfile('mtp2026')}/>;
   const unread = notifications.filter(n => !n.readAt).length; const name = profile?.name || profile?.email || 'Vexa Creator'; const validPreview = (() => { try { const p = new URL(url); return p.protocol === 'https:' ? p : null; } catch { return null; } })(); const deviceMode = getDeviceMode(settings.deviceMode); function nav(next) { setView(next); setSidebar(false); setQuery(''); setFilter('all'); }
@@ -125,6 +129,8 @@ function App() {
     {showNotifications && <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && setShowNotifications(false)}><div className="modal notifications-modal"><div className="modal-head"><div><h2>Notifications</h2><p>{unread ? `${unread} unread notification${unread === 1 ? '' : 's'}` : 'You are all caught up.'}</p></div><button className="close" onClick={() => setShowNotifications(false)}><X/></button></div><div className="notification-actions"><button onClick={markAllRead}>Mark all read</button></div><div className="notification-list">{notifications.length ? notifications.map(n => <button key={n.id} className={`notification-item ${n.readAt ? 'read' : ''}`} onClick={() => markRead(n.id)}><div><b>{n.title}</b><p>{n.message}</p><small>{new Date(n.createdAt).toLocaleString()}</small></div>{!n.readAt && <span className="unread-dot"/>}</button>) : <div className="empty-state"><div className="empty-icon"><Bell/></div><h3>No notifications</h3><p>System and launcher events will appear here.</p></div>}</div></div></div>}
   </div>;
 }
+window.addEventListener('mtp2026:launcher-recovery', () => { try { sessionStorage.setItem(DESKTOP_SAFE_MODE_KEY, '1'); } catch {} window.location.reload(); });
+
 const mtp2026Root = document.getElementById('root');
 if (!mtp2026Root) throw new Error('MTP2026_ROOT_NOT_FOUND');
 createRoot(mtp2026Root).render(<LauncherErrorBoundary><App /></LauncherErrorBoundary>);
