@@ -51,4 +51,5 @@ android {
     }
     buildTypes { release { minifyEnabled false; signingConfig signingConfigs.release } }
     buildFeatures { buildConfig true }
+    aaptOptions { noCompress 'gz', 'Image' }
 }
