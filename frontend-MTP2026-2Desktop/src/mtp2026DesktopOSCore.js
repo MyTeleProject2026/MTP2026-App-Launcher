@@ -118,6 +118,7 @@ export function setDesktopOSSetting(key, value) {
 
 export function setDesktopLocked(locked) {
   try { localStorage.setItem(LOCK_KEY, locked ? 'locked' : 'unlocked'); } catch {}
+  try { window.dispatchEvent(new CustomEvent('mtp2026:desktop-session-lock-changed', { detail: { locked: Boolean(locked) } })); } catch {}
   return patchDesktopOSState({ security: { ...readState().security, locked: Boolean(locked) } }, { type: locked ? 'session.locked' : 'session.unlocked', detail: {} });
 }
 
