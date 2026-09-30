@@ -182,3 +182,6 @@
 .mtp11-notification-empty p{margin:0;color:inherit;font-size:11px}
 .mtp11-notification-empty small{font-size:9px}
 @media(max-width:560px){.mtp11-notification-panel{width:min(390px,calc(100vw - 20px));right:10px}.mtp11-notification-list{max-height:55vh}}
+
+.mtp11-tray button{position:relative}
+.mtp11-notification-badge{position:absolute;top:2px;right:2px;min-width:13px;height:13px;padding:0 3px;border-radius:999px;background:#ef4444;color:#fff;font-size:7px;font-weight:800;line-height:13px;text-align:center;box-shadow:0 0 0 2px rgba(8,18,35,.9)}
