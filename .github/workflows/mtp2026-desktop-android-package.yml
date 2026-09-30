@@ -38,6 +38,52 @@ jobs:
       - name: Install Android SDK components
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;35.0.0"
 
+      - name: Install native ARM64 guest build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential bc bison flex libssl-dev libelf-dev libgnutls28-dev cpio curl gzip rsync gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu qemu-system-arm mtools e2fsprogs
+
+      - name: Build complete MTP2026 Desktop OS guest
+        env:
+          MTP2026_BUILD_PROFILES: desktop
+          MTP2026_BUILD_BROWSER_RUNTIME: "1"
+        run: |
+          set -euo pipefail
+          bash os/mtp2026-guest-profiles/build-all.sh
+          ART="os/mtp2026-linux-arm64/out/artifacts/desktop"
+          test -s "$ART/mtp2026-desktop-arm64-linux.Image"
+          test -s "$ART/mtp2026-desktop-initramfs.cpio.gz"
+          test -s "$ART/mtp2026-desktop-boot-disk.img"
+          test -s "$ART/mtp2026-arm64-boot-firmware.bin"
+          mkdir -p packaging/android/app/src/main/assets/desktop-guest
+          cp "$ART/mtp2026-desktop-arm64-linux.Image" packaging/android/app/src/main/assets/desktop-guest/kernel.Image
+          cp "$ART/mtp2026-desktop-initramfs.cpio.gz" packaging/android/app/src/main/assets/desktop-guest/initramfs.cpio.gz
+          cp "$ART/mtp2026-desktop-boot-disk.img" packaging/android/app/src/main/assets/desktop-guest/boot-disk.img
+          cp "$ART/mtp2026-arm64-boot-firmware.bin" packaging/android/app/src/main/assets/desktop-guest/boot-firmware.bin
+          cp "$ART/boot-manifest.json" packaging/android/app/src/main/assets/desktop-guest/boot-manifest.json
+          cp "$ART/firmware-manifest.json" packaging/android/app/src/main/assets/desktop-guest/firmware-manifest.json
+          cp os/mtp2026-linux-arm64/out/artifacts/mtp2026-arm64-guest-manifest.json packaging/android/app/src/main/assets/desktop-guest/guest-manifest.json
+          cat > packaging/android/app/src/main/assets/desktop-guest/profile.json <<'EOF'
+          {
+            "schema":"mtp2026-android-bundled-guest-v1",
+            "profile":"desktop",
+            "name":"MTP2026 Desktop OS",
+            "edition":"Desktop Edition",
+            "architecture":"arm64",
+            "machine":"qemu-aarch64-virt",
+            "runtimeBackend":"qemu-system-aarch64",
+            "kernel":"kernel.Image",
+            "initramfs":"initramfs.cpio.gz",
+            "bootDisk":"boot-disk.img",
+            "firmware":"boot-firmware.bin",
+            "guestCore":"MTP2026 ARM64 Linux + BusyBox + native MTP2026 UI/services",
+            "identityProvider":"VexaAccount",
+            "applicationStore":"VexaStore",
+            "importedFrom":"MTP2026 native ARM64 guest build"
+          }
+          EOF
+          (cd packaging/android/app/src/main/assets/desktop-guest && sha256sum * > SHA256SUMS)
+
       - name: Build Desktop Android packages
         working-directory: packaging/android
         run: |
@@ -55,6 +101,11 @@ jobs:
           test -s "$AAB"
           unzip -t "$APK" >/dev/null
           unzip -t "$AAB" >/dev/null
+          unzip -l "$APK" | grep -q "assets/desktop-guest/kernel.Image"
+          unzip -l "$APK" | grep -q "assets/desktop-guest/initramfs.cpio.gz"
+          unzip -l "$APK" | grep -q "assets/desktop-guest/boot-disk.img"
+          unzip -l "$APK" | grep -q "assets/desktop-guest/boot-firmware.bin"
+          echo "Bundled complete MTP2026 Desktop OS guest core detected in APK."
           "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging "$APK" | grep -E "package: name='com.mtp2026.desktop'|application-label:'MTP2026 Desktop Edition'"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
           unzip -p "$AAB" base/manifest/AndroidManifest.xml >/dev/null
