@@ -34,6 +34,9 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Arrays;
@@ -59,6 +62,7 @@ public final class MainActivity extends Activity {
             "mtp2026-desktopos.onrender.com"
     ));
     private BroadcastReceiver installReceiver;
+    private static final String DESKTOP_GUEST_ASSET_ROOT = "desktop-guest";
 
     private static final int IMMERSIVE_FLAGS =
             View.SYSTEM_UI_FLAG_FULLSCREEN |
@@ -105,6 +109,7 @@ public final class MainActivity extends Activity {
         settings.setAllowFileAccess(false); settings.setAllowContentAccess(false); settings.setSupportMultipleWindows(false); settings.setJavaScriptCanOpenWindowsAutomatically(false);
         CookieManager.getInstance().setAcceptCookie(true); CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
         webView.addJavascriptInterface(new NativeBridge(), "MTP2026Native");
+        if ("desktop".equals(BuildConfig.EDITION)) extractBundledDesktopGuest();
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
@@ -251,6 +256,36 @@ public final class MainActivity extends Activity {
         }).start();
     }
 
+    private void extractBundledDesktopGuest() {
+        new Thread(() -> {
+            try {
+                String[] files = getAssets().list(DESKTOP_GUEST_ASSET_ROOT);
+                if (files == null || files.length == 0) return;
+                File root = new File(getFilesDir(), "mtp2026/guests/desktop");
+                if (!root.exists() && !root.mkdirs()) throw new IOException("Cannot create Desktop guest storage");
+                for (String name : files) {
+                    if (name == null || name.contains("/") || name.contains("..")) continue;
+                    copyAsset(DESKTOP_GUEST_ASSET_ROOT + "/" + name, new File(root, name));
+                }
+                getSharedPreferences("mtp2026_guest", MODE_PRIVATE).edit()
+                        .putString("desktop_status", "bundled-imported")
+                        .putString("desktop_root", root.getAbsolutePath()).apply();
+            } catch (Exception error) {
+                getSharedPreferences("mtp2026_guest", MODE_PRIVATE).edit()
+                        .putString("desktop_status", "import-failed")
+                        .putString("desktop_error", String.valueOf(error.getMessage())).apply();
+            }
+        }).start();
+    }
+
+    private void copyAsset(String assetPath, File destination) throws IOException {
+        try (InputStream input = getAssets().open(assetPath); OutputStream output = new FileOutputStream(destination)) {
+            byte[] buffer = new byte[64 * 1024]; int read;
+            while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
+            output.flush();
+        }
+    }
+
     private final class NativeBridge {
         @JavascriptInterface public void setDeviceMode(String mode) {
             runOnUiThread(() -> {
@@ -261,6 +296,13 @@ public final class MainActivity extends Activity {
             });
         }
         @JavascriptInterface public String getCapabilities() { return "{\"native\":true,\"orientation\":true,\"fullscreen\":true,\"filesystem\":false,\"notifications\":true,\"clipboard\":true,\"externalApps\":true,\"gamepad\":true,\"filePicker\":true,\"apkInstaller\":true,\"packageInstaller\":true}"; }
+        @JavascriptInterface public String getDesktopGuestStatus() {
+            if (!"desktop".equals(BuildConfig.EDITION)) return "{\\"state\\":\\"not-desktop-edition\\"}";
+            android.content.SharedPreferences prefs = getSharedPreferences("mtp2026_guest", MODE_PRIVATE);
+            String state = prefs.getString("desktop_status", "not-imported");
+            String root = prefs.getString("desktop_root", "");
+            return "{\\"state\\":\\"" + jsonSafe(state) + "\\",\\"root\\":\\"" + jsonSafe(root) + "\\",\\"profile\\":\\"desktop\\",\\"architecture\\":\\"arm64\\",\\"imageRuntime\\":\\"qemu-aarch64-virt\\"}";
+        }
         @JavascriptInterface public String getArm64BootStatus() {
             String[] abis = Build.SUPPORTED_ABIS == null ? new String[0] : Build.SUPPORTED_ABIS; boolean arm64 = false;
             for (String abi : abis) if ("arm64-v8a".equalsIgnoreCase(abi) || "aarch64".equalsIgnoreCase(abi)) { arm64 = true; break; }
