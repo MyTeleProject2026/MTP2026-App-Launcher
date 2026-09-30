@@ -40,6 +40,7 @@ const APPS = [
   { id:'run', title:'Run', icon:Command },
   { id:'control', title:'Control Panel', icon:SlidersHorizontal },
   { id:'properties', title:'Properties', icon:Info },
+  { id:'account', title:'Account Center', icon:UserRound },
   { id:'calendar', title:'Calendar', icon:Calendar },
   { id:'notifications', title:'Notification Center', icon:Bell },
   { id:'network', title:'Network & Internet', icon:Network },
