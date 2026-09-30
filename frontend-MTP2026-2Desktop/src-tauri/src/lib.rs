@@ -103,6 +103,36 @@ struct QemuRuntimeState { running: bool, pid: Option<u32>, executable: String }
 
 fn qemu_runtime() -> &'static Mutex<Option<Child>> { QEMU_CHILD.get_or_init(|| Mutex::new(None)) }
 
+
+#[tauri::command]
+fn mtp2026_qemu_boot_installed(app: tauri::AppHandle, id: String) -> Result<QemuRuntimeState, String> {
+    let (kernel_name, initrd_name, firmware_name, disk_name) = guest_profile_artifacts(&id)?;
+    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?.join("mtp2026").join("guests").join(&id);
+    let kernel=dir.join(kernel_name); let initrd=dir.join(initrd_name); let firmware=dir.join(firmware_name); let boot_disk=dir.join(disk_name);
+    if !kernel.is_file() || !initrd.is_file() || !firmware.is_file() || !boot_disk.is_file() { return Err("GUEST_BUNDLE_NOT_INSTALLED_OR_INCOMPLETE".into()); }
+    let persistent = dir.join("storage.qcow2");
+    if !persistent.exists() {
+        let status = Command::new("qemu-img").args(["create","-f","qcow2"]).arg(&persistent).arg("256G").status().map_err(|e| format!("QEMU_IMG_NOT_AVAILABLE: {e}"))?;
+        if !status.success() { return Err("GUEST_STORAGE_CREATE_FAILED".into()); }
+    }
+    let executable = if cfg!(target_os = "windows") { "qemu-system-aarch64.exe" } else { "qemu-system-aarch64" };
+    let mut guard=qemu_runtime().lock().map_err(|_| "QEMU state lock unavailable".to_string())?;
+    if let Some(child)=guard.as_mut() { if child.try_wait().map_err(|e| e.to_string())?.is_none() { return Err("MTP2026 ARM64 guest is already running".into()); } }
+    *guard=None;
+    let mut cmd=Command::new(executable);
+    let boot_drive=format!("if=none,format=raw,id=bootdisk,file={}",boot_disk.to_string_lossy());
+    let data_drive=format!("if=none,id=datadisk,format=qcow2,file={}",persistent.to_string_lossy());
+    cmd.args(["-M","virt","-cpu","cortex-a72","-m","4096","-bios"]).arg(&firmware)
+       .args(["-drive"]).arg(boot_drive).args(["-device","virtio-blk-device,drive=bootdisk"])
+       .args(["-drive"]).arg(data_drive).args(["-device","virtio-blk-pci,drive=datadisk"])
+       .args(["-netdev","user,id=net0","-device","virtio-net-pci,netdev=net0"])
+       .args(["-device","virtio-gpu-pci","-device","virtio-keyboard-pci","-device","virtio-mouse-pci","-device","virtio-tablet-pci"])
+       .args(["-display","default"]);
+    let child=cmd.stdin(Stdio::null()).stdout(Stdio::inherit()).stderr(Stdio::inherit()).spawn().map_err(|e| format!("QEMU_AARCH64_NOT_AVAILABLE: {e}"))?;
+    let pid=child.id(); *guard=Some(child);
+    Ok(QemuRuntimeState{running:true,pid:Some(pid),executable:executable.to_string()})
+}
+
 #[tauri::command]
 fn mtp2026_qemu_status() -> QemuRuntimeState {
     let executable = if cfg!(target_os = "windows") { "qemu-system-aarch64.exe" } else { "qemu-system-aarch64" }.to_string();
@@ -413,6 +443,7 @@ pub fn run() {
             mtp2026_qemu_capabilities,
             mtp2026_qemu_status,
             mtp2026_qemu_install_bundle,
+            mtp2026_qemu_boot_installed,
             mtp2026_qemu_launch,
             mtp2026_qemu_stop
         ])
