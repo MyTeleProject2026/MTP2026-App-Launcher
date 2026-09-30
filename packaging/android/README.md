@@ -31,3 +31,20 @@ The APK contains no VexaAccount Client Secret. SSO uses the backend-managed sess
 ## Launcher icons
 
 Adaptive and legacy launcher resources are checked into the Android source. They are vector resources so the Android resource compiler does not depend on a malformed PNG/SVG payload.
+
+## MTP2026 Desktop Edition Android package
+
+The `desktop` flavor is the Android host package for **MTP2026 Desktop Edition**.
+
+| Variant | Application ID | Runtime | Orientation |
+|---|---|---|---|
+| `desktopDebug` | `com.mtp2026.desktop` | MTP2026 Desktop Edition at `https://mtp2026-desktopos.onrender.com` | Landscape |
+
+Build locally:
+
+```bash
+cd packaging/android
+./gradlew assembleDesktopDebug bundleDesktopDebug
+```
+
+The dedicated GitHub Actions workflow publishes an installable debug APK and a debug AAB as the `mtp2026-desktop-edition-android` artifact. The package is an Android application host for the existing MTP2026 Desktop Edition shell; it does not replace Android's kernel or claim that Android itself is a bootable MTP2026 kernel.
