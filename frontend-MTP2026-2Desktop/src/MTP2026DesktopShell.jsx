@@ -629,16 +629,18 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   };
   return (
     <main className={`mtp11-desktop ${bg}`} onPointerDown={desktopPointerDown}>
-    {locked&&<div className="mtp11-lock-screen" role="dialog" aria-modal="true">
-      <div className="mtp11-lock-card">
-        <LockKeyhole/>
-        <div className="mtp11-lock-time">{clock.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
-        <div className="mtp11-lock-date">{clock.toLocaleDateString([], {weekday:'long',month:'long',day:'numeric'})}</div>
-        <b>MTP2026 User</b>
-        <small>Desktop session locked</small>
-        <button onClick={()=>{setLocked(false);setDesktopSessionLocked(false);setDesktopLocked(false);}}>Unlock session</button>
-      </div>
-       </div></div>}
+     {locked ? (
+       <div className="mtp11-lock-screen" role="dialog" aria-modal="true">
+         <div className="mtp11-lock-card">
+           <LockKeyhole/>
+           <div className="mtp11-lock-time">{clock.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
+           <div className="mtp11-lock-date">{clock.toLocaleDateString([], {weekday:'long',month:'long',day:'numeric'})}</div>
+           <b>MTP2026 User</b>
+           <small>Desktop session locked</small>
+           <button onClick={()=>{setLocked(false);setDesktopSessionLocked(false);setDesktopLocked(false);}}>Unlock session</button>
+         </div>
+       </div>
+     ) : null}
     <div className="mtp11-desktop-shade" onContextMenu={e=>{e.preventDefault();setDesktopMenu({x:e.clientX,y:e.clientY});}} onClick={()=>desktopMenu&&setDesktopMenu(null)} />
     {boot.phase!=='ready'&&<div className="mtp11-boot-screen">
       <div className="mtp11-boot-logo"><img src="/mtp2026-logo.svg" alt="MTP2026"/></div>
