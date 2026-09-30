@@ -465,7 +465,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const allApps=[...APPS,{id:'services',title:'System Services',icon:ServerCog},...installed];
   const visible=allApps.filter(a=>a.title.toLowerCase().includes(search.toLowerCase()));
 
-  function close(id){unregisterDesktopProcess('app:'+id);setWindows(ws=>ws.filter(w=>w!==id));setMinimized(m=>m.filter(x=>x!==id));setMaximized(m=>{const next={...m};delete next[id];return next});if(active===id)setActive(null);setSnapped(s=>{const n={...s};delete n[id];return n});}
+  function close(id){unregisterDesktopProcess('app:'+id);setWindows(ws=>ws.filter(w=>w!==id));setMinimized(m=>m.filter(x=>x!==id));setMaximized(m=>{const next={...m};delete next[id];return next});if(active===id)setActive(null);setWindowDesktops(d=>{const n={...d};delete n[id];return n});setSnapped(s=>{const n={...s};delete n[id];return n});}
   function open(id){
     if(id==='store'){window.open('https://www.vexastore.2bd.net/','_blank','noopener,noreferrer');setStart(false);return;}
     const existing=windows.find(w=>w===id);
