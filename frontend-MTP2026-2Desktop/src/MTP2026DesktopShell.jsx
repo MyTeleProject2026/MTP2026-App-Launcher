@@ -14,6 +14,19 @@ import { startDesktopSession, endDesktopSession } from './mtp2026DesktopSession.
 import { getDesktopOSState, setDesktopSessionState, setDesktopPowerState, registerDesktopProcess, unregisterDesktopProcess, subscribeDesktopOSState, getDesktopProcesses, getDesktopServices as getCoreDesktopServices, setDesktopServiceState, addDesktopSystemEvent, setDesktopLocked, isDesktopLocked } from './mtp2026DesktopOSCore.js';
 import { nativeSystemInfo, nativeListProcesses, nativeListServices, nativeFilesystemInfo, nativeListDirectory, nativeOpenPath, nativeRevealPath, nativeSystemMetrics, getNativeDesktopCapabilities } from './mtp2026DesktopNativeBridge.js';
 
+const DESKTOP_SYSTEM_APPS = Object.freeze([
+  { id:'files', title:'File Explorer', category:'System', description:'Browse MTP2026 virtual and native storage.' },
+  { id:'settings', title:'Settings', category:'System', description:'Configure MTP2026 Desktop.' },
+  { id:'taskmgr', title:'Task Manager', category:'System', description:'Inspect applications and processes.' },
+  { id:'control', title:'Control Panel', category:'System', description:'Classic MTP2026 system controls.' },
+  { id:'terminal', title:'Terminal', category:'System', description:'MTP2026 command shell.' },
+  { id:'run', title:'Run', category:'System', description:'Launch an application, URL, or system tool.' },
+  { id:'system', title:'System Monitor', category:'System', description:'Monitor host and guest telemetry.' },
+  { id:'runtime', title:'Guest Runtime', category:'System', description:'Inspect ARM64 guest runtime state.' },
+  { id:'about', title:'System Information', category:'System', description:'MTP2026 Desktop system information.' },
+  { id:'properties', title:'Properties', category:'System', description:'Inspect desktop and selected item properties.' },
+]);
+
 const APPS = [
   { id:'files', title:'File Explorer', icon:FolderOpen },
   { id:'settings', title:'Settings', icon:Settings },
@@ -27,6 +40,12 @@ const APPS = [
   { id:'run', title:'Run', icon:Command },
   { id:'control', title:'Control Panel', icon:SlidersHorizontal },
   { id:'properties', title:'Properties', icon:Info },
+  { id:'calendar', title:'Calendar', icon:Calendar },
+  { id:'notifications', title:'Notification Center', icon:Bell },
+  { id:'network', title:'Network & Internet', icon:Network },
+  { id:'security', title:'Security Center', icon:ShieldCheck },
+  { id:'devices', title:'Devices & Hardware', icon:Monitor },
+  { id:'storage', title:'Storage', icon:HardDrive },
 ];
 
 const STORAGE_KEY='mtp2026-desktop-files-v1';
