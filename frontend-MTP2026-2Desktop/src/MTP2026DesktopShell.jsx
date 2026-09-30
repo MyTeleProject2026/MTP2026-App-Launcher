@@ -466,7 +466,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     window.addEventListener('mtp2026:reset-desktop-layout',resetLayout);
     window.addEventListener('mtp2026:theme-changed',theme);
     return()=>{window.removeEventListener('mtp2026:open-window',openWindow);window.removeEventListener('mtp2026:open-account',openAccount);window.removeEventListener('mtp2026:reset-desktop-layout',resetLayout);window.removeEventListener('mtp2026:theme-changed',theme)};
-  },[windows,currentDesktop,allApps]);
+  },[windows,currentDesktop]);
   const [wallpaper,setWallpaper]=useState('aurora');
   const [desktopTheme,setDesktopTheme]=useState(()=>localStorage.getItem('mtp2026-desktop-theme')||'dark');
   const [boot,setBoot]=useState({phase:'ready',progress:100,provider:'browser-shell'});
