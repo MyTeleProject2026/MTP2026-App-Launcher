@@ -483,6 +483,15 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   useEffect(()=>{writeSession({windows,active,maximized,minimized,snapped,windowGeometry,updatedAt:new Date().toISOString()})},[windows,active,maximized,minimized,snapped,windowGeometry]);
   useEffect(()=>{try{localStorage.setItem('mtp2026:desktop:virtual-desktops:v1',JSON.stringify(virtualDesktops));localStorage.setItem('mtp2026:desktop:current-desktop',String(currentDesktop));localStorage.setItem('mtp2026:desktop:window-desktops:v1',JSON.stringify(windowDesktops))}catch{}},[virtualDesktops,currentDesktop,windowDesktops]);
   useEffect(()=>subscribeDesktopOSState(state=>{setOsState(state);setLocked(Boolean(state?.security?.locked));}),[]);
+  useEffect(()=>subscribeDesktopSessionLock(lockedState=>setLocked(Boolean(lockedState))),[]);
+  useEffect(()=>subscribeDesktopSession(session=>setDesktopSession(session)),[]);
+  useEffect(()=>{
+    const sync=event=>{
+      if(event.key==='mtp2026:desktop:notifications-seen-at'&&event.newValue)setNotificationSeenAt(Number(event.newValue)||0);
+    };
+    window.addEventListener('storage',sync);
+    return()=>window.removeEventListener('storage',sync);
+  },[]);
   useEffect(()=>{
     const syncNetwork=network=>{setDesktopNetworkState(network);addDesktopSystemEvent('network.state',{network});};
     const online=()=>syncNetwork('online');
