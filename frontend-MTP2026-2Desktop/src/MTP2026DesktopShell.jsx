@@ -73,7 +73,7 @@ function WindowFrame({title,icon:Icon,children,onClose,onMinimize,onMaximize,max
   </section>;
 }
 
-function TextEditor({folder,name,onClose}){
+function DesktopTaskView({desktops,currentDesktop,windows,windowDesktops,apps,onSelectDesktop,onCreateDesktop,onCloseDesktop,onMoveWindow}){  const [moveId,setMoveId]=useState(null);  const getTitle=id=>apps.find(a=>a.id===id)?.title||id;  return <div className="mtp11-task-view" role="dialog" aria-label="Desktop overview">    <div className="mtp11-task-view-header"><div><b>Desktop overview</b><span>Switch workspace, create a desktop, or move an open window.</span></div><button onClick={onCreateDesktop}>＋ New desktop</button></div>    <div className="mtp11-desktop-overview">      {desktops.map(d=><article key={d} className={currentDesktop===d?'active':''}>        <button className="mtp11-desktop-preview" onClick={()=>onSelectDesktop(d)}><div className="mtp11-desktop-preview-bar"><b>Desktop {d}</b><span>{windows.filter(id=>(windowDesktops[id]||1)===d).length} windows</span></div><div className="mtp11-desktop-preview-screen">{windows.filter(id=>(windowDesktops[id]||1)===d).slice(0,8).map(id=><span key={id}>{getTitle(id)}</span>)}{windows.filter(id=>(windowDesktops[id]||1)===d).length===0&&<small>No open windows</small>}</div></button>        <div className="mtp11-desktop-actions">{desktops.length>1&&<button onClick={()=>onCloseDesktop(d)} title="Close desktop">Close</button>}<button onClick={()=>onSelectDesktop(d)}>Open</button></div>      </article>)}    </div>    <div className="mtp11-task-view-windows"><div className="mtp11-task-view-section-title">Open windows</div>{windows.length===0?<small>No open windows</small>:windows.map(id=><div className="mtp11-task-view-window" key={id}><span>{getTitle(id)}</span><small>Desktop {windowDesktops[id]||1}</small><button onClick={()=>onSelectDesktop(windowDesktops[id]||1)}>Show</button><button onClick={()=>setMoveId(moveId===id?null:id)}>Move</button>{moveId===id&&<div className="mtp11-task-view-move">{desktops.filter(d=>d!==(windowDesktops[id]||1)).map(d=><button key={d} onClick={()=>{onMoveWindow(id,d);setMoveId(null)}}>Desktop {d}</button>)}</div>}</div>)}</div>  </div>;}function TextEditor({folder,name,onClose}){
 
   const [value,setValue]=useState(()=>readDesktopEntry(folder,name)?.content||'');
   const [saved,setSaved]=useState(false);
@@ -412,7 +412,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [desktopBox,setDesktopBox]=useState(null);
   const [draggingIcon,setDraggingIcon]=useState(null);
   const [iconPositions,setIconPositions]=useState(()=>{try{return JSON.parse(localStorage.getItem('mtp2026:desktop:icon-positions:v1')||'{}')}catch{return {}}});
-  const [taskbarMenu,setTaskbarMenu]=useState(null);
+  const [taskbarMenu,setTaskbarMenu]=useState(null);\n  const [taskView,setTaskView]=useState(false);
   const [snapped,setSnapped]=useState(()=>session.snapped||{});
   const [windowGeometry,setWindowGeometry]=useState(()=>session.windowGeometry||{});
   const [virtualDesktops,setVirtualDesktops]=useState(()=>{try{return JSON.parse(localStorage.getItem('mtp2026:desktop:virtual-desktops:v1')||'[1]')}catch{return [1]}});
@@ -455,7 +455,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
       if(e.altKey&&e.key==='Tab'){e.preventDefault();const ids=windows.filter(id=>!minimized.includes(id));if(ids.length){const i=Math.max(0,ids.indexOf(active));const next=ids[(i+1)%ids.length];setActive(next);setMinimized(m=>m.filter(x=>x!==next));}}
       if(e.key==='F11'){e.preventDefault();const id=active;if(id)setMaximized(m=>({...m,[id]:!m[id]}));}
       if(e.altKey&&e.shiftKey&&e.key.toLowerCase()==='arrowright'){e.preventDefault();setCurrentDesktop(d=>virtualDesktops[Math.min(virtualDesktops.length-1,virtualDesktops.indexOf(d)+1)]||d);}
-      if(e.altKey&&e.shiftKey&&e.key.toLowerCase()==='arrowleft'){e.preventDefault();setCurrentDesktop(d=>virtualDesktops[Math.max(0,virtualDesktops.indexOf(d)-1)]||d);}
+      if(e.altKey&&e.shiftKey&&e.key.toLowerCase()==='arrowleft'){e.preventDefault();setCurrentDesktop(d=>virtualDesktops[Math.max(0,virtualDesktops.indexOf(d)-1)]||d);}\n      if(e.key==='F6'&&!e.ctrlKey&&!e.metaKey&&!e.altKey){e.preventDefault();setTaskView(v=>!v);}
     };
     window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey);
   },[windows,minimized,active]);
@@ -465,7 +465,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const allApps=[...APPS,{id:'services',title:'System Services',icon:ServerCog},...installed];
   const visible=allApps.filter(a=>a.title.toLowerCase().includes(search.toLowerCase()));
 
-  function close(id){unregisterDesktopProcess('app:'+id);setWindows(ws=>ws.filter(w=>w!==id));setMinimized(m=>m.filter(x=>x!==id));setMaximized(m=>{const next={...m};delete next[id];return next});if(active===id)setActive(null);setWindowDesktops(d=>{const n={...d};delete n[id];return n});setSnapped(s=>{const n={...s};delete n[id];return n});}
+  function createVirtualDesktop(){setVirtualDesktops(ds=>[...ds,Math.max(...ds,0)+1]);}  function selectVirtualDesktop(d){setCurrentDesktop(d);setTaskView(false);}  function moveWindowToDesktop(id,d){setWindowDesktops(map=>({...map,[id]:d}));setCurrentDesktop(d);setTaskView(false);setMinimized(m=>m.filter(x=>x!==id));setActive(id);}  function closeVirtualDesktop(d){if(virtualDesktops.length<=1)return;const remaining=virtualDesktops.filter(x=>x!==d);const target=remaining[0];setWindowDesktops(map=>{const next={...map};Object.keys(next).forEach(id=>{if((next[id]||1)===d)next[id]=target;});return next;});setVirtualDesktops(remaining);if(currentDesktop===d)setCurrentDesktop(target);}  function close(id){unregisterDesktopProcess('app:'+id);setWindows(ws=>ws.filter(w=>w!==id));setMinimized(m=>m.filter(x=>x!==id));setMaximized(m=>{const next={...m};delete next[id];return next});if(active===id)setActive(null);setWindowDesktops(d=>{const n={...d};delete n[id];return n});setSnapped(s=>{const n={...s};delete n[id];return n});}
   function open(id){
     if(id==='store'){window.open('https://www.vexastore.2bd.net/','_blank','noopener,noreferrer');setStart(false);return;}
     const existing=windows.find(w=>w===id);
@@ -610,10 +610,10 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     </div></div>}
     {calendar&&<div className="mtp11-calendar-panel"><header><b>{clock.toLocaleString([], {month:'long',year:'numeric'})}</b><button onClick={()=>setCalendar(false)}><X/></button></header><div className="mtp11-calendar-today"><b>{clock.toLocaleDateString([], {weekday:'long',month:'long',day:'numeric'})}</b><span>{clock.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span></div><div className="mtp11-calendar-note">MTP2026 Desktop calendar</div></div>}
     {notifications&&<div className="mtp11-notification-panel"><header><b>Notifications</b><button onClick={()=>setNotifications(false)}><X/></button></header><div><Bell/><p>You're all caught up.</p><small>MTP2026 system events will appear here.</small></div></div>}
-    {power&&<div className="mtp11-power"><button onClick={()=>{setDesktopPowerState('restarting');window.location.reload()}}><RefreshCw/> Restart shell</button><button onClick={onExit}><LockKeyhole/> Exit Desktop OS</button><button onClick={()=>setPower(false)}>Cancel</button></div>}
+    <DesktopTaskView desktops={virtualDesktops} currentDesktop={currentDesktop} windows={windows} windowDesktops={windowDesktops} apps={allApps} onSelectDesktop={selectVirtualDesktop} onCreateDesktop={createVirtualDesktop} onCloseDesktop={closeVirtualDesktop} onMoveWindow={moveWindowToDesktop}/>}\n    {power&&<div className="mtp11-power"><button onClick={()=>{setDesktopPowerState('restarting');window.location.reload()}}><RefreshCw/> Restart shell</button><button onClick={onExit}><LockKeyhole/> Exit Desktop OS</button><button onClick={()=>setPower(false)}>Cancel</button></div>}
     <nav className="mtp11-taskbar">
       <button className="mtp11-start-button" onClick={()=>setStart(v=>!v)} aria-label="Start"><Grid2X2/></button>
-      <div className="mtp11-virtual-desktops" title="Virtual desktops">{virtualDesktops.map(d=><button key={d} className={currentDesktop===d?'active':''} onClick={()=>setCurrentDesktop(d)}>{d}</button>)}<button className="add" onClick={()=>setVirtualDesktops(ds=>{const n=[...ds,Math.max(...ds,0)+1];return n})} aria-label="Create virtual desktop">+</button></div>
+      <button className="mtp11-task-view-button" onClick={()=>setTaskView(v=>!v)} title="Desktop overview"><AppWindow/></button>\n      <div className="mtp11-virtual-desktops" title="Virtual desktops">{virtualDesktops.map(d=><button key={d} className={currentDesktop===d?'active':''} onClick={()=>setCurrentDesktop(d)}>{d}</button>)}<button className="add" onClick={()=>setVirtualDesktops(ds=>{const n=[...ds,Math.max(...ds,0)+1];return n})} aria-label="Create virtual desktop">+</button></div>
       <button className="mtp11-search-button" onClick={()=>setStart(true)}><Search/><span>Search</span></button>
       <button className="mtp11-taskbar-run" onClick={()=>setRunDialog(true)} title="Run"><Command/></button>
       <div className="mtp11-pinned">{[['files',FolderOpen],['browser',Globe2],['settings',Settings],['system',Activity],['runtime',Cpu],['about',Info],['services',ServerCog],['taskmgr',Activity],['control',SlidersHorizontal]].map(([id,I])=><button key={id} className={`${active===id?'active ':''}${windows.includes(id)?'running':''}`} onContextMenu={e=>{e.preventDefault();setTaskbarMenu({id,x:e.clientX,y:e.clientY});}} onClick={()=>open(id)}><I/></button>)}</div>
