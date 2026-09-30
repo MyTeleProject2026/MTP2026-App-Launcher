@@ -197,6 +197,7 @@ function TerminalApp({onOpen}){
 }
 function AccountCenter({onLock,onEnd,onClose}){
   const [session,setSession]=useState(()=>getDesktopSession());
+  useEffect(()=>{const unsubscribe=subscribeDesktopSession(setSession);return unsubscribe;},[]);
   const refresh=()=>setSession(getDesktopSession());
   const lock=()=>{setDesktopLocked(true);onLock?.();};
   const openVexaAccount=()=>window.open('https://vexaaccount-management.onrender.com','_blank','noopener,noreferrer');
