@@ -1,7 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-const buildCommit = process.env.RENDER_GIT_COMMIT || process.env.VITE_BUILD_COMMIT || 'unknown';
+const buildCommit =
+  process.env.RENDER_GIT_COMMIT ||
+  process.env.VITE_BUILD_COMMIT ||
+  process.env.GITHUB_SHA ||
+  'unknown';
 
 export default defineConfig({
   plugins: [
@@ -17,6 +21,8 @@ export default defineConfig({
           fileName: 'build-info.json',
           source: JSON.stringify({
             service: 'MTP2026 App Launcher',
+            product: 'MTP2026 Desktop Edition',
+            architecture: 'arm64',
             commit: buildCommit,
             builtAt: new Date().toISOString()
           }, null, 2)
