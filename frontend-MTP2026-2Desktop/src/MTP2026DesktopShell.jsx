@@ -12,7 +12,7 @@ import { guestImageStatus, installGuestImageFromBytes, installGuestImageFromCont
 import { bootDesktopGuest, stopDesktopGuest } from './mtp2026DesktopGuestBridge.js';
 import { startDesktopSession, endDesktopSession } from './mtp2026DesktopSession.js';
 import { getDesktopOSState, setDesktopSessionState, setDesktopPowerState, registerDesktopProcess, unregisterDesktopProcess, subscribeDesktopOSState, getDesktopProcesses, getDesktopServices as getCoreDesktopServices, setDesktopServiceState, addDesktopSystemEvent, setDesktopLocked, isDesktopLocked } from './mtp2026DesktopOSCore.js';
-import { nativeSystemInfo, nativeListProcesses, nativeListServices, nativeFilesystemInfo, nativeListDirectory, nativeOpenPath, nativeRevealPath, nativeSystemMetrics, getNativeDesktopCapabilities } from './mtp2026DesktopNativeBridge.js';
+import { nativeSystemInfo, nativeListProcesses, nativeListServices, nativeFilesystemInfo, nativeListDirectory, nativeOpenPath, nativeRevealPath, nativeSystemMetrics, nativeQemuCapabilities, getNativeDesktopCapabilities } from './mtp2026DesktopNativeBridge.js';
 
 const DESKTOP_SYSTEM_APPS = Object.freeze([
   { id:'files', title:'File Explorer', category:'System', description:'Browse MTP2026 virtual and native storage.' },
@@ -141,7 +141,8 @@ function TaskManager({windows,active,minimized,runtime,close,onSelect}){
     const off=subscribeDesktopOSState(()=>setProcesses(getDesktopProcesses()));
     const timer=setInterval(()=>setTick(x=>x+1),1000);
     const refreshNative=()=>void nativeListProcesses().then(r=>{if(r?.supported)setNativeProcesses(Array.isArray(r.value)?r.value:[])});
-    void nativeSystemInfo().then(r=>{if(r?.supported)setNativeInfo(r.value||null)}); refreshNative(); const poll=setInterval(refreshNative,3000);
+    void nativeSystemInfo().then(r=>{if(r?.supported)setNativeInfo(r.value||null)});
+    void nativeQemuCapabilities().then(r=>{if(r?.supported)setQemuInfo(r.value||null)}); refreshNative(); const poll=setInterval(refreshNative,3000);
     return()=>{off();clearInterval(timer);clearInterval(poll)};
   },[]);
   const appProcesses=processes.filter(p=>p.type==='application');
@@ -325,6 +326,7 @@ function SystemMonitor({runtime,guestState}){
   const [metrics,setMetrics]=useState(null);
   const [nativeInfo,setNativeInfo]=useState(null);
   const [fsInfo,setFsInfo]=useState(null);
+  const [qemuInfo,setQemuInfo]=useState(null);
   useEffect(()=>{
     let mounted=true;
     const refresh=async()=>{
