@@ -195,6 +195,20 @@ function TerminalApp({onOpen}){
   };
   return <div className="mtp11-terminal-real" onClick={()=>document.getElementById('mtp-terminal-input')?.focus()}><div className="mtp11-terminal-output">{lines.map((x,i)=><div key={i}>{x}</div>)}</div><div className="mtp11-terminal-prompt"><span>mtp2026@desktop:~$</span><input id="mtp-terminal-input" autoFocus value={value} onChange={e=>setValue(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){void run(value);setValue('')}}}/></div></div>;
 }
+function AccountCenter({onLock,onClose}){
+  const [session,setSession]=useState(()=>getDesktopSession());
+  const refresh=()=>setSession(getDesktopSession());
+  const lock=()=>{setDesktopLocked(true);onLock?.();};
+  const end=()=>{endDesktopSession();setSession(getDesktopSession());window.dispatchEvent(new CustomEvent('mtp2026:account-session-ended'));};
+  return <div className="mtp11-account-center">
+    <div className="mtp11-account-hero"><div className="mtp11-account-avatar">M</div><div><div className="mtp11-runtime-kicker">MTP2026 ACCOUNT</div><h2>MTP2026 User</h2><p>VexaAccount protected desktop identity</p></div></div>
+    <div className="mtp11-account-status"><CheckCircle2/><div><b>{session.status==='active'?'Desktop session active':'Desktop session ended'}</b><small>{session.startedAt?'Started '+new Date(session.startedAt).toLocaleString():'No active session metadata'}</small></div></div>
+    <div className="mtp11-account-actions"><button onClick={()=>window.dispatchEvent(new CustomEvent('mtp2026:open-account'))}><UserRound/> Open VexaAccount</button><button onClick={lock}><LockKeyhole/> Lock desktop</button><button onClick={refresh}><RefreshCw/> Refresh session</button><button onClick={end} disabled={session.status!=='active'}><Power/> End session</button></div>
+    <div className="mtp11-account-note"><ShieldCheck/><span>Account authentication remains owned by the VexaAccount/launcher flow. This desktop surface does not store account passwords.</span></div>
+    {onClose&&<button className="mtp11-account-close" onClick={onClose}><X/> Close</button>}
+  </div>;
+}
+
 function SettingsApp(){
   const sections=[
     {id:'system',label:'System',icon:Cpu},{id:'devices',label:'Bluetooth & devices',icon:Monitor},
