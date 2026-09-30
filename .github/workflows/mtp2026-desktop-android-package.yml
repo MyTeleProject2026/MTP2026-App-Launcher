@@ -6,6 +6,12 @@ on:
     paths:
       - "frontend-MTP2026-2Desktop/**"
       - "packaging/android/**"
+      - "os/mtp2026-guest-profiles/**"
+      - "os/mtp2026-linux-arm64/**"
+      - "os/mtp2026-firmware/**"
+      - "tools/build-arm64-browser-runtime.sh"
+      - "tools/build-mtp2026-firmware.sh"
+      - "tools/build-mtp2026-boot-disk.sh"
       - ".github/workflows/mtp2026-desktop-android-package.yml"
   pull_request:
     branches: [main]
