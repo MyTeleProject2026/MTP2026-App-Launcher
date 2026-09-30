@@ -1,0 +1,69 @@
+name: MTP2026 Desktop OS application package
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend-MTP2026-2Desktop/**"
+      - ".github/workflows/mtp2026-desktop-os-package.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "frontend-MTP2026-2Desktop/**"
+      - ".github/workflows/mtp2026-desktop-os-package.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-os:
+    name: Build MTP2026 Desktop Edition static application
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-MTP2026-2Desktop
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend-MTP2026-2Desktop/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify desktop OS profile
+        run: |
+          node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('os-profile.json','utf8')); if(p.deviceMode!=='desktop'||p.architecture!=='arm64'||p.render!=='static-site') process.exit(1); console.log(JSON.stringify(p,null,2))"
+
+      - name: Build desktop static application
+        run: npm run build
+
+      - name: Verify desktop application output
+        run: |
+          set -euo pipefail
+          test -s dist/index.html
+          test -s dist/manifest.webmanifest
+          test -s dist/arm64/guest-manifest.json
+          test -s dist/site-profile.js
+          grep -q "MTP2026" dist/index.html
+          echo "MTP2026 Desktop Edition static application package is ready."
+
+      - name: Package desktop application
+        run: |
+          tar -C dist -czf ../mtp2026-desktop-os-static-site.tar.gz .
+          sha256sum ../mtp2026-desktop-os-static-site.tar.gz > ../mtp2026-desktop-os-static-site.tar.gz.sha256
+
+      - name: Upload desktop application package
+        uses: actions/upload-artifact@v7
+        with:
+          name: mtp2026-desktop-os-static-application
+          if-no-files-found: error
+          path: |
+            frontend-MTP2026-2Desktop/mtp2026-desktop-os-static-site.tar.gz
+            frontend-MTP2026-2Desktop/mtp2026-desktop-os-static-site.tar.gz.sha256
