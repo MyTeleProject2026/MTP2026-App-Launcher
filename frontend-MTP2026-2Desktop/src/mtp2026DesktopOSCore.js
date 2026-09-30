@@ -88,25 +88,27 @@ export function registerDesktopProcess(process) {
     ...state.processes,
     [id]: { id, name: process.name || id, type: process.type || 'application', status: process.status || 'running', startedAt: process.startedAt || Date.now(), owner: process.owner || 'MTP2026' },
   };
-  return emit({ ...state, updatedAt: Date.now() });
+  return emit(appendEvent(state, 'process.started', { id, name: process.name || id, status: process.status || 'running' }));
 }
 
 export function updateDesktopProcess(id, patch = {}) {
   const state = readState();
   if (!state.processes[id]) return state;
-  return emit({ ...state, processes: { ...state.processes, [id]: { ...state.processes[id], ...patch } }, updatedAt: Date.now() });
+  const next = { ...state.processes[id], ...patch };
+  return emit(appendEvent({ ...state, processes: { ...state.processes, [id]: next } }, 'process.state', { id, name: next.name, status: next.status }));
 }
 
 export function unregisterDesktopProcess(id) {
   const state = readState();
+  const process = state.processes[id];
   const next = { ...state.processes };
   delete next[id];
-  return emit({ ...state, processes: next, updatedAt: Date.now() });
+  return emit(appendEvent({ ...state, processes: next }, 'process.stopped', { id, name: process?.name || id }));
 }
 
 export function setDesktopServiceState(id, status) {
   const state = readState();
-  return emit({ ...state, services: { ...state.services, [id]: status }, updatedAt: Date.now() });
+  return emit(appendEvent({ ...state, services: { ...state.services, [id]: status } }, 'service.state', { id, status }));
 }
 
 export function getDesktopServices() { return Object.entries(readState().services || {}).map(([id, status]) => ({ id, status })); }
@@ -130,7 +132,7 @@ export function setDesktopNetworkState(network) {
 
 export function setDesktopOSSetting(key, value) {
   const state = readState();
-  return emit({ ...state, settings: { ...(state.settings || {}), [key]: value }, updatedAt: Date.now() });
+  return emit(appendEvent({ ...state, settings: { ...(state.settings || {}), [key]: value } }, 'settings.changed', { key, value }));
 }
 
 export function setDesktopLocked(locked) {
