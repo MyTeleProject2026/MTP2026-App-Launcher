@@ -106,3 +106,32 @@
 .mtp11-task-view-button{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;margin:0 2px;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:rgba(8,14,25,.58);color:var(--text);cursor:pointer}
 .mtp11-task-view-button svg{width:15px}
 @media(max-width:700px){.mtp11-task-view-header{align-items:flex-start;flex-direction:column}.mtp11-task-view-window{flex-wrap:wrap}.mtp11-task-view-window>span{flex-basis:55%}.mtp11-task-view-window>small{margin-right:auto}}
+
+/* MTP2026 Desktop Edition — Settings navigation */
+.mtp11-settings{display:grid;grid-template-columns:260px minmax(0,1fr);height:100%;min-height:0;overflow:hidden;background:var(--mtp-surface,#101827)}
+.mtp11-settings>aside{min-width:0;overflow:auto;padding:18px 12px;border-right:1px solid rgba(255,255,255,.08);background:rgba(8,15,28,.72)}
+.mtp11-settings-user{display:flex;align-items:center;gap:11px;padding:8px 10px 16px}
+.mtp11-settings-user small{display:block;opacity:.58;margin-top:3px}
+.mtp11-settings-nav{display:grid;gap:4px}
+.mtp11-settings-nav button{display:flex;align-items:center;gap:11px;width:100%;min-height:42px;padding:9px 11px;border:0;border-radius:9px;background:transparent;color:inherit;text-align:left;cursor:pointer}
+.mtp11-settings-nav button svg{width:18px;height:18px;flex:none;opacity:.82}
+.mtp11-settings-nav button:hover{background:rgba(255,255,255,.06)}
+.mtp11-settings-nav button.active{background:rgba(80,150,255,.16);box-shadow:inset 2px 0 0 rgba(100,170,255,.9)}
+.mtp11-settings-nav>small{padding:12px;opacity:.55}
+.mtp11-settings-search{display:flex;align-items:center;gap:8px;margin:0 6px 14px;padding:9px 10px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:rgba(255,255,255,.045)}
+.mtp11-settings-search svg{width:17px;height:17px;opacity:.62;flex:none}
+.mtp11-settings-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:inherit;font:inherit}
+.mtp11-settings-search input::placeholder{opacity:.48}
+.mtp11-settings>main{min-width:0;overflow:auto;padding:26px clamp(18px,4vw,48px)}
+.mtp11-settings-mobile-title{display:none}
+@media(max-width:760px){
+  .mtp11-settings{grid-template-columns:1fr}
+  .mtp11-settings>aside{max-height:210px;border-right:0;border-bottom:1px solid rgba(255,255,255,.08);padding:10px}
+  .mtp11-settings-user{padding:5px 6px 9px}
+  .mtp11-settings-search{margin:0 2px 9px}
+  .mtp11-settings-nav{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .mtp11-settings-nav button{min-height:40px;font-size:13px}
+  .mtp11-settings>main{padding:15px}
+  .mtp11-settings-mobile-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;opacity:.82}
+  .mtp11-settings-mobile-title span{font-size:12px;opacity:.62}
+}
