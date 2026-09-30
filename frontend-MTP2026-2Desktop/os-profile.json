@@ -1,11 +1,11 @@
 {
   "schema": "mtp2026-static-os-site-v1",
   "id": "desktop",
-  "name": "MTP2026 Desktop OS",
+  "name": "MTP2026 Desktop Edition",
   "deviceMode": "desktop",
   "architecture": "arm64",
   "runtime": "MTP2026-owned guest + WebApp shell",
   "render": "static-site",
   "backend": "https://mtp2026-app-launcher-backend.onrender.com",
-  "notes": "Independent MTP2026 OS WebApp frontend; proprietary third-party firmware is not bundled."
+  "notes": "Independent MTP2026 desktop environment with a Windows-11-style interaction model; proprietary third-party firmware and assets are not bundled."
 }
