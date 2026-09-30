@@ -28,8 +28,16 @@ function write(session){
 export function getDesktopSession(){return read()}
 export function subscribeDesktopSession(listener){
   const handler=e=>listener(e.detail||read());
+  const storageHandler=e=>{
+    if(e.key!==KEY||!e.newValue)return;
+    listener(read());
+  };
   window.addEventListener(EVENT,handler);
-  return()=>window.removeEventListener(EVENT,handler);
+  window.addEventListener('storage',storageHandler);
+  return()=>{
+    window.removeEventListener(EVENT,handler);
+    window.removeEventListener('storage',storageHandler);
+  };
 }
 export function startDesktopSession(profile='desktop'){
   const current=read();
@@ -44,5 +52,17 @@ export function endDesktopSession(){
 export function refreshDesktopSession(){return write(read())}
 export function isDesktopSessionLocked(){try{return localStorage.getItem(LOCK_KEY)==='locked';}catch{return false}}
 export function setDesktopSessionLocked(locked){try{localStorage.setItem(LOCK_KEY,locked?'locked':'unlocked');}catch{};return emitLock(locked)}
-export function subscribeDesktopSessionLock(listener){const handler=e=>listener(Boolean(e.detail?.locked??isDesktopSessionLocked()));window.addEventListener(LOCK_EVENT,handler);return()=>window.removeEventListener(LOCK_EVENT,handler)}
+export function subscribeDesktopSessionLock(listener){
+  const handler=e=>listener(Boolean(e.detail?.locked??isDesktopSessionLocked()));
+  const storageHandler=e=>{
+    if(e.key!==LOCK_KEY)return;
+    listener(e.newValue==='locked');
+  };
+  window.addEventListener(LOCK_EVENT,handler);
+  window.addEventListener('storage',storageHandler);
+  return()=>{
+    window.removeEventListener(LOCK_EVENT,handler);
+    window.removeEventListener('storage',storageHandler);
+  };
+}
 export function clearDesktopSessionLock(){try{localStorage.removeItem(LOCK_KEY);}catch{};return emitLock(false)}
