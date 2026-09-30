@@ -10,7 +10,7 @@ import { createDesktopTextFile, getDesktopFilesystem, createDesktopFolder, renam
 import { detectDesktopRuntime } from './mtp2026DesktopRuntimeAdapter.js';
 import { guestImageStatus, installGuestImageFromBytes, installGuestImageFromContract } from './guestImageManager.js';
 import { bootDesktopGuest, stopDesktopGuest } from './mtp2026DesktopGuestBridge.js';
-import { startDesktopSession, endDesktopSession } from './mtp2026DesktopSession.js';
+import { getDesktopSession, startDesktopSession, endDesktopSession, subscribeDesktopSession } from './mtp2026DesktopSession.js';
 import { getDesktopOSState, setDesktopSessionState, setDesktopPowerState, registerDesktopProcess, unregisterDesktopProcess, subscribeDesktopOSState, getDesktopProcesses, getDesktopServices as getCoreDesktopServices, setDesktopServiceState, addDesktopSystemEvent, setDesktopLocked, isDesktopLocked } from './mtp2026DesktopOSCore.js';
 import { nativeSystemInfo, nativeListProcesses, nativeListServices, nativeFilesystemInfo, nativeListDirectory, nativeOpenPath, nativeRevealPath, nativeSystemMetrics, nativeQemuCapabilities, nativeQemuStatus, nativeQemuLaunch, nativeQemuStop, nativeQemuInstallBundle, nativeQemuBootInstalled, getNativeDesktopCapabilities } from './mtp2026DesktopNativeBridge.js';
 
@@ -422,6 +422,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const session=useMemo(()=>readSession(),[]);
   const [osState,setOsState]=useState(()=>getDesktopOSState());
   const [locked,setLocked]=useState(()=>isDesktopLocked());
+  const [desktopSession,setDesktopSession]=useState(()=>getDesktopSession());
   const [windows,setWindows]=useState(()=>Array.isArray(session.windows)?session.windows:[]);
   const [active,setActive]=useState(()=>session.active||null);
   const [maximized,setMaximized]=useState(()=>session.maximized||{});
