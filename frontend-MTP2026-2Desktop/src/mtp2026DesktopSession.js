@@ -42,7 +42,7 @@ export function endDesktopSession(){
   return write({...current,status:'ended',endedAt:new Date().toISOString()});
 }
 export function refreshDesktopSession(){return write(read())}
-export function isDesktopSessionLocked(){try{return localStorage.getItem(LOCK_KEY)==='1';}catch{return false}}
-export function setDesktopSessionLocked(locked){try{localStorage.setItem(LOCK_KEY,locked?'1':'0');}catch{};return emitLock(locked)}
+export function isDesktopSessionLocked(){try{return localStorage.getItem(LOCK_KEY)==='locked';}catch{return false}}
+export function setDesktopSessionLocked(locked){try{localStorage.setItem(LOCK_KEY,locked?'locked':'unlocked');}catch{};return emitLock(locked)}
 export function subscribeDesktopSessionLock(listener){const handler=e=>listener(Boolean(e.detail?.locked??isDesktopSessionLocked()));window.addEventListener(LOCK_EVENT,handler);return()=>window.removeEventListener(LOCK_EVENT,handler)}
 export function clearDesktopSessionLock(){try{localStorage.removeItem(LOCK_KEY);}catch{};return emitLock(false)}
