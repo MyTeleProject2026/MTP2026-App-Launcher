@@ -203,6 +203,7 @@ function SettingsApp(){
     {id:'privacy',label:'Privacy & security',icon:ShieldCheck},{id:'updates',label:'System Update',icon:RefreshCw},{id:'time',label:'Time & language',icon:Clock3},{id:'gaming',label:'Gaming',icon:Gamepad2},{id:'accessibility',label:'Accessibility',icon:Accessibility},
   ];
   const [section,setSection]=useState('system');
+  const [query,setQuery]=useState('');
   const [theme,setTheme]=useState(()=>localStorage.getItem('mtp2026-desktop-theme')||'dark');
   const [animations,setAnimations]=useState(()=>localStorage.getItem('mtp2026-desktop-animations')!=='off');
   const [bluetooth,setBluetooth]=useState(()=>localStorage.getItem('mtp2026-desktop-bluetooth')==='on');
@@ -258,7 +259,8 @@ function SettingsApp(){
       <div className="mtp11-setting-card"><Cpu/><div><b>ARM64 runtime</b><span>Guest image and runtime provider are managed separately from shell updates.</span></div><button onClick={()=>event('mtp2026:open-window',{id:'runtime'})}>Runtime</button></div>
       <div className="mtp11-setting-card"><ServerCog/><div><b>System services</b><span>Desktop service supervisor</span></div><button onClick={()=>event('mtp2026:open-window',{id:'services'})}>Services</button></div></>
   };
-  return <div className="mtp11-settings"><aside><div className="mtp11-settings-user"><div className="mtp11-avatar">M</div><div><b>MTP2026 User</b><small>VexaAccount protected</small></div></div>{sections.map(({id,label,icon:Icon})=><button key={id} className={section===id?'active':''} onClick={()=>setSection(id)}><Icon/> {label}</button>)}</aside><main>{content[section]}</main></div>;
+  const filteredSections=sections.filter(s=>!query.trim()||s.label.toLowerCase().includes(query.trim().toLowerCase()));
+  return <div className="mtp11-settings"><aside><div className="mtp11-settings-user"><div className="mtp11-avatar">M</div><div><b>MTP2026 User</b><small>VexaAccount protected</small></div></div><label className="mtp11-settings-search"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Find a setting"/></label><div className="mtp11-settings-nav">{filteredSections.map(({id,label,icon:Icon})=><button key={id} className={section===id?'active':''} onClick={()=>setSection(id)}><Icon/> <span>{label}</span></button>)}{!filteredSections.length&&<small>No matching settings</small>}</div></aside><main><div className="mtp11-settings-mobile-title"><b>Settings</b><span>{sections.find(s=>s.id===section)?.label||'System'}</span></div>{content[section]}</main></div>;
 }
 function NativeQemuPanel(){
   const [kernel,setKernel]=useState(''); const [initrd,setInitrd]=useState(''); const [disk,setDisk]=useState('');
