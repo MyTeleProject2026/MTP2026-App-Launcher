@@ -71,3 +71,5 @@ export async function nativeQemuLaunch({ kernel, initrd = null, disk = null, mem
 export async function nativeQemuStop() { return invoke('mtp2026_qemu_stop'); }
 
 export async function nativeQemuInstallBundle({ id, bundleUrl, bundleSha256 }) { return invoke('mtp2026_qemu_install_bundle', { id, bundleUrl, bundleSha256 }); }
+
+export async function nativeQemuBootInstalled(id = 'desktop') { return invoke('mtp2026_qemu_boot_installed', { id }); }
