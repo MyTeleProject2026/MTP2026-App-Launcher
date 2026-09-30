@@ -1,0 +1,11 @@
+#!/bin/sh
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mount -t tmpfs tmpfs /run
+printf '\033[2J\033[H'
+echo 'MTP2026 Desktop OS'
+echo 'MTP2026 Desktop Edition - ARM64 / AArch64'
+echo 'Native boot completed.'
+echo
+exec /usr/bin/mtp2026-shell
