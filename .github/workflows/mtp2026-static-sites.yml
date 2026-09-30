@@ -11,7 +11,6 @@ name: MTP2026 OS Static Sites (non-desktop profiles)
   pull_request:
     branches: [main]
     paths:
-      - "frontend-MTP2026-2Desktop/**"
       - "frontend-MTP2026-Android/**"
       - "Frontend-MTP202026-ROG_gamingOS/**"
       - "frontend-MTP2026OS/**"
