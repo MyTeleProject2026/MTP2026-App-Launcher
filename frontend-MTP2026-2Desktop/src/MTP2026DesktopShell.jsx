@@ -415,6 +415,9 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [taskbarMenu,setTaskbarMenu]=useState(null);
   const [snapped,setSnapped]=useState(()=>session.snapped||{});
   const [windowGeometry,setWindowGeometry]=useState(()=>session.windowGeometry||{});
+  const [virtualDesktops,setVirtualDesktops]=useState(()=>{try{return JSON.parse(localStorage.getItem('mtp2026:desktop:virtual-desktops:v1')||'[1]')}catch{return [1]}});
+  const [currentDesktop,setCurrentDesktop]=useState(()=>Number(localStorage.getItem('mtp2026:desktop:current-desktop')||1));
+  const [windowDesktops,setWindowDesktops]=useState(()=>{try{return JSON.parse(localStorage.getItem('mtp2026:desktop:window-desktops:v1')||'{}')}catch{return {}}});
   const [browserUrl,setBrowserUrl]=useState('https://www.vexastore.2bd.net/');
   useEffect(()=>{const h=e=>{if(e.detail?.url){setBrowserUrl(e.detail.url);open('browser')}};window.addEventListener('mtp2026:browser-open',h);return()=>window.removeEventListener('mtp2026:browser-open',h)},[]);
   useEffect(()=>{
@@ -438,6 +441,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     return()=>window.removeEventListener('mtp2026:guest-state',handler);
   },[]);
   useEffect(()=>{writeSession({windows,active,maximized,minimized,snapped,windowGeometry,updatedAt:new Date().toISOString()})},[windows,active,maximized,minimized,snapped,windowGeometry]);
+  useEffect(()=>{try{localStorage.setItem('mtp2026:desktop:virtual-desktops:v1',JSON.stringify(virtualDesktops));localStorage.setItem('mtp2026:desktop:current-desktop',String(currentDesktop));localStorage.setItem('mtp2026:desktop:window-desktops:v1',JSON.stringify(windowDesktops))}catch{}},[virtualDesktops,currentDesktop,windowDesktops]);
   useEffect(()=>subscribeDesktopOSState(state=>{setOsState(state);setLocked(Boolean(state?.security?.locked));}),[]);
   useEffect(()=>{const lock=()=>setDesktopLocked(true);window.addEventListener('mtp2026:lock-desktop',lock);return()=>window.removeEventListener('mtp2026:lock-desktop',lock)},[]);
   useEffect(()=>{ setDesktopSessionState('active'); return ()=>setDesktopSessionState('inactive'); },[]);
@@ -450,6 +454,8 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
       if(e.key==='Escape'){setStart(false);setNotifications(false);setPower(false);return;}
       if(e.altKey&&e.key==='Tab'){e.preventDefault();const ids=windows.filter(id=>!minimized.includes(id));if(ids.length){const i=Math.max(0,ids.indexOf(active));const next=ids[(i+1)%ids.length];setActive(next);setMinimized(m=>m.filter(x=>x!==next));}}
       if(e.key==='F11'){e.preventDefault();const id=active;if(id)setMaximized(m=>({...m,[id]:!m[id]}));}
+      if(e.altKey&&e.shiftKey&&e.key.toLowerCase()==='arrowright'){e.preventDefault();setCurrentDesktop(d=>virtualDesktops[Math.min(virtualDesktops.length-1,virtualDesktops.indexOf(d)+1)]||d);}
+      if(e.altKey&&e.shiftKey&&e.key.toLowerCase()==='arrowleft'){e.preventDefault();setCurrentDesktop(d=>virtualDesktops[Math.max(0,virtualDesktops.indexOf(d)-1)]||d);}
     };
     window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey);
   },[windows,minimized,active]);
@@ -463,7 +469,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   function open(id){
     if(id==='store'){window.open('https://www.vexastore.2bd.net/','_blank','noopener,noreferrer');setStart(false);return;}
     const existing=windows.find(w=>w===id);
-    if(!existing)setWindows(ws=>[...ws,id]);
+    if(!existing){setWindows(ws=>[...ws,id]);setWindowDesktops(d=>({...d,[id]:currentDesktop}));}
     registerDesktopProcess({id:'app:'+id,name:id,type:'application',status:'running'});
     setRecentApps(prev=>{const next=[id,...prev.filter(x=>x!==id)].slice(0,6);try{localStorage.setItem('mtp2026:desktop:recent-apps:v1',JSON.stringify(next))}catch{};return next;});
     setMinimized(m=>m.filter(x=>x!==id));
@@ -519,6 +525,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     if(id==='browser')body=<div className="mtp11-browser"><form onSubmit={e=>{e.preventDefault();setBrowserUrl(browserUrl);}}><Globe2/><input value={browserUrl} onChange={e=>setBrowserUrl(e.target.value)}/><button>Go</button></form><iframe title="MTP2026 Browser" src={browserUrl} allow="fullscreen; clipboard-read; clipboard-write; autoplay; gamepad" sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-pointer-lock allow-scripts allow-same-origin"/></div>;
     if(app.kind==='web')body=<div className="mtp11-browser"><div className="mtp11-browser-note">MTP2026 WebApp · VexaAccount application workspace</div><iframe title={app.title} src={app.url} allow="fullscreen; clipboard-read; clipboard-write; autoplay; gamepad" sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-pointer-lock allow-scripts allow-same-origin"/></div>;
     if(minimized.includes(id)) return null;
+    if((windowDesktops[id]||1)!==currentDesktop)return null;
     return <div className={`mtp11-window-layer ${maximized[id]?'max':''} ${snapped[id]?'snap-'+snapped[id]:''}`} style={{zIndex:active===id?120:110,width:windowGeometry[id]?.width,height:windowGeometry[id]?.height}} key={id} onMouseDown={()=>{setActive(id);setMinimized(m=>m.filter(x=>x!==id));}}><WindowFrame title={app.title} icon={Icon} maximized={!!maximized[id]} onClose={()=>close(id)} onMinimize={()=>{setMinimized(m=>m.includes(id)?m:m.concat(id));if(active===id)setActive(null)}} onMaximize={()=>setMaximized(m=>({...m,[id]:!m[id]}))} onTitleDoubleClick={()=>setMaximized(m=>({...m,[id]:!m[id]}))} onTitleContextMenu={e=>{e.preventDefault();setSnapMenu({id,x:e.clientX,y:e.clientY});}} onResizeStart={e=>resizeWindow(id,e)}>{body}</WindowFrame></div>;
   }
 
@@ -606,6 +613,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     {power&&<div className="mtp11-power"><button onClick={()=>{setDesktopPowerState('restarting');window.location.reload()}}><RefreshCw/> Restart shell</button><button onClick={onExit}><LockKeyhole/> Exit Desktop OS</button><button onClick={()=>setPower(false)}>Cancel</button></div>}
     <nav className="mtp11-taskbar">
       <button className="mtp11-start-button" onClick={()=>setStart(v=>!v)} aria-label="Start"><Grid2X2/></button>
+      <div className="mtp11-virtual-desktops" title="Virtual desktops">{virtualDesktops.map(d=><button key={d} className={currentDesktop===d?'active':''} onClick={()=>setCurrentDesktop(d)}>{d}</button>)}<button className="add" onClick={()=>setVirtualDesktops(ds=>{const n=[...ds,Math.max(...ds,0)+1];return n})} aria-label="Create virtual desktop">+</button></div>
       <button className="mtp11-search-button" onClick={()=>setStart(true)}><Search/><span>Search</span></button>
       <button className="mtp11-taskbar-run" onClick={()=>setRunDialog(true)} title="Run"><Command/></button>
       <div className="mtp11-pinned">{[['files',FolderOpen],['browser',Globe2],['settings',Settings],['system',Activity],['runtime',Cpu],['about',Info],['services',ServerCog],['taskmgr',Activity],['control',SlidersHorizontal]].map(([id,I])=><button key={id} className={`${active===id?'active ':''}${windows.includes(id)?'running':''}`} onContextMenu={e=>{e.preventDefault();setTaskbarMenu({id,x:e.clientX,y:e.clientY});}} onClick={()=>open(id)}><I/></button>)}</div>
