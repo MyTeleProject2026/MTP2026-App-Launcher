@@ -25,6 +25,7 @@ const DESKTOP_SYSTEM_APPS = Object.freeze([
   { id:'runtime', title:'Guest Runtime', category:'System', description:'Inspect ARM64 guest runtime state.' },
   { id:'about', title:'System Information', category:'System', description:'MTP2026 Desktop system information.' },
   { id:'properties', title:'Properties', category:'System', description:'Inspect desktop and selected item properties.' },
+  { id:'account', title:'Account Center', category:'System', description:'Manage the MTP2026 desktop session and VexaAccount access.' },
 ]);
 
 const APPS = [
