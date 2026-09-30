@@ -90,6 +90,45 @@ jobs:
           EOF
           (cd packaging/android/app/src/main/assets/desktop-guest && sha256sum * > SHA256SUMS)
 
+      - name: Install ARM64 guest build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu make bc bison flex cpio gzip xz-utils curl
+
+      - name: Build MTP2026 Desktop guest core
+        working-directory: os/mtp2026-linux-arm64
+        run: |
+          set -euo pipefail
+          rm -rf out
+          MTP2026_PROFILE=desktop MTP2026_BROWSER_RUNTIME_DIR="" ./build.sh
+          test -s out/artifacts/desktop/mtp2026-desktop-arm64-linux.Image
+          test -s out/artifacts/desktop/mtp2026-desktop-initramfs.cpio.gz
+          mkdir -p ../../packaging/android/app/src/desktop/assets
+          cp out/artifacts/desktop/mtp2026-desktop-arm64-linux.Image ../../packaging/android/app/src/desktop/assets/kernel.Image
+          cp out/artifacts/desktop/mtp2026-desktop-initramfs.cpio.gz ../../packaging/android/app/src/desktop/assets/initramfs.cpio.gz
+          cp out/rootfs/etc/mtp2026/profile.json ../../packaging/android/app/src/desktop/assets/profile.json
+          cp out/rootfs/etc/mtp2026/capabilities.json ../../packaging/android/app/src/desktop/assets/capabilities.json
+          cp out/rootfs/etc/mtp2026/firmware-profile.json ../../packaging/android/app/src/desktop/assets/firmware-profile.json
+          sha256sum ../../packaging/android/app/src/desktop/assets/kernel.Image ../../packaging/android/app/src/desktop/assets/initramfs.cpio.gz > ../../packaging/android/app/src/desktop/assets/SHA256SUMS
+          cat > ../../packaging/android/app/src/desktop/assets/guest-manifest.json <<'EOF'
+          {
+            "schema": "mtp2026-android-desktop-guest-bundle-v1",
+            "guestId": "desktop",
+            "name": "MTP2026 Desktop OS",
+            "edition": "MTP2026 Desktop Edition",
+            "architecture": "arm64",
+            "machine": "qemu-aarch64-virt",
+            "bootProtocol": "linux-arm64-guest",
+            "runtimeBackend": "qemu-system-aarch64-or-native-provider",
+            "profileSource": "MTP2026-owned ARM64 Desktop guest profile",
+            "kernelAsset": "kernel.Image",
+            "initramfsAsset": "initramfs.cpio.gz",
+            "profileAsset": "profile.json",
+            "capabilitiesAsset": "capabilities.json",
+            "firmwareContractAsset": "firmware-profile.json"
+          }
+          EOF
+
       - name: Build Desktop Android packages
         working-directory: packaging/android
         run: |
