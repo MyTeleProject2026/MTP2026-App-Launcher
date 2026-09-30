@@ -433,7 +433,8 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [active,setActive]=useState(()=>session.active||null);
   const [maximized,setMaximized]=useState(()=>session.maximized||{});
   const [minimized,setMinimized]=useState(()=>session.minimized||[]);
-  const [notifications,setNotifications]=useState(false);\n  const [notificationSeenAt,setNotificationSeenAt]=useState(()=>Number(localStorage.getItem('mtp2026:desktop:notifications-seen-at')||0));
+  const [notifications,setNotifications]=useState(false);
+  const [notificationSeenAt,setNotificationSeenAt]=useState(()=>Number(localStorage.getItem('mtp2026:desktop:notifications-seen-at')||0));
   const [notificationFilter,setNotificationFilter]=useState('all');
   const [calendar,setCalendar]=useState(false);
   const [wifiEnabled,setWifiEnabled]=useState(()=>localStorage.getItem('mtp2026-desktop-wifi')!=='off');
@@ -448,7 +449,8 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [desktopBox,setDesktopBox]=useState(null);
   const [draggingIcon,setDraggingIcon]=useState(null);
   const [iconPositions,setIconPositions]=useState(()=>{try{return JSON.parse(localStorage.getItem('mtp2026:desktop:icon-positions:v1')||'{}')}catch{return {}}});
-  const [taskbarMenu,setTaskbarMenu]=useState(null);\n  const [taskView,setTaskView]=useState(false);
+  const [taskbarMenu,setTaskbarMenu]=useState(null);
+  const [taskView,setTaskView]=useState(false);
   const [snapped,setSnapped]=useState(()=>session.snapped||{});
   const [windowGeometry,setWindowGeometry]=useState(()=>session.windowGeometry||{});
   const [virtualDesktops,setVirtualDesktops]=useState(()=>{try{return JSON.parse(localStorage.getItem('mtp2026:desktop:virtual-desktops:v1')||'[1]')}catch{return [1]}});
@@ -480,7 +482,13 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   },[]);
   useEffect(()=>{writeSession({windows,active,maximized,minimized,snapped,windowGeometry,updatedAt:new Date().toISOString()})},[windows,active,maximized,minimized,snapped,windowGeometry]);
   useEffect(()=>{try{localStorage.setItem('mtp2026:desktop:virtual-desktops:v1',JSON.stringify(virtualDesktops));localStorage.setItem('mtp2026:desktop:current-desktop',String(currentDesktop));localStorage.setItem('mtp2026:desktop:window-desktops:v1',JSON.stringify(windowDesktops))}catch{}},[virtualDesktops,currentDesktop,windowDesktops]);
-  useEffect(()=>subscribeDesktopOSState(state=>{setOsState(state);setLocked(Boolean(state?.security?.locked));}),[]);\n  useEffect(()=>{\n    const online=()=>addDesktopSystemEvent('network.state',{network:'online'});\n    const offline=()=>addDesktopSystemEvent('network.state',{network:'offline'});\n    window.addEventListener('online',online); window.addEventListener('offline',offline);\n    return()=>{window.removeEventListener('online',online);window.removeEventListener('offline',offline)};\n  },[]);
+  useEffect(()=>subscribeDesktopOSState(state=>{setOsState(state);setLocked(Boolean(state?.security?.locked));}),[]);
+  useEffect(()=>{
+    const syncNetwork=network=>{setDesktopNetworkState(network);addDesktopSystemEvent('network.state',{network});};
+    const online=()=>syncNetwork('online');
+    const offline=()=>syncNetwork('offline');
+    syncNetwork(navigator.onLine?'online':'offline');\n    window.addEventListener('online',online); window.addEventListener('offline',offline);
+    return()=>{window.removeEventListener('online',online);window.removeEventListener('offline',offline)};\n  },[]);
   useEffect(()=>{const lock=()=>setDesktopLocked(true);window.addEventListener('mtp2026:lock-desktop',lock);return()=>window.removeEventListener('mtp2026:lock-desktop',lock)},[]);
   useEffect(()=>{ setDesktopSessionState('active'); return ()=>setDesktopSessionState('inactive'); },[]);
   useEffect(()=>{ const activeIds=new Set(windows); const state=getDesktopOSState(); Object.keys(state.processes||{}).filter(id=>id.startsWith('app:')).forEach(id=>{const appId=id.slice(4);if(!activeIds.has(appId))unregisterDesktopProcess(id)}); windows.forEach(id=>{registerDesktopProcess({id:'app:'+id,name:id,type:'application',status:minimized.includes(id)?'suspended':'running'});}); },[windows,minimized]);
