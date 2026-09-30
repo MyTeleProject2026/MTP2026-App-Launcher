@@ -76,5 +76,5 @@ jobs:
           name: mtp2026-desktop-os-static-application
           if-no-files-found: error
           path: |
-            frontend-MTP2026-2Desktop/mtp2026-desktop-os-static-site.tar.gz
-            frontend-MTP2026-2Desktop/mtp2026-desktop-os-static-site.tar.gz.sha256
+            mtp2026-desktop-os-static-site.tar.gz
+            mtp2026-desktop-os-static-site.tar.gz.sha256
