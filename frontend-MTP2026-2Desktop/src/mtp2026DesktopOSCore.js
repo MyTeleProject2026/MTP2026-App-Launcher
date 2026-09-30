@@ -48,11 +48,28 @@ function emit(state) {
   return state;
 }
 
+function classifyEvent(type, detail = {}) {
+  const value = String(type || '').toLowerCase();
+  if (value.includes('error') || value.includes('failed') || value.includes('failure')) return 'error';
+  if (value.includes('warning') || value.includes('offline') || detail?.status === 'stopped') return 'warning';
+  if (value.includes('locked') || value.includes('security')) return 'security';
+  if (value.includes('started') || value.includes('ready') || value.includes('completed') || value.includes('online')) return 'success';
+  return 'info';
+}
+
 function appendEvent(state, type, detail = {}) {
+  const now = Date.now();
   return {
     ...state,
-    events: [...(state.events || []), { id: `event-${Date.now()}-${Math.random().toString(36).slice(2,7)}`, type, detail, at: Date.now() }].slice(-100),
-    updatedAt: Date.now(),
+    events: [...(state.events || []), {
+      id: `event-${now}-${Math.random().toString(36).slice(2,7)}`,
+      type,
+      detail,
+      severity: classifyEvent(type, detail),
+      source: String(type || '').split('.')[0] || 'system',
+      at: now,
+    }].slice(-100),
+    updatedAt: now,
   };
 }
 
