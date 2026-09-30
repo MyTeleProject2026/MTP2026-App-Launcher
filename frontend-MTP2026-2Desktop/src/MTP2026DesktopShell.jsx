@@ -500,6 +500,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   },[]);
   useEffect(()=>{try{localStorage.setItem('mtp2026:desktop:virtual-desktops:v1',JSON.stringify(virtualDesktops));localStorage.setItem('mtp2026:desktop:current-desktop',String(currentDesktop));localStorage.setItem('mtp2026:desktop:window-desktops:v1',JSON.stringify(windowDesktops))}catch{}},[virtualDesktops,currentDesktop,windowDesktops]);
   useEffect(()=>subscribeDesktopOSState(state=>{setOsState(state);setLocked(Boolean(state?.security?.locked));}),[]);
+  useEffect(()=>{const sync=state=>{const s=state?.settings||{};if(typeof s['network.wifiEnabled']==='boolean')setWifiEnabled(s['network.wifiEnabled']);if(typeof s['devices.bluetoothEnabled']==='boolean')setBluetoothEnabled(s['devices.bluetoothEnabled']);if(typeof s['audio.volumeEnabled']==='boolean')setVolumeEnabled(s['audio.volumeEnabled']);};const off=subscribeDesktopOSState(sync);sync(getDesktopOSState());return off;},[]);
   useEffect(()=>subscribeDesktopSessionLock(lockedState=>setLocked(Boolean(lockedState))),[]);
   useEffect(()=>subscribeDesktopSession(session=>setDesktopSession(session)),[]);
   useEffect(()=>{
