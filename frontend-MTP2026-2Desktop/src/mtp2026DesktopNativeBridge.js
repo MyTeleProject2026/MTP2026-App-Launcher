@@ -59,3 +59,5 @@ export async function nativeListDirectory(path) {
 }
 
 export async function nativeSystemMetrics() { return invoke('mtp2026_system_metrics'); }
+
+export async function nativeQemuCapabilities() { return invoke('mtp2026_qemu_capabilities'); }
