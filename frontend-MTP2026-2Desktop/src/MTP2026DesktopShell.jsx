@@ -10,7 +10,7 @@ import { createDesktopTextFile, getDesktopFilesystem, createDesktopFolder, renam
 import { detectDesktopRuntime } from './mtp2026DesktopRuntimeAdapter.js';
 import { guestImageStatus, installGuestImageFromBytes, installGuestImageFromContract } from './guestImageManager.js';
 import { bootDesktopGuest, stopDesktopGuest } from './mtp2026DesktopGuestBridge.js';
-import { getDesktopSession, startDesktopSession, endDesktopSession, subscribeDesktopSession } from './mtp2026DesktopSession.js';
+import { getDesktopSession, startDesktopSession, endDesktopSession, subscribeDesktopSession, isDesktopSessionLocked, setDesktopSessionLocked, subscribeDesktopSessionLock, clearDesktopSessionLock } from './mtp2026DesktopSession.js';
 import { getDesktopOSState, setDesktopSessionState, setDesktopPowerState, registerDesktopProcess, unregisterDesktopProcess, subscribeDesktopOSState, getDesktopProcesses, getDesktopServices as getCoreDesktopServices, setDesktopServiceState, addDesktopSystemEvent, setDesktopLocked, isDesktopLocked } from './mtp2026DesktopOSCore.js';
 import { nativeSystemInfo, nativeListProcesses, nativeListServices, nativeFilesystemInfo, nativeListDirectory, nativeOpenPath, nativeRevealPath, nativeSystemMetrics, nativeQemuCapabilities, nativeQemuStatus, nativeQemuLaunch, nativeQemuStop, nativeQemuInstallBundle, nativeQemuBootInstalled, getNativeDesktopCapabilities } from './mtp2026DesktopNativeBridge.js';
 
@@ -196,15 +196,17 @@ function TerminalApp({onOpen}){
   return <div className="mtp11-terminal-real" onClick={()=>document.getElementById('mtp-terminal-input')?.focus()}><div className="mtp11-terminal-output">{lines.map((x,i)=><div key={i}>{x}</div>)}</div><div className="mtp11-terminal-prompt"><span>mtp2026@desktop:~$</span><input id="mtp-terminal-input" autoFocus value={value} onChange={e=>setValue(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){void run(value);setValue('')}}}/></div></div>;
 }
 function AccountCenter({onLock,onEnd,onClose}){
+  const [locked,setLocked]=useState(()=>isDesktopSessionLocked());
+  useEffect(()=>subscribeDesktopSessionLock(setLocked),[]);
   const [session,setSession]=useState(()=>getDesktopSession());
   useEffect(()=>{const unsubscribe=subscribeDesktopSession(setSession);return unsubscribe;},[]);
   const refresh=()=>setSession(getDesktopSession());
-  const lock=()=>{setDesktopLocked(true);onLock?.();};
+  const lock=()=>{setDesktopLocked(true);setDesktopSessionLocked(true);onLock?.();};
   const openVexaAccount=()=>window.open('https://vexaaccount-management.onrender.com','_blank','noopener,noreferrer');
   const end=()=>{endDesktopSession();setDesktopSessionState('inactive');setSession(getDesktopSession());window.dispatchEvent(new CustomEvent('mtp2026:account-session-ended'));onEnd?.();};
   return <div className="mtp11-account-center">
     <div className="mtp11-account-hero"><div className="mtp11-account-avatar">M</div><div><div className="mtp11-runtime-kicker">MTP2026 ACCOUNT</div><h2>MTP2026 User</h2><p>VexaAccount protected desktop identity</p></div></div>
-    <div className={`mtp11-account-status ${session.status==='active'?'active':'ended'}`}><CheckCircle2/><div><b>{session.status==='active'?'Desktop session active':'Desktop session ended'}</b><small>{session.startedAt?'Started '+new Date(session.startedAt).toLocaleString():'No active session metadata'}</small></div></div>
+    <div className={`mtp11-account-status ${session.status==='active'?'active':'ended'}`}><CheckCircle2/><div><b>{session.status==='active'?'Desktop session active':'Desktop session ended'}</b><small>{session.startedAt?'Started '+new Date(session.startedAt).toLocaleString():'No active session metadata'} · {locked?'Locked':'Unlocked'}</small></div></div>
     <div className="mtp11-account-actions"><button className="primary" onClick={openVexaAccount}><UserRound/> Open VexaAccount</button><button onClick={lock}><LockKeyhole/> Lock desktop</button><button onClick={refresh}><RefreshCw/> Refresh session</button><button className="danger" onClick={end} disabled={session.status!=='active'}><Power/> End session</button></div>
     <div className="mtp11-account-note"><ShieldCheck/><span>Account authentication remains owned by the VexaAccount/launcher flow. This desktop surface does not store account passwords.</span></div>
     {onClose&&<button className="mtp11-account-close" onClick={onClose}><X/> Close</button>}
@@ -591,7 +593,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
         <div className="mtp11-lock-date">{clock.toLocaleDateString([], {weekday:'long',month:'long',day:'numeric'})}</div>
         <b>MTP2026 User</b>
         <small>Desktop session locked</small>
-        <button onClick={()=>{setLocked(false);setDesktopLocked(false);}}>Unlock session</button>
+        <button onClick={()=>{setLocked(false);setDesktopSessionLocked(false);setDesktopLocked(false);}}>Unlock session</button>
       </div>
     </div>
     <div className="mtp11-desktop-shade" onContextMenu={e=>{e.preventDefault();setDesktopMenu({x:e.clientX,y:e.clientY});}} onClick={()=>desktopMenu&&setDesktopMenu(null)} />
@@ -638,7 +640,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
       </div>}
       {startTab==='all'&&<><div className="mtp11-start-head"><b>{search?'Search results':'All apps'}</b><span>{visible.length} apps</span></div><div className="mtp11-start-grid">{visible.map(a=>{const I=a.icon||Globe2;return <button key={a.id} onClick={()=>a.kind==='web'?launchWeb(a.url):open(a.id)} onContextMenu={e=>{e.preventDefault();togglePinnedApp(a.id)}} title="Right-click to pin or unpin"><span><I/></span><b>{a.title}</b></button>})}</div></>}
       <div className="mtp11-start-footer"><button className="mtp11-account" onClick={()=>setAccountMenu(v=>!v)}><div className="mtp11-avatar">M</div><span>MTP2026 User<small>VexaAccount · {desktopSession.status==='active'?'Session active':'Session ended'}</small></span></button><button onClick={()=>setPower(v=>!v)}><Power/></button></div>
-      {accountMenu&&<div className="mtp11-account-menu"><button onClick={()=>{setAccountMenu(false);open('account')}}><UserRound/> Account Center</button><button onClick={()=>{setAccountMenu(false);setDesktopLocked(true)}}><LockKeyhole/> Lock desktop</button><button onClick={()=>{setRecentApps([]);localStorage.removeItem('mtp2026:desktop:recent-apps:v1');setAccountMenu(false)}}><RefreshCw/> Clear recent</button><button onClick={()=>setAccountMenu(false)}><X/> Close</button></div>}
+      {accountMenu&&<div className="mtp11-account-menu"><button onClick={()=>{setAccountMenu(false);open('account')}}><UserRound/> Account Center</button><button onClick={()=>{setAccountMenu(false);setDesktopSessionLocked(true);setDesktopLocked(true)}}><LockKeyhole/> Lock desktop</button><button onClick={()=>{setRecentApps([]);localStorage.removeItem('mtp2026:desktop:recent-apps:v1');setAccountMenu(false)}}><RefreshCw/> Clear recent</button><button onClick={()=>setAccountMenu(false)}><X/> Close</button></div>}
     </div>}
     {quickSettings&&<div className="mtp11-quick-settings"><header><b>Quick Settings</b><button onClick={()=>setQuickSettings(false)}><X/></button></header><div className="mtp11-quick-grid">
       <button className={wifiEnabled?'on':''} onClick={()=>{setWifiEnabled(v=>{localStorage.setItem('mtp2026-desktop-wifi',v?'off':'on');return !v})}}><Wifi/><span>Wi-Fi<small>{wifiEnabled&&navigator.onLine?'Connected':'Off'}</small></span></button>
