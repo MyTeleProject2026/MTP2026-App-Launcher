@@ -52,8 +52,11 @@ const APPS = [
 
 const STORAGE_KEY='mtp2026-desktop-files-v1';
 const SESSION_KEY='mtp2026-desktop-session-v1';
+const SESSION_EVENT='mtp2026:desktop-shell-session-changed';
 function readSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'{}')}catch{return {}}}
-function writeSession(v){try{localStorage.setItem(SESSION_KEY,JSON.stringify(v))}catch{}}
+function writeSession(v){
+  try{localStorage.setItem(SESSION_KEY,JSON.stringify(v));window.dispatchEvent(new CustomEvent(SESSION_EVENT,{detail:v}));}catch{}
+}
 
 function readFiles(){
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); } catch { return {}; }
@@ -481,6 +484,20 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     return()=>window.removeEventListener('mtp2026:guest-state',handler);
   },[]);
   useEffect(()=>{writeSession({windows,active,maximized,minimized,snapped,windowGeometry,updatedAt:new Date().toISOString()})},[windows,active,maximized,minimized,snapped,windowGeometry]);
+  useEffect(()=>{
+    const sync=e=>{
+      if(e.key!==SESSION_KEY||!e.newValue)return;
+      const next=readSession();
+      setWindows(Array.isArray(next.windows)?next.windows:[]);
+      setActive(next.active||null);
+      setMaximized(next.maximized||{});
+      setMinimized(next.minimized||[]);
+      setSnapped(next.snapped||{});
+      setWindowGeometry(next.windowGeometry||{});
+    };
+    window.addEventListener('storage',sync);
+    return()=>window.removeEventListener('storage',sync);
+  },[]);
   useEffect(()=>{try{localStorage.setItem('mtp2026:desktop:virtual-desktops:v1',JSON.stringify(virtualDesktops));localStorage.setItem('mtp2026:desktop:current-desktop',String(currentDesktop));localStorage.setItem('mtp2026:desktop:window-desktops:v1',JSON.stringify(windowDesktops))}catch{}},[virtualDesktops,currentDesktop,windowDesktops]);
   useEffect(()=>subscribeDesktopOSState(state=>{setOsState(state);setLocked(Boolean(state?.security?.locked));}),[]);
   useEffect(()=>subscribeDesktopSessionLock(lockedState=>setLocked(Boolean(lockedState))),[]);
