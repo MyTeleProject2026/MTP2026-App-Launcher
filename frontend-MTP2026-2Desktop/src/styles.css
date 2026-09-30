@@ -160,3 +160,25 @@
 .mtp11-account-actions button{min-height:42px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
 .mtp11-account-actions button svg{width:16px;height:16px}
 @media (max-width:560px){.mtp11-account-actions{display:grid;grid-template-columns:1fr}.mtp11-account-actions button{width:100%}.mtp11-account-hero{align-items:flex-start}.mtp11-account-status{align-items:flex-start}}
+
+
+/* MTP2026 Desktop Edition — live system notification center */
+.mtp11-notification-panel header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.mtp11-notification-panel header>div:first-child{display:flex;flex-direction:column;gap:2px}
+.mtp11-notification-panel header small{font-size:9px;color:#8b98ae}
+.mtp11-notification-head-actions{display:flex;gap:5px}
+.mtp11-notification-head-actions button{display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:9px;background:transparent;color:inherit;cursor:pointer}
+.mtp11-notification-head-actions button:hover{background:rgba(255,255,255,.08)}
+.mtp11-notification-head-actions svg{width:15px;height:15px}
+.mtp11-notification-list{display:flex;flex-direction:column;gap:7px;max-height:min(62vh,520px);overflow:auto;padding:4px}
+.mtp11-notification-item{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.025)}
+.mtp11-notification-icon{display:grid;place-items:center;flex:0 0 28px;width:28px;height:28px;border-radius:9px;background:rgba(99,102,241,.12);color:#a5b4fc}
+.mtp11-notification-icon svg{width:14px;height:14px}
+.mtp11-notification-item>div:last-child{min-width:0;display:flex;flex-direction:column;gap:3px}
+.mtp11-notification-item b{font-size:10px;text-transform:capitalize}
+.mtp11-notification-item small{font-size:8px;color:#77839a}
+.mtp11-notification-empty{min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;color:#8793a8}
+.mtp11-notification-empty svg{width:25px;height:25px}
+.mtp11-notification-empty p{margin:0;color:inherit;font-size:11px}
+.mtp11-notification-empty small{font-size:9px}
+@media(max-width:560px){.mtp11-notification-panel{width:min(390px,calc(100vw - 20px));right:10px}.mtp11-notification-list{max-height:55vh}}
