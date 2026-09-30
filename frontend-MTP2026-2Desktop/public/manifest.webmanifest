@@ -1,12 +1,15 @@
 {
-  "name":"MTP2026 Device OS",
+  "name":"MTP2026 Desktop Edition",
   "short_name":"MTP2026",
-  "description":"MTP2026 Device OS and MYTELEPROJECT2026 application workspace",
+  "description":"MTP2026 Desktop Edition — ARM64 desktop shell and MTP2026 application workspace",
   "start_url":"/",
   "scope":"/",
   "display":"standalone",
   "background_color":"#02050c",
   "theme_color":"#0b1020",
+  "orientation":"landscape",
+  "categories":["productivity","utilities","system"],
+  "prefer_related_applications":false,
   "icons":[
     {"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
   ]
