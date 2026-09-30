@@ -340,7 +340,7 @@ function SystemInformation({runtime,guestState}){
     <div className="mtp11-info-section"><Info/><div><b>MTP2026-owned platform</b><p>The desktop shell, branding, services and application layer are maintained as an independent MTP2026 implementation. Real guest execution remains dependent on an actual verified ARM64 image and supported runtime provider.</p></div></div>
   </div>;
 }
-function getDesktopSessionSafe(){try{return JSON.parse(localStorage.getItem('mtp2026:desktop:session-meta:v1')||'{}')}catch{return {}}}
+function getDesktopSessionSafe(){try{return getDesktopSession()}catch{return {}}}
 
 function ServiceManager(){
   const [services,setServices]=useState(getCoreDesktopServices);
