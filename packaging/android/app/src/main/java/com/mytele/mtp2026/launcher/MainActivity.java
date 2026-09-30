@@ -313,7 +313,8 @@ public final class MainActivity extends Activity {
             android.content.SharedPreferences prefs = getSharedPreferences(DESKTOP_GUEST_PREFS, MODE_PRIVATE);
             String state = prefs.getString("desktop_status", "not-imported");
             String root = prefs.getString("desktop_root", "");
-            return "{\\"state\\":\\"" + jsonSafe(state) + "\\",\\"root\\":\\"" + jsonSafe(root) + "\\",\\"profile\\":\\"desktop\\",\\"architecture\\":\\"arm64\\",\\"imageRuntime\\":\\"qemu-aarch64-virt\\"}";
+            String manifest = prefs.getString("desktop_manifest", "");
+            return "{\\"state\\":\\"" + jsonSafe(state) + "\\",\\"root\\":\\"" + jsonSafe(root) + "\\",\\"profile\\":\\"desktop\\",\\"architecture\\":\\"arm64\\",\\"imageRuntime\\":\\"qemu-aarch64-virt\\",\\"bundledGuestCore\\":true,\\"manifestPresent\\":" + (!manifest.isEmpty()) + "}";
         }
         @JavascriptInterface public String getArm64BootStatus() {
             String[] abis = Build.SUPPORTED_ABIS == null ? new String[0] : Build.SUPPORTED_ABIS; boolean arm64 = false;
