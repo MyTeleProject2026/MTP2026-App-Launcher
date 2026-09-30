@@ -202,12 +202,13 @@ function AccountCenter({onLock,onEnd,onClose}){
   useEffect(()=>{const unsubscribe=subscribeDesktopSession(setSession);return unsubscribe;},[]);
   const refresh=()=>setSession(getDesktopSession());
   const lock=()=>{setDesktopLocked(true);setDesktopSessionLocked(true);onLock?.();};
+  const unlock=()=>{setDesktopSessionLocked(false);setDesktopLocked(false);};
   const openVexaAccount=()=>window.open('https://vexaaccount-management.onrender.com','_blank','noopener,noreferrer');
-  const end=()=>{endDesktopSession();setDesktopSessionState('inactive');setSession(getDesktopSession());window.dispatchEvent(new CustomEvent('mtp2026:account-session-ended'));onEnd?.();};
+  const end=()=>{clearDesktopSessionLock();setDesktopLocked(false);endDesktopSession();setDesktopSessionState('inactive');setSession(getDesktopSession());window.dispatchEvent(new CustomEvent('mtp2026:account-session-ended'));onEnd?.();};
   return <div className="mtp11-account-center">
     <div className="mtp11-account-hero"><div className="mtp11-account-avatar">M</div><div><div className="mtp11-runtime-kicker">MTP2026 ACCOUNT</div><h2>MTP2026 User</h2><p>VexaAccount protected desktop identity</p></div></div>
     <div className={`mtp11-account-status ${session.status==='active'?'active':'ended'}`}><CheckCircle2/><div><b>{session.status==='active'?'Desktop session active':'Desktop session ended'}</b><small>{session.startedAt?'Started '+new Date(session.startedAt).toLocaleString():'No active session metadata'} · {locked?'Locked':'Unlocked'}</small></div></div>
-    <div className="mtp11-account-actions"><button className="primary" onClick={openVexaAccount}><UserRound/> Open VexaAccount</button><button onClick={lock}><LockKeyhole/> Lock desktop</button><button onClick={refresh}><RefreshCw/> Refresh session</button><button className="danger" onClick={end} disabled={session.status!=='active'}><Power/> End session</button></div>
+    <div className="mtp11-account-actions"><button className="primary" onClick={openVexaAccount}><UserRound/> Open VexaAccount</button><button onClick={locked?unlock:lock}>{locked?<><LockKeyhole/> Unlock desktop</>:<><LockKeyhole/> Lock desktop</>}</button><button onClick={refresh}><RefreshCw/> Refresh session</button><button className="danger" onClick={end} disabled={session.status!=='active'}><Power/> End session</button></div>
     <div className="mtp11-account-note"><ShieldCheck/><span>Account authentication remains owned by the VexaAccount/launcher flow. This desktop surface does not store account passwords.</span></div>
     {onClose&&<button className="mtp11-account-close" onClick={onClose}><X/> Close</button>}
   </div>;
