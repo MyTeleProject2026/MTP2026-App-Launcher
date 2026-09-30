@@ -146,6 +146,10 @@ jobs:
           test -s "$AAB"
           unzip -t "$APK" >/dev/null
           unzip -t "$AAB" >/dev/null
+          unzip -l "$APK" | grep -E "desktop-guest/(kernel.Image|initramfs.cpio.gz|profile.json|capabilities.json|firmware-profile.json|guest-manifest.json|SHA256SUMS)"
+          unzip -p "$APK" assets/desktop-guest/guest-manifest.json | grep -q '"guestId": "desktop"'
+          unzip -p "$APK" assets/desktop-guest/profile.json | grep -q '"id": "desktop"'
+          unzip -p "$APK" assets/desktop-guest/capabilities.json | grep -q '"profile": "desktop"'
           unzip -l "$APK" | grep -q "assets/desktop-guest/kernel.Image"
           unzip -l "$APK" | grep -q "assets/desktop-guest/initramfs.cpio.gz"
           unzip -l "$APK" | grep -q "assets/desktop-guest/boot-disk.img"
