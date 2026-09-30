@@ -200,7 +200,7 @@ function SettingsApp(){
     {id:'system',label:'System',icon:Cpu},{id:'devices',label:'Bluetooth & devices',icon:Monitor},
     {id:'network',label:'Network & internet',icon:Wifi},{id:'personalization',label:'Personalization',icon:Monitor},
     {id:'apps',label:'Apps',icon:Grid2X2},{id:'accounts',label:'Accounts',icon:UserRound},
-    {id:'privacy',label:'Privacy & security',icon:ShieldCheck},{id:'updates',label:'System Update',icon:RefreshCw},
+    {id:'privacy',label:'Privacy & security',icon:ShieldCheck},{id:'updates',label:'System Update',icon:RefreshCw},{id:'time',label:'Time & language',icon:Clock3},{id:'gaming',label:'Gaming',icon:Gamepad2},{id:'accessibility',label:'Accessibility',icon:Accessibility},
   ];
   const [section,setSection]=useState('system');
   const [theme,setTheme]=useState(()=>localStorage.getItem('mtp2026-desktop-theme')||'dark');
@@ -214,7 +214,7 @@ function SettingsApp(){
   const themeCard=<div className="mtp11-setting-card"><Monitor/><div><b>Theme</b><span>Desktop shell appearance</span></div><select value={theme} onChange={e=>{setTheme(e.target.value);localStorage.setItem('mtp2026-desktop-theme',e.target.value);event('mtp2026:theme-changed',{theme:e.target.value})}}><option value="dark">Dark</option><option value="light">Light</option></select></div>;
   const content={
     system:<><h2>System</h2><p>Manage your MTP2026 Desktop OS experience.</p>
-      <div className="mtp11-setting-card"><Cpu/><div><b>About</b><span>MTP2026 Desktop OS · ARM64 / AArch64 · MTP2026 guest runtime</span></div><button onClick={()=>event('mtp2026:open-window',{id:'about'})}>Open</button></div>
+      <div className="mtp11-setting-card"><Cpu/><div><b>About</b><span>MTP2026 Desktop Edition · ARM64 / AArch64 · MTP2026 guest runtime</span></div><button onClick={()=>event('mtp2026:open-window',{id:'about'})}>Open</button></div>
       <div className="mtp11-setting-card"><Wifi/><div><b>Network</b><span>Host-connected network · {navigator.onLine?'Connected':'Offline'}</span></div><button onClick={()=>setSection('network')}>Manage</button></div>
       <div className="mtp11-setting-card"><ShieldCheck/><div><b>Security</b><span>VexaAccount session protection and MTP2026 runtime policy</span></div><button onClick={()=>setSection('privacy')}>Review</button></div>
       themeCard
@@ -242,8 +242,19 @@ function SettingsApp(){
       <div className="mtp11-setting-card"><ShieldCheck/><div><b>VexaAccount protection</b><span>Authenticated session and runtime policy</span></div><button disabled>Protected</button></div>
       <div className="mtp11-setting-card"><LockKeyhole/><div><b>Lock screen</b><span>Protect the desktop when the session is idle</span></div><button onClick={()=>toggle(setLockScreen,'mtp2026-desktop-lock',lockScreen)}>{lockScreen?'Enabled':'Disabled'}</button></div>
       <div className="mtp11-setting-card"><Bell/><div><b>System notifications</b><span>Allow desktop notification panel events</span></div><button onClick={()=>toggle(setNotifications,'mtp2026-desktop-notifications',notifications)}>{notifications?'Enabled':'Disabled'}</button></div></>,
+    time:<><h2>Time & language</h2><p>Regional time, language, and desktop clock preferences.</p>
+      <div className="mtp11-setting-card"><Clock3/><div><b>Current time</b><span>{new Date().toLocaleString()}</span></div><button onClick={()=>event('mtp2026:clock-refresh')}>Refresh</button></div>
+      <div className="mtp11-setting-card"><Globe2/><div><b>Language</b><span>MTP2026 Desktop interface language · English</span></div><button disabled>English</button></div>
+      <div className="mtp11-setting-card"><Monitor/><div><b>Regional format</b><span>Device-local date and time formatting</span></div><button disabled>Automatic</button></div></>,
+    gaming:<><h2>Gaming</h2><p>Gaming and high-performance runtime settings for MTP2026.</p>
+      <div className="mtp11-setting-card"><Gamepad2/><div><b>Gaming profile</b><span>ARM64 gaming guest profile support</span></div><button onClick={()=>event('mtp2026:open-window',{id:'runtime'})}>Runtime</button></div>
+      <div className="mtp11-setting-card"><Activity/><div><b>Performance monitor</b><span>Inspect native host and guest runtime activity</span></div><button onClick={()=>event('mtp2026:open-window',{id:'system'})}>Open monitor</button></div></>,
+    accessibility:<><h2>Accessibility</h2><p>Improve readability and interaction within the MTP2026 Desktop shell.</p>
+      <div className="mtp11-setting-card"><Accessibility/><div><b>Animations</b><span>Reduce motion by disabling shell animations</span></div><button onClick={()=>toggle(setAnimations,'mtp2026-desktop-animations',animations)}>{animations?'Animations on':'Reduced motion'}</button></div>
+      <div className="mtp11-setting-card"><Monitor/><div><b>Display scaling</b><span>Responsive shell adapts to the available viewport</span></div><button disabled>Automatic</button></div>
+      <div className="mtp11-setting-card"><Keyboard/><div><b>Keyboard navigation</b><span>Standard keyboard shortcuts are enabled</span></div><button disabled>Enabled</button></div></>,
     updates:<><h2>System Update</h2><p>MTP2026 Desktop OS update channel and runtime maintenance.</p>
-      <div className="mtp11-setting-card"><RefreshCw/><div><b>Update status</b><span>MTP2026 Desktop OS · version 2026.1</span></div><button onClick={()=>event('mtp2026:check-updates')}>Check</button></div>
+      <div className="mtp11-setting-card"><RefreshCw/><div><b>Update status</b><span>MTP2026 Desktop Edition · version 2026.1</span></div><button onClick={()=>event('mtp2026:check-updates')}>Check</button></div>
       <div className="mtp11-setting-card"><Cpu/><div><b>ARM64 runtime</b><span>Guest image and runtime provider are managed separately from shell updates.</span></div><button onClick={()=>event('mtp2026:open-window',{id:'runtime'})}>Runtime</button></div>
       <div className="mtp11-setting-card"><ServerCog/><div><b>System services</b><span>Desktop service supervisor</span></div><button onClick={()=>event('mtp2026:open-window',{id:'services'})}>Services</button></div></>
   };
