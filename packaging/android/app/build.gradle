@@ -33,7 +33,6 @@ android {
             buildConfigField 'String', 'EDITION', '"owner"'
             buildConfigField 'String', 'ALLOWED_HOSTS', '"vexaaccount-management.onrender.com,api-vexaaccount.onrender.com"'
         }
-    }
         desktop {
             dimension 'edition'
             applicationId 'com.mtp2026.desktop'
@@ -42,6 +41,7 @@ android {
             buildConfigField 'String', 'EDITION', '"desktop"'
             buildConfigField 'String', 'ALLOWED_HOSTS', '"mtp2026-desktopos.onrender.com,api-vexaaccount.onrender.com,vexaaccount-management.onrender.com,www.vexastore.2bd.net,vexastore.2bd.net,api-vexastore.onrender.com"'
         }
+    }
 
     signingConfigs {
         release {
