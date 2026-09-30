@@ -156,6 +156,14 @@ export function clearDesktopSystemEvents() {
 
 export function subscribeDesktopOSState(listener) {
   const handler = event => listener(event.detail || readState());
+  const storageHandler = event => {
+    if (event.key !== STORAGE_KEY || !event.newValue) return;
+    listener(readState());
+  };
   window.addEventListener(EVENT, handler);
-  return () => window.removeEventListener(EVENT, handler);
+  window.addEventListener('storage', storageHandler);
+  return () => {
+    window.removeEventListener(EVENT, handler);
+    window.removeEventListener('storage', storageHandler);
+  };
 }
