@@ -170,6 +170,7 @@
 .mtp11-notification-head-actions button{display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:9px;background:transparent;color:inherit;cursor:pointer}
 .mtp11-notification-head-actions button:hover{background:rgba(255,255,255,.08)}
 .mtp11-notification-head-actions svg{width:15px;height:15px}
+.mtp11-notification-filters{display:flex;gap:5px;overflow:auto;padding:7px 4px 5px}.mtp11-notification-filters button{border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:5px 9px;background:rgba(255,255,255,.035);color:#8793a8;font-size:8px;font-weight:800;text-transform:capitalize;cursor:pointer}.mtp11-notification-filters button.active{background:rgba(80,150,255,.16);border-color:rgba(80,150,255,.35);color:#dbeafe}.mtp11-notification-detail{display:block;color:#9aa8bc;font-size:8px;line-height:1.4;margin-top:2px;word-break:break-word}.mtp11-notification-item{cursor:pointer}.mtp11-notification-item:hover{background:rgba(255,255,255,.045);border-color:rgba(125,211,252,.16)}
 .mtp11-notification-list{display:flex;flex-direction:column;gap:7px;max-height:min(62vh,520px);overflow:auto;padding:4px}
 .mtp11-notification-item{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.025)}
 .mtp11-notification-icon{display:grid;place-items:center;flex:0 0 28px;width:28px;height:28px;border-radius:9px;background:rgba(99,102,241,.12);color:#a5b4fc}
