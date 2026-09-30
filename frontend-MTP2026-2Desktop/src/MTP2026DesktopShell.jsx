@@ -431,7 +431,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [active,setActive]=useState(()=>session.active||null);
   const [maximized,setMaximized]=useState(()=>session.maximized||{});
   const [minimized,setMinimized]=useState(()=>session.minimized||[]);
-  const [notifications,setNotifications]=useState(false);
+  const [notifications,setNotifications]=useState(false);\n  const [notificationSeenAt,setNotificationSeenAt]=useState(()=>Number(localStorage.getItem('mtp2026:desktop:notifications-seen-at')||0));
   const [calendar,setCalendar]=useState(false);
   const [wifiEnabled,setWifiEnabled]=useState(()=>localStorage.getItem('mtp2026-desktop-wifi')!=='off');
   const [bluetoothEnabled,setBluetoothEnabled]=useState(()=>localStorage.getItem('mtp2026-desktop-bluetooth')==='on');
@@ -477,7 +477,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   },[]);
   useEffect(()=>{writeSession({windows,active,maximized,minimized,snapped,windowGeometry,updatedAt:new Date().toISOString()})},[windows,active,maximized,minimized,snapped,windowGeometry]);
   useEffect(()=>{try{localStorage.setItem('mtp2026:desktop:virtual-desktops:v1',JSON.stringify(virtualDesktops));localStorage.setItem('mtp2026:desktop:current-desktop',String(currentDesktop));localStorage.setItem('mtp2026:desktop:window-desktops:v1',JSON.stringify(windowDesktops))}catch{}},[virtualDesktops,currentDesktop,windowDesktops]);
-  useEffect(()=>subscribeDesktopOSState(state=>{setOsState(state);setLocked(Boolean(state?.security?.locked));}),[]);
+  useEffect(()=>subscribeDesktopOSState(state=>{setOsState(state);setLocked(Boolean(state?.security?.locked));}),[]);\n  useEffect(()=>{\n    const online=()=>addDesktopSystemEvent('network.state',{network:'online'});\n    const offline=()=>addDesktopSystemEvent('network.state',{network:'offline'});\n    window.addEventListener('online',online); window.addEventListener('offline',offline);\n    return()=>{window.removeEventListener('online',online);window.removeEventListener('offline',offline)};\n  },[]);
   useEffect(()=>{const lock=()=>setDesktopLocked(true);window.addEventListener('mtp2026:lock-desktop',lock);return()=>window.removeEventListener('mtp2026:lock-desktop',lock)},[]);
   useEffect(()=>{ setDesktopSessionState('active'); return ()=>setDesktopSessionState('inactive'); },[]);
   useEffect(()=>{ const activeIds=new Set(windows); const state=getDesktopOSState(); Object.keys(state.processes||{}).filter(id=>id.startsWith('app:')).forEach(id=>{const appId=id.slice(4);if(!activeIds.has(appId))unregisterDesktopProcess(id)}); windows.forEach(id=>{registerDesktopProcess({id:'app:'+id,name:id,type:'application',status:minimized.includes(id)?'suspended':'running'});}); },[windows,minimized]);
@@ -494,7 +494,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     };
     window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey);
   },[windows,minimized,active]);
-  useEffect(()=>{const w=localStorage.getItem('mtp2026-desktop-wallpaper');if(w)setWallpaper(w); setRuntime(detectDesktopRuntime()); startDesktopSession('desktop'); void bootDesktopOS({provider:detectDesktopRuntime().mode,onProgress:setBoot}); return ()=>{shutdownDesktopOS();endDesktopSession();};},[]);
+  useEffect(()=>{const w=localStorage.getItem('mtp2026-desktop-wallpaper');if(w)setWallpaper(w); setRuntime(detectDesktopRuntime()); const s=startDesktopSession('desktop'); addDesktopSystemEvent('session.started',{sessionId:s.id,profile:s.profile||'desktop'}); void bootDesktopOS({provider:detectDesktopRuntime().mode,onProgress:setBoot}); return ()=>{addDesktopSystemEvent('session.ended',{sessionId:getDesktopSession().id||null});shutdownDesktopOS();endDesktopSession();};},[]);
 
   const installed=useMemo(()=>apps.map(a=>({id:`web-${a.id}`,title:a.title||a.name||'Web App',icon:Globe2,kind:'web',url:a.url})),[apps]);
   const allApps=[...APPS,{id:'services',title:'System Services',icon:ServerCog},...installed];
@@ -659,7 +659,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
       <button className="mtp11-search-button" onClick={()=>setStart(true)}><Search/><span>Search</span></button>
       <button className="mtp11-taskbar-run" onClick={()=>setRunDialog(true)} title="Run"><Command/></button>
       <div className="mtp11-pinned">{[...new Set([...pinnedApps,...windows])].map(id=>{const a=allApps.find(x=>x.id===id);if(!a)return null;const I=a.icon||Globe2;return <button key={id} className={`${active===id?'active ':''}${windows.includes(id)?'running':''}`} onContextMenu={e=>{e.preventDefault();setTaskbarMenu({id,x:e.clientX,y:e.clientY});}} onClick={()=>open(id)} title={a.title}><I/></button>})}</div>
-      <div className="mtp11-tray"><Wifi/><ShieldCheck/><button onClick={()=>setNotifications(v=>!v)}><Bell/></button><button onClick={()=>setQuickSettings(v=>!v)}><Wifi/></button><button className="mtp11-clock" onClick={()=>{setCalendar(v=>!v);setNotifications(false)}}><b>{clock.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</b><small>{clock.toLocaleDateString([], {month:'numeric',day:'numeric',year:'numeric'})}</small></button><button onClick={()=>setPower(v=>!v)}><Power/></button></div>
+      <div className="mtp11-tray"><Wifi/><ShieldCheck/><button onClick={()=>{const next=!notifications;setNotifications(next);if(next){const now=Date.now();setNotificationSeenAt(now);try{localStorage.setItem('mtp2026:desktop:notifications-seen-at',String(now))}catch{}}}} aria-label="Notifications"><Bell/>{(osState.events||[]).filter(e=>e.at>notificationSeenAt).length>0&&<span className="mtp11-notification-badge">{Math.min((osState.events||[]).filter(e=>e.at>notificationSeenAt).length,99)}</span>}</button><button onClick={()=>setQuickSettings(v=>!v)}><Wifi/></button><button className="mtp11-clock" onClick={()=>{setCalendar(v=>!v);setNotifications(false)}}><b>{clock.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</b><small>{clock.toLocaleDateString([], {month:'numeric',day:'numeric',year:'numeric'})}</small></button><button onClick={()=>setPower(v=>!v)}><Power/></button></div>
     </nav>
   </main>;
 }
