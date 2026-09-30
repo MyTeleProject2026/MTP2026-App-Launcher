@@ -195,15 +195,16 @@ function TerminalApp({onOpen}){
   };
   return <div className="mtp11-terminal-real" onClick={()=>document.getElementById('mtp-terminal-input')?.focus()}><div className="mtp11-terminal-output">{lines.map((x,i)=><div key={i}>{x}</div>)}</div><div className="mtp11-terminal-prompt"><span>mtp2026@desktop:~$</span><input id="mtp-terminal-input" autoFocus value={value} onChange={e=>setValue(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){void run(value);setValue('')}}}/></div></div>;
 }
-function AccountCenter({onLock,onClose}){
+function AccountCenter({onLock,onEnd,onClose}){
   const [session,setSession]=useState(()=>getDesktopSession());
   const refresh=()=>setSession(getDesktopSession());
   const lock=()=>{setDesktopLocked(true);onLock?.();};
-  const end=()=>{endDesktopSession();setSession(getDesktopSession());window.dispatchEvent(new CustomEvent('mtp2026:account-session-ended'));};
+  const openVexaAccount=()=>window.open('https://vexaaccount-management.onrender.com','_blank','noopener,noreferrer');
+  const end=()=>{endDesktopSession();setDesktopSessionState('inactive');setSession(getDesktopSession());window.dispatchEvent(new CustomEvent('mtp2026:account-session-ended'));onEnd?.();};
   return <div className="mtp11-account-center">
     <div className="mtp11-account-hero"><div className="mtp11-account-avatar">M</div><div><div className="mtp11-runtime-kicker">MTP2026 ACCOUNT</div><h2>MTP2026 User</h2><p>VexaAccount protected desktop identity</p></div></div>
-    <div className="mtp11-account-status"><CheckCircle2/><div><b>{session.status==='active'?'Desktop session active':'Desktop session ended'}</b><small>{session.startedAt?'Started '+new Date(session.startedAt).toLocaleString():'No active session metadata'}</small></div></div>
-    <div className="mtp11-account-actions"><button onClick={()=>window.dispatchEvent(new CustomEvent('mtp2026:open-account'))}><UserRound/> Open VexaAccount</button><button onClick={lock}><LockKeyhole/> Lock desktop</button><button onClick={refresh}><RefreshCw/> Refresh session</button><button onClick={end} disabled={session.status!=='active'}><Power/> End session</button></div>
+    <div className={`mtp11-account-status ${session.status==='active'?'active':'ended'}`}><CheckCircle2/><div><b>{session.status==='active'?'Desktop session active':'Desktop session ended'}</b><small>{session.startedAt?'Started '+new Date(session.startedAt).toLocaleString():'No active session metadata'}</small></div></div>
+    <div className="mtp11-account-actions"><button className="primary" onClick={openVexaAccount}><UserRound/> Open VexaAccount</button><button onClick={lock}><LockKeyhole/> Lock desktop</button><button onClick={refresh}><RefreshCw/> Refresh session</button><button className="danger" onClick={end} disabled={session.status!=='active'}><Power/> End session</button></div>
     <div className="mtp11-account-note"><ShieldCheck/><span>Account authentication remains owned by the VexaAccount/launcher flow. This desktop surface does not store account passwords.</span></div>
     {onClose&&<button className="mtp11-account-close" onClick={onClose}><X/> Close</button>}
   </div>;
@@ -540,7 +541,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     let body=<div className="mtp11-app-placeholder"><Icon/><h3>{app.title}</h3><p>MTP2026 Desktop application surface.</p></div>;
     if(id==='files')body=<FileExplorer/>;
     if(id==='settings')body=<SettingsApp/>;
-    if(id==='account')body=<AccountCenter onLock={()=>setLocked(true)} onClose={()=>close('account')}/>;
+    if(id==='account')body=<AccountCenter onLock={()=>setLocked(true)} onEnd={()=>{close('account');onExit?.();}} onClose={()=>close('account')}/>;
     if(id==='system')body=<SystemMonitor runtime={runtime} guestState={guestState}/>;
     if(id==='taskmgr')body=<TaskManager windows={windows} active={active} minimized={minimized} runtime={runtime} close={close} onSelect={id=>{setActive(id);setMinimized(m=>m.filter(x=>x!==id));}}/>;
     if(id==='control')body=<ControlPanel onSettings={()=>open('settings')} onOpen={open}/>;
@@ -582,7 +583,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
         <div className="mtp11-lock-date">{clock.toLocaleDateString([], {weekday:'long',month:'long',day:'numeric'})}</div>
         <b>MTP2026 User</b>
         <small>Desktop session locked</small>
-        <button onClick={()=>setDesktopLocked(false)}>Unlock session</button>
+        <button onClick={()=>{setLocked(false);setDesktopLocked(false);}}>Unlock session</button>
       </div>
     </div>
     <div className="mtp11-desktop-shade" onContextMenu={e=>{e.preventDefault();setDesktopMenu({x:e.clientX,y:e.clientY});}} onClick={()=>desktopMenu&&setDesktopMenu(null)} />
