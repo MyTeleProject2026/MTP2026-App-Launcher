@@ -55,7 +55,8 @@ public final class MainActivity extends Activity {
             "vexastore.2bd.net",
             "api-vexastore.onrender.com",
             "api-vexaaccount.onrender.com",
-            "vexaaccount-management.onrender.com"
+            "vexaaccount-management.onrender.com",
+            "mtp2026-desktopos.onrender.com"
     ));
     private BroadcastReceiver installReceiver;
 
@@ -73,6 +74,9 @@ public final class MainActivity extends Activity {
         allowedHosts.addAll(Arrays.asList(BuildConfig.ALLOWED_HOSTS.split(",")));
         allowedHosts.addAll(trustedMtpHosts);
         if (start.getHost() != null) allowedHosts.add(start.getHost().toLowerCase());
+        if ("desktop".equals(BuildConfig.EDITION)) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        }
         applyImmersive(true);
         createNotificationChannel();
         requestNotificationPermissionIfNeeded();
