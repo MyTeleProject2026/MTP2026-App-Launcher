@@ -2,6 +2,7 @@ use serde::Serialize;
 use std::fs;
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
+use std::process::{Child, Command, Stdio};
 
 #[derive(Serialize)]
 struct SystemInfo {
@@ -27,6 +28,62 @@ struct ProcessInfo {
     name: String,
 }
 
+
+
+static QEMU_CHILD: OnceLock<Mutex<Option<Child>>> = OnceLock::new();
+
+#[derive(Serialize)]
+struct QemuRuntimeState { running: bool, pid: Option<u32>, executable: String }
+
+fn qemu_runtime() -> &'static Mutex<Option<Child>> { QEMU_CHILD.get_or_init(|| Mutex::new(None)) }
+
+#[tauri::command]
+fn mtp2026_qemu_status() -> QemuRuntimeState {
+    let executable = if cfg!(target_os = "windows") { "qemu-system-aarch64.exe" } else { "qemu-system-aarch64" }.to_string();
+    let mut running = false; let mut pid = None;
+    if let Ok(mut guard) = qemu_runtime().lock() {
+        if let Some(child) = guard.as_mut() {
+            match child.try_wait() {
+                Ok(Some(_)) => { *guard = None; }
+                Ok(None) => { running = true; pid = Some(child.id()); }
+                Err(_) => {}
+            }
+        }
+    }
+    QemuRuntimeState { running, pid, executable }
+}
+
+#[tauri::command]
+fn mtp2026_qemu_launch(kernel: String, initrd: Option<String>, disk: Option<String>, memory_mb: Option<u32>, append: Option<String>) -> Result<QemuRuntimeState, String> {
+    let executable = if cfg!(target_os = "windows") { "qemu-system-aarch64.exe" } else { "qemu-system-aarch64" };
+    let valid = |p: &str| !p.is_empty() && Path::new(p).is_file();
+    if !valid(&kernel) { return Err(format!("Guest kernel not found: {kernel}")); }
+    if let Some(ref p) = initrd { if !valid(p) { return Err(format!("Guest initramfs not found: {p}")); } }
+    if let Some(ref p) = disk { if !valid(p) { return Err(format!("Guest disk not found: {p}")); } }
+    let mut guard = qemu_runtime().lock().map_err(|_| "QEMU state lock unavailable".to_string())?;
+    if let Some(child) = guard.as_mut() {
+        if child.try_wait().map_err(|e| e.to_string())?.is_none() { return Err("MTP2026 ARM64 guest is already running".to_string()); }
+    }
+    *guard = None;
+    let mut cmd = Command::new(executable);
+    cmd.args(["-M","virt","-cpu","cortex-a72","-nographic","-serial","stdio"]);
+    cmd.args(["-m", &memory_mb.unwrap_or(1024).clamp(256, 8192).to_string()]);
+    cmd.args(["-kernel", &kernel]);
+    if let Some(p) = initrd { cmd.args(["-initrd", &p]); }
+    if let Some(p) = disk { cmd.args(["-drive", &format!("file={p},if=virtio,format=raw")]); }
+    if let Some(a) = append { cmd.args(["-append", &a]); }
+    let child = cmd.stdin(Stdio::null()).stdout(Stdio::inherit()).stderr(Stdio::inherit()).spawn().map_err(|e| format!("Unable to launch QEMU: {e}"))?;
+    let pid = child.id(); *guard = Some(child);
+    Ok(QemuRuntimeState { running:true, pid:Some(pid), executable:executable.to_string() })
+}
+
+#[tauri::command]
+fn mtp2026_qemu_stop() -> Result<QemuRuntimeState, String> {
+    let executable = if cfg!(target_os = "windows") { "qemu-system-aarch64.exe" } else { "qemu-system-aarch64" }.to_string();
+    let mut guard = qemu_runtime().lock().map_err(|_| "QEMU state lock unavailable".to_string())?;
+    if let Some(mut child) = guard.take() { let _ = child.kill(); let _ = child.wait(); }
+    Ok(QemuRuntimeState { running:false, pid:None, executable })
+}
 
 static CPU_SAMPLE: OnceLock<Mutex<Option<(u64, u64)>>> = OnceLock::new();
 
@@ -287,7 +344,10 @@ pub fn run() {
             mtp2026_reveal_path,
             mtp2026_power_action,
             mtp2026_process_action,
-            mtp2026_qemu_capabilities
+            mtp2026_qemu_capabilities,
+            mtp2026_qemu_status,
+            mtp2026_qemu_launch,
+            mtp2026_qemu_stop
         ])
         .run(tauri::generate_context!())
         .expect("error while running MTP2026 Desktop native host");
