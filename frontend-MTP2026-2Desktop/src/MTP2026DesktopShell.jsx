@@ -12,7 +12,7 @@ import { guestImageStatus, installGuestImageFromBytes, installGuestImageFromCont
 import { bootDesktopGuest, stopDesktopGuest } from './mtp2026DesktopGuestBridge.js';
 import { startDesktopSession, endDesktopSession } from './mtp2026DesktopSession.js';
 import { getDesktopOSState, setDesktopSessionState, setDesktopPowerState, registerDesktopProcess, unregisterDesktopProcess, subscribeDesktopOSState, getDesktopProcesses, getDesktopServices as getCoreDesktopServices, setDesktopServiceState, addDesktopSystemEvent, setDesktopLocked, isDesktopLocked } from './mtp2026DesktopOSCore.js';
-import { nativeSystemInfo, nativeListProcesses, nativeListServices, nativeFilesystemInfo, nativeListDirectory, nativeOpenPath, nativeRevealPath, nativeSystemMetrics, nativeQemuCapabilities, getNativeDesktopCapabilities } from './mtp2026DesktopNativeBridge.js';
+import { nativeSystemInfo, nativeListProcesses, nativeListServices, nativeFilesystemInfo, nativeListDirectory, nativeOpenPath, nativeRevealPath, nativeSystemMetrics, nativeQemuCapabilities, nativeQemuStatus, getNativeDesktopCapabilities } from './mtp2026DesktopNativeBridge.js';
 
 const DESKTOP_SYSTEM_APPS = Object.freeze([
   { id:'files', title:'File Explorer', category:'System', description:'Browse MTP2026 virtual and native storage.' },
@@ -142,7 +142,7 @@ function TaskManager({windows,active,minimized,runtime,close,onSelect}){
     const timer=setInterval(()=>setTick(x=>x+1),1000);
     const refreshNative=()=>void nativeListProcesses().then(r=>{if(r?.supported)setNativeProcesses(Array.isArray(r.value)?r.value:[])});
     void nativeSystemInfo().then(r=>{if(r?.supported)setNativeInfo(r.value||null)});
-    void nativeQemuCapabilities().then(r=>{if(r?.supported)setQemuInfo(r.value||null)}); refreshNative(); const poll=setInterval(refreshNative,3000);
+    refreshNative(); const poll=setInterval(refreshNative,3000);
     return()=>{off();clearInterval(timer);clearInterval(poll)};
   },[]);
   const appProcesses=processes.filter(p=>p.type==='application');
@@ -336,7 +336,7 @@ function SystemMonitor({runtime,guestState}){
       if(si?.supported)setNativeInfo(si.value||null);
       if(fi?.supported)setFsInfo(fi.value||null);
     };
-    void refresh();const t=setInterval(refresh,2000);return()=>{mounted=false;clearInterval(t)};
+    void refresh(); void nativeQemuCapabilities().then(r=>{if(mounted&&r?.supported)setQemuInfo(r.value||null)}); void nativeQemuStatus().then(r=>{if(mounted&&r?.supported)setQemuInfo(v=>({...v,...(r.value||{})}))}); const t=setInterval(refresh,2000); const qt=setInterval(()=>void nativeQemuStatus().then(r=>{if(mounted&&r?.supported)setQemuInfo(v=>({...v,...(r.value||{})}))}),2000); return()=>{mounted=false;clearInterval(t);clearInterval(qt)};
   },[]);
   const cpu=Number.isFinite(metrics?.cpu_percent)?Math.round(metrics.cpu_percent):null;
   const mem=Number.isFinite(metrics?.memory_percent)?Math.round(metrics.memory_percent):null;
@@ -349,7 +349,7 @@ function SystemMonitor({runtime,guestState}){
     {meters.map(([n,v,u])=><div className="mtp11-meter" key={n}><div><span>{n}</span><b>{v===null?'—':v+u}</b></div><i><em style={{width:(v===null?0:v)+'%'}}/></i></div>)}
     {nativeInfo&&<div className="mtp11-taskmgr-native"><span>Host</span><b>{nativeInfo.host_os}</b><span>{nativeInfo.architecture} · PID {nativeInfo.process_id}</span></div>}
     {fsInfo&&<div className="mtp11-taskmgr-native"><span>Native filesystem</span><b>{fsInfo.root||'host root'}</b><span>{fsInfo.separator} · {fsInfo.exists?'available':'unavailable'}</span></div>}
-    {metrics?.native&&<div className="mtp11-taskmgr-native"><span>Network I/O</span><b>{Math.round((metrics.network_rx_bytes||0)/1024/1024)} MB RX</b><span>{Math.round((metrics.network_tx_bytes||0)/1024/1024)} MB TX</span></div>}
+    {metrics?.native&&<div className="mtp11-taskmgr-native"><span>Network I/O</span><b>{Math.round((metrics.network_rx_bytes||0)/1024/1024)} MB RX</b><span>{Math.round((metrics.network_tx_bytes||0)/1024/1024)} MB TX</span></div>}{qemuInfo&&<div className="mtp11-taskmgr-native"><span>QEMU ARM64</span><b>{qemuInfo.running?`Running · PID ${qemuInfo.pid||"?"}`:qemuInfo.available?"Ready":"Unavailable"}</b><span>{qemuInfo.executable||"qemu-system-aarch64"}</span></div>}
   </div>;
 }
 
