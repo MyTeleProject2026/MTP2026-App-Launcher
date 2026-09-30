@@ -1,12 +1,24 @@
 name: MTP2026 Launcher Android packages
+
 on:
   push:
     branches: [main]
+    paths:
+      - "packaging/android/**"
+      - ".github/workflows/android-packages.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "packaging/android/**"
+      - ".github/workflows/android-packages.yml"
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   android:
+    name: Build Android user + owner packages
     runs-on: ubuntu-latest
     env:
       KEYSTORE_PATH: ${{ github.workspace }}/.release-keystore/release.jks
@@ -15,13 +27,17 @@ jobs:
       KEY_PASSWORD: ${{ secrets.MTP2026_APP_LAUNCHER_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v6
+
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
+
       - uses: android-actions/setup-android@v4
+
       - name: Install Android SDK
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;35.0.0"
+
       - name: Restore release keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.MTP2026_APP_LAUNCHER_KEYSTORE_BASE64 }}
@@ -32,17 +48,20 @@ jobs:
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
           chmod 600 "$KEYSTORE_PATH"
           keytool -list -keystore "$KEYSTORE_PATH" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
+
       - name: Build user and owner APK/AAB
         working-directory: packaging/android
         run: |
           chmod +x ./gradlew
           ./gradlew clean assembleUserRelease bundleUserRelease assembleOwnerRelease bundleOwnerRelease
+
       - name: Verify user and owner release binaries
         working-directory: packaging/android
         run: |
           set -euo pipefail
           APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
           AAPT2="$ANDROID_HOME/build-tools/35.0.0/aapt2"
+
           for variant in user owner; do
             APK="app/build/outputs/apk/$variant/release/app-$variant-release.apk"
             [ -s "$APK" ] || { echo "Missing APK: $APK" >&2; find app/build/outputs/apk -maxdepth 4 -type f -print >&2; exit 1; }
@@ -50,6 +69,7 @@ jobs:
             "$AAPT2" dump badging "$APK" | grep -E "package: name=|application-label:|application-icon:" >/dev/null
             "$APKSIGNER" verify --verbose --print-certs "$APK"
           done
+
           for variant in user owner; do
             case "$variant" in
               user) AAB="app/build/outputs/bundle/userRelease/app-user-release.aab" ;;
@@ -60,7 +80,9 @@ jobs:
             unzip -l "$AAB" | grep -q 'base/manifest/AndroidManifest.xml'
             jarsigner -verify "$AAB" >/dev/null
           done
+
           echo "User and Owner Android packages verified."
+
       - uses: actions/upload-artifact@v7
         with:
           name: mtp2026-user-owner-android-release
