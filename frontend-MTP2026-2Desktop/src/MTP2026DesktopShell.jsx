@@ -351,6 +351,24 @@ function SystemMonitor({runtime,guestState}){
   </div>;
 }
 
+function DesktopSystemCenter({onOpen}){
+  const [tab,setTab]=useState('overview');
+  const tabs=[['overview','Overview'],['network','Network & Internet'],['devices','Devices'],['storage','Storage'],['security','Security']];
+  const cards={
+    overview:[['Desktop Shell','MTP2026 Desktop Shell','Running'],['Architecture','ARM64 / AArch64','Active'],['Guest Machine','qemu-aarch64-virt','Ready'],['Session','MTP2026 Desktop session','Active']],
+    network:[['Wi-Fi','MTP2026 network service','Managed'],['Bluetooth','MTP2026 Bluetooth service','Managed'],['Browser','MTP2026 Browser networking','Ready'],['Private Host','Native bridge connectivity','Available when host is native']],
+    devices:[['Display','MTP2026 desktop compositor','Connected'],['Keyboard','Desktop input service','Ready'],['Pointer','Desktop pointer service','Ready'],['Guest Input','Guest integration channel','Provider dependent']],
+    storage:[['Virtual Filesystem','Browser-persistent MTP2026 storage','Available'],['Native Filesystem','Host filesystem bridge','Read-only integration'],['Guest Disk','ARM64 guest storage','Provider dependent'],['Downloads','MTP2026 Downloads workspace','Available']],
+    security:[['Session Lock','Desktop session protection','Available'],['Guest Verification','Image contract + checksum','Enabled'],['App Boundary','MTP2026 WebApp sandbox','Enabled'],['Native Actions','Host operations','Restricted']],
+  };
+  return <div className="mtp11-system-center">
+    <header><div><b>MTP2026 System Center</b><small>Desktop controls, device state and runtime services</small></div><button onClick={()=>onOpen('settings')}><Settings/> Full Settings</button></header>
+    <nav className="mtp11-system-tabs">{tabs.map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}>{label}</button>)}</nav>
+    <div className="mtp11-system-grid">{cards[tab].map(([name,detail,status])=><button key={name} className="mtp11-system-card" onClick={()=>{if(tab==='network'||tab==='security')onOpen('settings');if(tab==='storage')onOpen('files');if(tab==='devices')onOpen('about')}}><span><b>{name}</b><small>{detail}</small></span><strong>{status}</strong></button>)}</div>
+    <div className="mtp11-system-actions"><button onClick={()=>onOpen('taskmgr')}><Activity/> Task Manager</button><button onClick={()=>onOpen('runtime')}><Cpu/> Guest Runtime</button><button onClick={()=>onOpen('terminal')}><Terminal/> Terminal</button><button onClick={()=>onOpen('control')}><SlidersHorizontal/> Control Panel</button></div>
+  </div>;
+}
+
 export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   const [start,setStart]=useState(false);
   const [runDialog,setRunDialog]=useState(false);
@@ -480,6 +498,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     if(id==='runtime')body=<GuestRuntime runtime={runtime} guestState={guestState} onState={setGuestState}/>;
     if(id==='about')body=<SystemInformation runtime={runtime} guestState={guestState}/>;
     if(id==='properties')body=<PropertiesApp/>;
+    if(id==='network'||id==='devices'||id==='storage'||id==='security'||id==='calendar'||id==='notifications')body=<DesktopSystemCenter onOpen={open}/>;
     if(id==='services')body=<ServiceManager/>;
     if(id==='terminal')body=<TerminalApp onOpen={open}/>;
     if(id==='legacy-terminal')body=<div className="mtp11-terminal"><div>mtp2026@desktop:~$ system-info</div><div>MTP2026 Desktop OS</div><div>Architecture: aarch64</div><div>Runtime: browser-shell / native-vm compatible</div><div>Guest profile: desktop</div><div className="cursor">█</div></div>;
