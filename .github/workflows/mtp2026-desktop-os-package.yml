@@ -51,7 +51,11 @@ jobs:
           test -s dist/manifest.webmanifest
           test -s dist/arm64/guest-manifest.json
           test -s dist/site-profile.js
-          grep -q "MTP2026" dist/index.html
+          test -s dist/build-info.json
+          test -s dist/arm64/mtp2026-arm64-kernel.bin || true
+          node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync('dist/manifest.webmanifest','utf8')); if(m.name!=='MTP2026 Desktop Edition'||m.start_url!=='/'||m.display!=='standalone') process.exit(1)"
+          node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('dist/arm64/guest-manifest.json','utf8')); const g=p.guests?.desktop; if(!g||g.id!=='desktop'||g.architecture!=='arm64'||g.imageRequired!==true) process.exit(1); console.log('Desktop guest contract:',JSON.stringify(g))"
+          grep -q "MTP2026 Desktop Edition" dist/index.html
           echo "MTP2026 Desktop Edition static application package is ready."
 
       - name: Package desktop application
