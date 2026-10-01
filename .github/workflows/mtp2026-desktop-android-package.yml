@@ -129,6 +129,31 @@ jobs:
           }
           EOF
 
+      - name: Build the exact MTP2026 Desktop guest profile
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential bc bison flex libssl-dev libelf-dev libgnutls28-dev cpio curl gzip rsync tar e2fsprogs gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu qemu-system-arm
+          chmod +x os/mtp2026-guest-profiles/build-all.sh
+          MTP2026_BUILD_PROFILES=desktop MTP2026_BUILD_BROWSER_RUNTIME=1 bash os/mtp2026-guest-profiles/build-all.sh
+          artifact="os/mtp2026-linux-arm64/out/artifacts/desktop"
+          test -s "$artifact/mtp2026-desktop-arm64-linux.Image"
+          test -s "$artifact/mtp2026-desktop-initramfs.cpio.gz"
+          test -s "$artifact/mtp2026-desktop-boot-disk.img"
+          test -s "$artifact/mtp2026-arm64-boot-firmware.bin"
+          mkdir -p packaging/android/app/src/main/assets/mtp2026-desktop-guest
+          tar -C "$artifact" -czf packaging/android/app/src/main/assets/mtp2026-desktop-guest/mtp2026-desktop-arm64-guest.tar.gz             mtp2026-desktop-arm64-linux.Image             mtp2026-desktop-initramfs.cpio.gz             mtp2026-desktop-boot-disk.img             mtp2026-arm64-boot-firmware.bin             firmware-manifest.json             boot-manifest.json
+          python3 - <<'PY'
+          import json, pathlib, hashlib
+          root=pathlib.Path("os/mtp2026-linux-arm64/out/artifacts/desktop")
+          manifest=json.loads(pathlib.Path("os/mtp2026-linux-arm64/out/artifacts/mtp2026-arm64-guest-manifest.json").read_text())
+          guest=manifest["guests"]["desktop"]
+          bundle=pathlib.Path("packaging/android/app/src/main/assets/mtp2026-desktop-guest/mtp2026-desktop-arm64-guest.tar.gz")
+          guest=dict(guest)
+          guest["androidImport"]={"asset":bundle.name,"sha256":hashlib.sha256(bundle.read_bytes()).hexdigest(),"bundled":True}
+          pathlib.Path("packaging/android/app/src/main/assets/mtp2026-desktop-guest/guest-profile.json").write_text(json.dumps(guest,indent=2)+"\n")
+          PY
+
       - name: Build Desktop Android packages
         working-directory: packaging/android
         run: |
