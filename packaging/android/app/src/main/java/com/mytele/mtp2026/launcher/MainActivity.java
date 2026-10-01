@@ -145,6 +145,7 @@ public final class MainActivity extends Activity {
             @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) { super.onReceivedError(view, request, error); }
         });
         webView.loadUrl(BuildConfig.WEB_APP_URL);
+        if ("desktop".equals(BuildConfig.EDITION)) ensureBundledDesktopGuestImported();
     }
 
     private void injectVexaStoreInstaller(WebView view, String url) {
@@ -313,7 +314,7 @@ public final class MainActivity extends Activity {
                 applyImmersive(true);
             });
         }
-        @JavascriptInterface public String getCapabilities() { return "{\"native\":true,\"orientation\":true,\"fullscreen\":true,\"filesystem\":false,\"notifications\":true,\"clipboard\":true,\"externalApps\":true,\"gamepad\":true,\"filePicker\":true,\"apkInstaller\":true,\"packageInstaller\":true}"; }
+        @JavascriptInterface public String getCapabilities() { return "{\"native\":true,\"orientation\":true,\"fullscreen\":true,\"filesystem\":false,\"notifications\":true,\"clipboard\":true,\"externalApps\":true,\"gamepad\":true,\"filePicker\":true,\"apkInstaller\":true,\"packageInstaller\":true,\"desktopGuestBundle\":true,\"desktopGuestProfile\":\"desktop\"}"; }
         @JavascriptInterface public String getDesktopGuestStatus() {
             if (!"desktop".equals(BuildConfig.EDITION)) return "{\\"state\\":\\"not-desktop-edition\\"}";
             android.content.SharedPreferences prefs = getSharedPreferences(DESKTOP_GUEST_PREFS, MODE_PRIVATE);
@@ -360,6 +361,20 @@ public final class MainActivity extends Activity {
             } catch (Exception ignored) {}
         }
         @JavascriptInterface public void installApkFromUrl(String url, String packageName) { installApkFromUrl(url, packageName); }
+    }
+
+    private void ensureBundledDesktopGuestImported() {
+        File guest = new File(getFilesDir(), DESKTOP_GUEST_ASSET);
+        if (guest.isFile() && guest.length() > 0) return;
+        new Thread(() -> {
+            try {
+                copyAsset(DESKTOP_GUEST_ASSET, guest);
+                copyAsset(DESKTOP_GUEST_META_ASSET, new File(getFilesDir(), DESKTOP_GUEST_META_ASSET));
+                postNotification("MTP2026 Desktop OS", "Full Desktop guest profile imported and ready.");
+            } catch (Exception error) {
+                postNotification("MTP2026 Desktop OS", "Desktop guest import could not complete: " + error.getMessage());
+            }
+        }, "mtp2026-desktop-guest-import").start();
     }
 
     private String readAssetText(String path) throws Exception {
