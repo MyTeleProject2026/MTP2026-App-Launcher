@@ -32,6 +32,10 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.content.res.AssetManager;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.File;
@@ -62,6 +66,8 @@ public final class MainActivity extends Activity {
             "mtp2026-desktopos.onrender.com"
     ));
     private BroadcastReceiver installReceiver;
+    private static final String DESKTOP_GUEST_ASSET = "mtp2026-desktop-guest/mtp2026-desktop-arm64-guest.tar.gz";
+    private static final String DESKTOP_GUEST_META_ASSET = "mtp2026-desktop-guest/guest-profile.json";
     private static final String DESKTOP_GUEST_ASSET_ROOT = "desktop-guest";
     private static final String DESKTOP_GUEST_PREFS = "mtp2026_guest";
 
@@ -319,8 +325,28 @@ public final class MainActivity extends Activity {
         @JavascriptInterface public String getArm64BootStatus() {
             String[] abis = Build.SUPPORTED_ABIS == null ? new String[0] : Build.SUPPORTED_ABIS; boolean arm64 = false;
             for (String abi : abis) if ("arm64-v8a".equalsIgnoreCase(abi) || "aarch64".equalsIgnoreCase(abi)) { arm64 = true; break; }
-            String architecture = System.getProperty("os.arch", "unknown"); String abi = abis.length == 0 ? "unknown" : abis[0]; String state = arm64 ? "native-arm64-ready" : "unsupported-host";
-            return "{\"state\":\"" + state + "\",\"host\":\"android\",\"architecture\":\"" + jsonSafe(architecture) + "\",\"hostAbi\":\"" + jsonSafe(abi) + "\",\"physicalOsBoot\":false,\"kernelControl\":false}";
+            String architecture = System.getProperty("os.arch", "unknown"); String abi = abis.length == 0 ? "unknown" : abis[0];
+            File guest = new File(getFilesDir(), "mtp2026-desktop-guest/mtp2026-desktop-arm64-guest.tar.gz");
+            String state = arm64 ? (guest.isFile() && guest.length() > 0 ? "desktop-guest-imported" : "native-arm64-ready") : "unsupported-host";
+            return "{\"state\":\"" + state + "\",\"host\":\"android\",\"architecture\":\"" + jsonSafe(architecture) + "\",\"hostAbi\":\"" + jsonSafe(abi) + "\",\"physicalOsBoot\":false,\"kernelControl\":false,\"desktopGuestProfile\":\"desktop\",\"desktopGuestBundleImported\":" + (guest.isFile() && guest.length() > 0 ? "true" : "false") + "}";
+        }
+        @JavascriptInterface public String getDesktopGuestProfile() {
+            try {
+                return readAssetText(DESKTOP_GUEST_META_ASSET);
+            } catch (Exception error) {
+                return "{\"profile\":\"desktop\",\"status\":\"asset-unavailable\"}";
+            }
+        }
+        @JavascriptInterface public boolean importBundledDesktopGuest() {
+            try {
+                copyAsset(DESKTOP_GUEST_ASSET, new File(getFilesDir(), DESKTOP_GUEST_ASSET));
+                copyAsset(DESKTOP_GUEST_META_ASSET, new File(getFilesDir(), DESKTOP_GUEST_META_ASSET));
+                postNotification("MTP2026 Desktop OS", "Desktop guest profile imported into native Android storage.");
+                return true;
+            } catch (Exception error) {
+                postNotification("MTP2026 Desktop OS", "Desktop guest import failed: " + error.getMessage());
+                return false;
+            }
         }
         private String jsonSafe(String value) { return value == null ? "unknown" : value.replace("\\", "\\\\").replace("\"", "\\\""); }
         @JavascriptInterface public boolean notify(String title, String body) { return postNotification(title, body); }
@@ -334,6 +360,23 @@ public final class MainActivity extends Activity {
             } catch (Exception ignored) {}
         }
         @JavascriptInterface public void installApkFromUrl(String url, String packageName) { installApkFromUrl(url, packageName); }
+    }
+
+    private String readAssetText(String path) throws Exception {
+        try (InputStream in = getAssets().open(path)) {
+            byte[] data = new byte[8192]; int n; StringBuilder out = new StringBuilder();
+            while ((n = in.read(data)) != -1) out.append(new String(data, 0, n, java.nio.charset.StandardCharsets.UTF_8));
+            return out.toString();
+        }
+    }
+
+    private void copyAsset(String assetPath, File destination) throws Exception {
+        File parent = destination.getParentFile(); if (parent != null && !parent.exists() && !parent.mkdirs()) throw new IllegalStateException("Cannot create guest storage");
+        try (InputStream in = getAssets().open(assetPath); OutputStream out = new FileOutputStream(destination)) {
+            byte[] buffer = new byte[1024 * 1024]; int read;
+            while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
+            out.flush();
+        }
     }
 
     private boolean route(Uri uri) {
