@@ -11,7 +11,7 @@ import { detectDesktopRuntime } from './mtp2026DesktopRuntimeAdapter.js';
 import { guestImageStatus, installGuestImageFromBytes, installGuestImageFromContract } from './guestImageManager.js';
 import { bootDesktopGuest, stopDesktopGuest } from './mtp2026DesktopGuestBridge.js';
 import { getDesktopSession, startDesktopSession, endDesktopSession, subscribeDesktopSession, isDesktopSessionLocked, setDesktopSessionLocked, subscribeDesktopSessionLock, clearDesktopSessionLock } from './mtp2026DesktopSession.js';
-import { getDesktopOSState, clearDesktopSystemEvents, setDesktopSessionState, setDesktopPowerState, registerDesktopProcess, unregisterDesktopProcess, subscribeDesktopOSState, getDesktopProcesses, getDesktopServices as getCoreDesktopServices, setDesktopServiceState, setDesktopOSSetting, addDesktopSystemEvent, setDesktopLocked, isDesktopLocked } from './mtp2026DesktopOSCore.js';
+import { getDesktopOSState, clearDesktopSystemEvents, setDesktopSessionState, setDesktopPowerState, setDesktopNetworkState, registerDesktopProcess, unregisterDesktopProcess, subscribeDesktopOSState, getDesktopProcesses, getDesktopServices as getCoreDesktopServices, setDesktopServiceState, setDesktopOSSetting, addDesktopSystemEvent, setDesktopLocked, isDesktopLocked } from './mtp2026DesktopOSCore.js';
 import { nativeSystemInfo, nativeListProcesses, nativeListServices, nativeFilesystemInfo, nativeListDirectory, nativeOpenPath, nativeRevealPath, nativeSystemMetrics, nativeQemuCapabilities, nativeQemuStatus, nativeQemuLaunch, nativeQemuStop, nativeQemuInstallBundle, nativeQemuBootInstalled, getNativeDesktopCapabilities } from './mtp2026DesktopNativeBridge.js';
 
 const DESKTOP_SYSTEM_APPS = Object.freeze([
