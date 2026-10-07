@@ -6,6 +6,10 @@ def requiredEnv = { String name ->
     value
 }
 
+def isReleaseBuildRequested = gradle.startParameter.taskNames.any { task ->
+    task.toLowerCase().contains('release')
+}
+
 def webAppUrl = project.findProperty('webAppUrl') ?: 'https://mtp2026-app-launcher.onrender.com'
 def ownerWebAppUrl = project.findProperty('ownerWebAppUrl') ?: 'https://vexaaccount-management.onrender.com/super-admin.html'
 def desktopWebAppUrl = project.findProperty('desktopWebAppUrl') ?: 'https://mtp2026-desktopos.onrender.com'
@@ -45,11 +49,24 @@ android {
 
     signingConfigs {
         release {
-            storeFile file(requiredEnv('KEYSTORE_PATH')); storePassword requiredEnv('KEYSTORE_PASSWORD'); keyAlias requiredEnv('KEY_ALIAS'); keyPassword requiredEnv('KEY_PASSWORD')
-            enableV1Signing true; enableV2Signing true; enableV3Signing true; enableV4Signing true
+            if (isReleaseBuildRequested) {
+                storeFile file(requiredEnv('KEYSTORE_PATH'))
+                storePassword requiredEnv('KEYSTORE_PASSWORD')
+                keyAlias requiredEnv('KEY_ALIAS')
+                keyPassword requiredEnv('KEY_PASSWORD')
+                enableV1Signing true
+                enableV2Signing true
+                enableV3Signing true
+                enableV4Signing true
+            }
         }
     }
-    buildTypes { release { minifyEnabled false; signingConfig signingConfigs.release } }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
     buildFeatures { buildConfig true }
     aaptOptions { noCompress 'gz', 'Image' }
 }
