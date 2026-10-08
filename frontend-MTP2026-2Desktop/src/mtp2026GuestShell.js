@@ -3,28 +3,11 @@ import { getInstalledVexaApps, syncInstalledVexaApps, installManualWebApp, unins
 
 const ROOT_ID = 'mtp2026-guest-shell';
 const STORE_URL = 'https://www.vexastore.2bd.net/';
-const GUEST_MODES = [
-  { id: 'mtp2026', label: 'MTP2026 Device OS', note: 'MTP2026-owned device shell' },
-  { id: 'android', label: 'MTP2026 Android OS', note: 'MTP2026 Android-compatible shell' },
-  { id: 'desktop', label: 'MTP2026 Desktop OS', note: 'MTP2026 desktop shell' },
-  { id: 'gaming', label: 'MTP2026 Gaming OS', note: 'MTP2026 gaming shell' },
-];
-
 function esc(v) { return String(v ?? '').replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c])); }
-function mode() { const value = document.documentElement.dataset.mtpDeviceMode || localStorage.getItem('mtp2026-default-system-os') || 'android'; return value === 'windows' ? 'desktop' : value === 'ios' ? 'mtp2026' : value; }
+function mode() { return 'desktop'; }
 function openUrl(url) { try { window.MTP2026NativePlatform?.nativeOpenExternal?.(url); } catch (_) { window.open(url, '_blank', 'noopener,noreferrer'); } }
 function openAccount() { window.dispatchEvent(new CustomEvent('mtp2026:open-account')); }
 function installed() { return getInstalledVexaApps().slice(0, 24); }
-function applyMode(nextMode) {
-  const normalized = nextMode === 'windows' ? 'desktop' : nextMode === 'ios' ? 'mtp2026' : nextMode;
-  const apply = window.MTP2026Runtime?.applyDeviceMode;
-  if (typeof apply === 'function') return apply(normalized);
-  localStorage.setItem('mtp2026-default-system-os', normalized);
-  document.documentElement.dataset.mtpDeviceMode = normalized;
-  window.dispatchEvent(new CustomEvent('mtp2026:device-mode', { detail: { mode: normalized } }));
-  return Promise.resolve(normalized);
-}
-
 function ensureStyles() {
   if (document.getElementById(`${ROOT_ID}-controls-style`)) return;
   const style = document.createElement('style');
@@ -40,24 +23,10 @@ function controlPanel() {
   panel = document.createElement('div');
   panel.id = `${ROOT_ID}-controls`;
   panel.className = 'mtp-guest-control-panel';
-  panel.innerHTML = `<div class="mtp-guest-control-card"><h3 data-panel-title>Device & OS</h3><p data-panel-subtitle>Switch between the four MTP2026-owned ARM64 guest profiles.</p><div data-panel-body></div><div class="mtp-guest-control-actions"><button type="button" data-panel-close>Close</button></div></div>`;
+  panel.innerHTML = `<div class="mtp-guest-control-card"><h3 data-panel-title>Install WebApp</h3><p data-panel-subtitle>Manage WebApps inside MTP2026 Desktop OS.</p><div data-panel-body></div><div class="mtp-guest-control-actions"><button type="button" data-panel-close>Close</button></div></div>`;
   document.body.appendChild(panel);
   panel.querySelector('[data-panel-close]').onclick = () => panel.classList.remove('open');
   return panel;
-}
-
-function openDevicePanel() {
-  const panel = controlPanel();
-  panel.querySelector('[data-panel-title]').textContent = 'Device & OS';
-  panel.querySelector('[data-panel-subtitle]').textContent = 'Switch between the four MTP2026-owned ARM64 guest profiles.';
-  const body = panel.querySelector('[data-panel-body]');
-  body.innerHTML = `<div class="mtp-guest-control-grid">${GUEST_MODES.map(item => `<button type="button" data-mode="${item.id}" class="${mode() === item.id ? 'active' : ''}"><b>${esc(item.label)}</b><small>${esc(item.note)}</small></button>`).join('')}</div>`;
-  body.querySelectorAll('[data-mode]').forEach(button => button.onclick = async () => {
-    const next = button.dataset.mode;
-    button.disabled = true;
-    try { await applyMode(next); panel.classList.remove('open'); render(); } catch (error) { window.dispatchEvent(new CustomEvent('mtp2026:guest-control-error', { detail: { error: String(error?.message || error) } })); } finally { button.disabled = false; }
-  });
-  panel.classList.add('open');
 }
 
 function openWebAppPanel() {
@@ -105,20 +74,19 @@ function render() {
   if (!root) { root = document.createElement('section'); root.id = ROOT_ID; document.body.appendChild(root); }
   const apps = installed();
   const appButtons = apps.map(app => `<button data-app-id="${esc(app.id || app.slug || app.url)}"><img src="${esc(app.iconUrl || '/branding/mtp2026-mark.svg')}" alt=""><span>${esc(app.name || 'VexaApp')}</span></button>`).join('');
-  const controls = `<button data-action="device-os">Device & OS</button><button data-action="webapp">Install WebApp</button>`;
+  const controls = `<button data-action="webapp">Install WebApp</button>`;
 
   if (profile.layout === 'desktop') {
     root.innerHTML = `<div class="mtp-guest-desktop"><header><img src="/branding/mtp2026-mark.svg" alt="MTP2026"><strong>${esc(profile.label)}</strong><button data-action="account" class="mtp-guest-account">VexaAccount</button><span class="mtp-guest-clock">${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span></header><main><aside><button data-action="start">▦ Start</button><button data-action="store">VexaStore</button>${controls}<button data-action="settings">Settings</button><button data-action="files">Files</button></aside><section><div class="mtp-guest-desktop-welcome"><span>${esc(profile.shortLabel)}</span><h2>${esc(profile.label)}</h2><p>ARM64 MTP2026 guest workspace · VexaAccount session · VexaStore applications</p></div><div class="mtp-guest-apps">${appButtons || '<small>No VexaStore apps installed yet.</small>'}</div></section></main><footer><span>⌁ ${esc(profile.family)}</span><span>ARM64</span><span>VexaAccount</span></footer></div>`;
   } else if (profile.layout === 'gaming') {
-    root.innerHTML = `<div class="mtp-guest-gaming"><header><img src="/branding/mtp2026-mark.svg" alt="MTP2026"><div><small>MTP2026 GAMING OS</small><strong>Game Hub</strong></div><button data-action="account">VexaAccount</button><button data-action="store">VexaStore</button></header><div class="mtp-gaming-stats"><div><b>ARM64</b><small>Guest CPU</small></div><div><b>${apps.length}</b><small>Installed apps</small></div><div><b>Vexa</b><small>Account</small></div></div><div class="mtp-guest-control-actions" style="padding:10px"><button data-action="device-os">Device & OS</button><button data-action="webapp">Install WebApp</button></div><section class="mtp-gaming-apps">${appButtons || '<small>No installed VexaApps. Open VexaStore to add applications.</small>'}</section><footer><button data-action="settings">Settings</button><button data-action="files">Storage</button><button data-action="account">Account</button><button data-action="store">VexaStore</button></footer></div>`;
+    root.innerHTML = `<div class="mtp-guest-gaming"><header><img src="/branding/mtp2026-mark.svg" alt="MTP2026"><div><small>MTP2026 GAMING OS</small><strong>Game Hub</strong></div><button data-action="account">VexaAccount</button><button data-action="store">VexaStore</button></header><div class="mtp-gaming-stats"><div><b>ARM64</b><small>Guest CPU</small></div><div><b>${apps.length}</b><small>Installed apps</small></div><div><b>Vexa</b><small>Account</small></div></div><div class="mtp-guest-control-actions" style="padding:10px"><button data-action="webapp">Install WebApp</button></div><section class="mtp-gaming-apps">${appButtons || '<small>No installed VexaApps. Open VexaStore to add applications.</small>'}</section><footer><button data-action="settings">Settings</button><button data-action="files">Storage</button><button data-action="account">Account</button><button data-action="store">VexaStore</button></footer></div>`;
   } else {
-    root.innerHTML = `<div class="mtp-guest-mobile"><header><div><small>${esc(profile.family.toUpperCase())}</small><strong>${esc(profile.shortLabel)}</strong></div><button data-action="account" class="mtp-guest-account">Vexa</button><span>${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span></header><section class="mtp-mobile-widgets"><button data-action="store"><b>VexaStore</b><small>Install VexaApps</small></button><button data-action="device-os"><b>Device & OS</b><small>Switch MTP2026 guest</small></button><button data-action="webapp"><b>Install WebApp</b><small>HTTPS WebApp URL</small></button><button data-action="settings"><b>Settings</b><small>Account · Storage · OS</small></button></section><section class="mtp-mobile-apps">${appButtons || '<small>No installed VexaApps yet.</small>'}</section><nav><button data-action="home">Home</button><button data-action="store">Store</button><button data-action="files">Files</button><button data-action="settings">Settings</button><button data-action="account">Account</button></nav></div>`;
+    root.innerHTML = `<div class="mtp-guest-mobile"><header><div><small>${esc(profile.family.toUpperCase())}</small><strong>${esc(profile.shortLabel)}</strong></div><button data-action="account" class="mtp-guest-account">Vexa</button><span>${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span></header><section class="mtp-mobile-widgets"><button data-action="store"><b>VexaStore</b><small>Install VexaApps</small></button><button data-action="webapp"><b>Install WebApp</b><small>Add an HTTPS app to Desktop OS</small></button><button data-action="webapp"><b>Install WebApp</b><small>HTTPS WebApp URL</small></button><button data-action="settings"><b>Settings</b><small>Account · Storage · OS</small></button></section><section class="mtp-mobile-apps">${appButtons || '<small>No installed VexaApps yet.</small>'}</section><nav><button data-action="home">Home</button><button data-action="store">Store</button><button data-action="files">Files</button><button data-action="settings">Settings</button><button data-action="account">Account</button></nav></div>`;
   }
 
   root.querySelectorAll('[data-app-id]').forEach(b => b.onclick = () => { const app = apps.find(item => String(item.id || item.slug || item.url) === String(b.dataset.appId)); if (app) void launchVexaApp(app); });
   root.querySelectorAll('[data-action="store"]').forEach(b => b.onclick = () => openUrl(STORE_URL));
   root.querySelectorAll('[data-action="account"]').forEach(b => b.onclick = openAccount);
-  root.querySelectorAll('[data-action="device-os"]').forEach(b => b.onclick = openDevicePanel);
   root.querySelectorAll('[data-action="webapp"]').forEach(b => b.onclick = openWebAppPanel);
   root.querySelectorAll('[data-action="settings"]').forEach(b => b.onclick = () => window.dispatchEvent(new CustomEvent('mtp2026:open-settings')));
   root.querySelectorAll('[data-action="files"]').forEach(b => b.onclick = () => window.dispatchEvent(new CustomEvent('mtp2026:open-files')));
@@ -129,8 +97,6 @@ async function refreshLibraryAndRender() { await syncInstalledVexaApps(); render
 function setVisible(visible) { const root = document.getElementById(ROOT_ID); if (root) root.hidden = !visible; }
 
 window.addEventListener('mtp2026:guest-state', event => { const state = event.detail || {}; if (state.phase === 'ready' && state.running) { render(); setVisible(true); refreshLibraryAndRender().catch(() => {}); } if (['stopped','error','needs-install'].includes(state.phase)) setVisible(false); });
-window.addEventListener('mtp2026:device-mode', () => refreshLibraryAndRender().catch(() => render()));
-window.addEventListener('mtp2026:default-system-os', () => refreshLibraryAndRender().catch(() => render()));
 window.addEventListener('mtp2026:vexastore-installed', () => refreshLibraryAndRender().catch(() => render()));
 window.addEventListener('mtp2026:vexastore-uninstalled', () => refreshLibraryAndRender().catch(() => render()));
 window.addEventListener('mtp2026:vexastore-library-synced', render);
