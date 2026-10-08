@@ -142,7 +142,7 @@ function FileExplorer(){
   const pushHistory=(label,path)=>{const h=history.slice(0,historyIndex+1).concat({label,path});setHistory(h);setHistoryIndex(h.length-1);setFolder(label);setSelected(null);};
   const navigateVirtual=next=>{if(mode!=='virtual'){setHistory([{label:'This PC',path:null}]);setHistoryIndex(0);}setMode('virtual');setQuery('');const h=mode==='virtual'?history.slice(0,historyIndex+1):[{label:'This PC',path:null}];const nextHistory=h.concat({label:next,path:null});setHistory(nextHistory);setHistoryIndex(nextHistory.length-1);setFolder(next);setSelected(null);setVirtualFs(getDesktopFilesystem());};
   const navigateNative=(label,path)=>{if(mode!=='native'){setHistory([{label:'This PC',path:nativeInfo?.root||path}]);setHistoryIndex(0);}setQuery('');setMode('native');const h=mode==='native'?history.slice(0,historyIndex+1):[{label:'This PC',path:nativeInfo?.root||path}];const nextHistory=h.concat({label,path});setHistory(nextHistory);setHistoryIndex(nextHistory.length-1);setFolder(label);setSelected(null);void loadNative(path);};
-  useEffect(()=>{void nativeFilesystemInfo().then(r=>{if(r?.supported&&r.value?.root){setNativeInfo(r.value);setHistory([{label:'This PC',path:r.value.root}]);setHistoryIndex(0);setFolder('This PC');void loadNative(r.value.root);}});},[]);
+  useEffect(()=>{setNativeInfo(null);setMode('virtual');setHistory([{label:'This PC',path:''}]);setHistoryIndex(0);setFolder('This PC');setVirtualFs(getDesktopFilesystem());},[]);
   useEffect(()=>{const handler=e=>{if(!e.detail?.folder)return;const target=e.detail.folder;setQuery('');if(target==='This PC'&&nativeInfo?.root){navigateNative('This PC',nativeInfo.root);return;}navigateVirtual(target);};window.addEventListener('mtp2026:explorer-navigate',handler);return()=>window.removeEventListener('mtp2026:explorer-navigate',handler);},[nativeInfo]);
   useEffect(()=>{const key=e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'){e.preventDefault();copySelected();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'){e.preventDefault();paste();}if(e.key==='Delete'&&!editor&&mode==='virtual'){e.preventDefault();remove();}if(e.key==='Enter'&&selected)openEntry(selected);};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);},[selected,folder,clipboard,mode,nativePath,editor]);
   const refresh=()=>{setSelected(null);if(mode==='native'&&nativePath){void loadNative(nativePath);}else setVirtualFs(getDesktopFilesystem());};
@@ -161,7 +161,7 @@ function FileExplorer(){
   const paste=()=>{if(mode==='native'||!clipboard)return;const target=folder==='This PC'?'Documents':folder;let pastedName=clipboard.name,n=1;while((getDesktopFilesystem()[target]||[]).some(x=>x.name===pastedName)){pastedName=clipboard.name.replace(/(\.[^.]+)?$/,' copy'+(n>1?' '+n:'')+'$1');n++;}copyDesktopEntry(clipboard.sourceFolder,clipboard.name,target,pastedName);refresh();};
   const locationLabel=mode==='native'?(nativePath||'Native Host'):(folder==='This PC'?'This PC':'This PC › '+folder);
   return <div className="mtp11-files">
-    <aside className="mtp11-file-nav"><div className="mtp11-file-source"><span>Explorer source</span><div><button className={mode==='virtual'?'active':''} onClick={()=>switchMode('virtual')}><HardDrive/> Virtual</button><button className={mode==='native'?'active':''} disabled={!nativeInfo} onClick={()=>switchMode('native')}><Monitor/> Native</button></div></div>
+    <aside className="mtp11-file-nav"><div className="mtp11-file-source"><span>Explorer source</span><div><button className={mode==='virtual'?'active':''} onClick={()=>switchMode('virtual')}><HardDrive/> Virtual</button><button className={mode==='native'?'active':''} disabled={!nativeInfo} onClick={()=>switchMode('native')}><Monitor/> Native (host)</button></div></div>
       <button className={mode==='native'&&folder==='This PC'?'active':''} onClick={()=>nativeInfo?.root?switchMode('native'):navigateVirtual('This PC')}><HardDrive/> This PC</button>{folders.map(x=><button key={x} className={mode==='virtual'&&folder===x?'active':''} onClick={()=>navigateVirtual(x)}><Folder/> {x}</button>)}
     </aside>
     <main className="mtp11-file-main">
@@ -243,7 +243,7 @@ function AccountCenter({onLock,onEnd,onClose}){
   const refresh=()=>setSession(getDesktopSession());
   const lock=()=>{setDesktopLocked(true);setDesktopSessionLocked(true);onLock?.();};
   const unlock=()=>{setDesktopSessionLocked(false);setDesktopLocked(false);};
-  const openVexaAccount=()=>window.open('https://vexaaccount-management.onrender.com','_blank','noopener,noreferrer');
+  const openVexaAccount=()=>window.dispatchEvent(new CustomEvent('mtp2026:browser-open',{detail:{url:'https://vexaaccount-management.onrender.com'}}));
   const end=()=>{clearDesktopSessionLock();setDesktopLocked(false);endDesktopSession();setDesktopSessionState('inactive');setSession(getDesktopSession());window.dispatchEvent(new CustomEvent('mtp2026:account-session-ended'));onEnd?.();};
   return <div className="mtp11-account-center">
     <div className="mtp11-account-hero"><div className="mtp11-account-avatar">M</div><div><div className="mtp11-runtime-kicker">MTP2026 ACCOUNT</div><h2>MTP2026 User</h2><p>VexaAccount protected desktop identity</p></div></div>
@@ -292,7 +292,7 @@ function SettingsApp(){
       <div className="mtp11-setting-card"><Grid2X2/><div><b>Desktop layout</b><span>Reset shortcut positions to the default grid</span></div><button onClick={()=>event('mtp2026:reset-desktop-layout')}>Reset</button></div>
       <div className="mtp11-setting-card"><Activity/><div><b>Motion effects</b><span>Window and shell animations</span></div><button onClick={()=>toggle(setAnimations,'mtp2026-desktop-animations',animations)}>{animations?'Enabled':'Disabled'}</button></div></>,
     apps:<><h2>Apps</h2><p>Manage applications available in the MTP2026 Desktop shell.</p>
-      <div className="mtp11-setting-card"><Store/><div><b>VexaStore</b><span>Open the MTP2026 application hub</span></div><button onClick={()=>window.open('https://www.vexastore.2bd.net/','_blank','noopener,noreferrer')}>Open</button></div>
+      <div className="mtp11-setting-card"><Store/><div><b>VexaStore</b><span>Open the MTP2026 application hub</span></div><button onClick={()=>event('mtp2026:browser-open',{url:'https://www.vexastore.2bd.net/'})}>Open</button></div>
       <div className="mtp11-setting-card"><Globe2/><div><b>MTP2026 Browser</b><span>Web application runtime surface</span></div><button onClick={()=>event('mtp2026:open-window',{id:'browser'})}>Launch</button></div>
       <div className="mtp11-setting-card"><Terminal/><div><b>Terminal</b><span>MTP2026 diagnostic shell</span></div><button onClick={()=>event('mtp2026:open-window',{id:'terminal'})}>Launch</button></div></>,
     accounts:<><h2>Accounts</h2><p>VexaAccount session and local desktop identity.</p>
@@ -584,7 +584,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
   }
   function close(id){unregisterDesktopProcess('app:'+id);setWindows(ws=>ws.filter(w=>w!==id));setMinimized(m=>m.filter(x=>x!==id));setMaximized(m=>{const next={...m};delete next[id];return next});if(active===id)setActive(null);setWindowDesktops(d=>{const n={...d};delete n[id];return n});setSnapped(s=>{const n={...s};delete n[id];return n});}
   function open(id){
-    if(id==='store'){window.open('https://www.vexastore.2bd.net/','_blank','noopener,noreferrer');setStart(false);return;}
+    if(id==='store'){setBrowserUrl('https://www.vexastore.2bd.net/');setStart(false);if(!windows.includes('browser')){setWindows(ws=>[...ws,'browser']);setWindowDesktops(d=>({...d,browser:currentDesktop}));}setActive('browser');registerDesktopProcess({id:'app:browser',name:'browser',type:'application',status:'running'});return;}
     const existing=windows.find(w=>w===id);
     if(!existing){setWindows(ws=>[...ws,id]);setWindowDesktops(d=>({...d,[id]:currentDesktop}));}
     registerDesktopProcess({id:'app:'+id,name:id,type:'application',status:'running'});
