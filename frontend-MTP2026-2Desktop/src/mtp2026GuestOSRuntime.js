@@ -48,7 +48,7 @@ function layer() {
   root.innerHTML = `
     <div class="mtp-os-overlay" data-overlay="start"><div class="mtp-os-panel"><h2>MTP2026 Start</h2><p>Applications, system tools and guest controls.</p><input data-start-search placeholder="Search apps and settings" style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:#050b15;color:#fff"><div class="mtp-os-grid" data-start-grid style="margin-top:10px"></div><div class="mtp-os-actions"><button data-close>Close</button></div></div></div>
     <div class="mtp-os-overlay" data-overlay="settings"><div class="mtp-os-panel"><h2>MTP2026 Settings</h2><p>Guest display, sound, notifications, storage and profile controls.</p><div class="mtp-os-grid"><button class="mtp-os-card" data-setting="orientation"><b>Display orientation</b><small data-value="orientation">Auto</small></button><button class="mtp-os-card" data-setting="brightness"><b>Brightness</b><small data-value="brightness">100%</small></button><button class="mtp-os-card" data-setting="sound"><b>Sound</b><small data-value="sound">On</small></button><button class="mtp-os-card" data-setting="notifications"><b>Notifications</b><small data-value="notifications">On</small></button><button class="mtp-os-card" data-setting="storage"><b>Guest storage</b><small>Local MTP2026 storage</small></button><button class="mtp-os-card" data-setting="account"><b>VexaAccount</b><small>Open account center</small></button><button class="mtp-os-card" data-setting="device"><b>Device & OS</b><small>Switch guest profile</small></button><button class="mtp-os-card" data-setting="fullscreen"><b>Fullscreen</b><small>Enter MTP2026 fullscreen</small></button><button class="mtp-os-card" data-setting="power"><b>Power</b><small>Stop current guest</small></button></div><div class="mtp-os-actions"><button data-close>Close</button></div></div></div>
-    <div class="mtp-os-overlay" data-overlay="files"><div class="mtp-os-panel"><h2>This PC · MTP2026 Storage</h2><p>Virtual guest folders backed by the MTP2026 storage layer.</p><div class="mtp-os-grid"><button class="mtp-os-card"><b>🖥 Desktop</b><small>Guest desktop files</small></button><button class="mtp-os-card"><b>📄 Documents</b><small>User documents</small></button><button class="mtp-os-card"><b>⬇ Downloads</b><small>Downloaded files</small></button><button class="mtp-os-card"><b>🖼 Pictures</b><small>Images and media</small></button><button class="mtp-os-card"><b>🎵 Music</b><small>Audio library</small></button><button class="mtp-os-card"><b>🎮 Games</b><small>Game data</small></button><button class="mtp-os-card"><b>☁ MTP2026 Cloud</b><small>Account-backed storage</small></button><button class="mtp-os-card"><b>💾 Device Storage</b><small>Local guest storage</small></button></div><div class="mtp-os-actions"><button data-close>Close</button></div></div></div>
+    <div class="mtp-os-overlay" data-overlay="files"><div class="mtp-os-panel"><h2>This PC · MTP2026 Storage</h2><p>Virtual guest folders backed by the MTP2026 storage layer.</p><div class="mtp-os-grid"><button class="mtp-os-card" data-guest-folder="Desktop"><b>🖥 Desktop</b><small>Guest desktop files</small></button><button class="mtp-os-card" data-guest-folder="Documents"><b>📄 Documents</b><small>User documents</small></button><button class="mtp-os-card" data-guest-folder="Downloads"><b>⬇ Downloads</b><small>Downloaded files</small></button><button class="mtp-os-card" data-guest-folder="Pictures"><b>🖼 Pictures</b><small>Images and media</small></button><button class="mtp-os-card" data-guest-folder="Music"><b>🎵 Music</b><small>Audio library</small></button><button class="mtp-os-card" data-guest-folder="Games"><b>🎮 Games</b><small>Game data</small></button><button class="mtp-os-card" data-guest-cloud><b>☁ MTP2026 Cloud</b><small>Account-backed storage</small></button><button class="mtp-os-card" data-guest-device><b>💾 Device Storage</b><small>Local guest storage</small></button></div><div class="mtp-os-actions"><button data-close>Close</button></div></div></div>
     <div class="mtp-os-mobile-shade" data-mobile-center><div class="mtp-os-mobile-card"><h2>Control Center</h2><p>Quick controls for the MTP2026 mobile guest.</p><div class="mtp-os-toggle"><button data-quick="wifi"><b>Network</b><small>Connected</small></button><button data-quick="bluetooth"><b>Bluetooth</b><small>Ready</small></button><button data-quick="rotation"><b>Rotation</b><small>Auto</small></button><button data-quick="dnd"><b>Do Not Disturb</b><small>Off</small></button><button data-quick="sound"><b>Sound</b><small>On</small></button><button data-quick="battery"><b>Power</b><small>Guest battery</small></button></div><div class="mtp-os-actions"><button data-mobile-close>Close</button></div></div></div>
     <div class="mtp-os-window" data-window="app"><header><b data-window-title>VexaApp</b><button data-window-min>—</button><button data-window-close>×</button></header><div class="body" data-window-body></div></div>
     <div class="mtp-os-game-hud" data-game-hud><span>ARM64 · 60 FPS</span><span>GPU Guest</span><span>PERFORMANCE</span></div>
@@ -76,7 +76,7 @@ function startMenu() {
     { name:'This PC', action:()=>openOverlay('files') },
     { name:'Device & OS', action:()=>window.dispatchEvent(new CustomEvent('mtp2026:open-device-os')) },
     { name:'VexaAccount', action:()=>window.dispatchEvent(new CustomEvent('mtp2026:open-account')) },
-    { name:'VexaStore', action:()=>window.open('https://www.vexastore.2bd.net/','_blank','noopener,noreferrer') },
+    { name:'VexaStore', action:()=>window.dispatchEvent(new CustomEvent('mtp2026:browser-open',{detail:{url:'https://www.vexastore.2bd.net/'}})) },
   ];
   grid.innerHTML = base.map((x,i)=>`<button class="mtp-os-card" data-start-item="${i}"><b>${esc(x.name)}</b><small>MTP2026 system service</small></button>`).join('') + apps().slice(0,18).map((a,i)=>`<button class="mtp-os-card" data-app-item="${i}"><b>${esc(a.name || a.title || 'VexaApp')}</b><small>Installed WebApp</small></button>`).join('');
   grid.querySelectorAll('[data-start-item]').forEach((b,i)=>b.onclick=()=>{ closeOverlays(); base[i].action(); });
@@ -107,7 +107,22 @@ function bind(root) {
   root.querySelector('[data-files]').onclick = () => openOverlay('files');
   root.querySelector('[data-settings]').onclick = () => openOverlay('settings');
   root.querySelector('[data-account]').onclick = () => window.dispatchEvent(new CustomEvent('mtp2026:open-account'));
-  root.querySelector('[data-store]').onclick = () => window.open('https://www.vexastore.2bd.net/','_blank','noopener,noreferrer');
+  root.querySelector('[data-store]').onclick = () => window.dispatchEvent(new CustomEvent('mtp2026:browser-open',{detail:{url:'https://www.vexastore.2bd.net/'}}));
+  root.querySelectorAll('[data-guest-folder]').forEach(b=>b.onclick=()=>{
+    const folder=b.dataset.guestFolder;
+    closeOverlays();
+    window.dispatchEvent(new CustomEvent('mtp2026:open-window',{detail:{id:'files'}}));
+    setTimeout(()=>window.dispatchEvent(new CustomEvent('mtp2026:explorer-navigate',{detail:{folder}})),0);
+  });
+  root.querySelector('[data-guest-cloud]')?.addEventListener('click',()=>{
+    closeOverlays();
+    window.dispatchEvent(new CustomEvent('mtp2026:open-window',{detail:{id:'browser'}}));
+    window.dispatchEvent(new CustomEvent('mtp2026:browser-open',{detail:{url:'https://www.vexastore.2bd.net/cloud'}}));
+  });
+  root.querySelector('[data-guest-device]')?.addEventListener('click',()=>{
+    closeOverlays();
+    window.dispatchEvent(new CustomEvent('mtp2026:open-window',{detail:{id:'files'}}));
+  });
   root.querySelectorAll('[data-close]').forEach(b => b.onclick = closeOverlays);
   root.querySelector('[data-mobile-close]').onclick = closeOverlays;
   root.querySelector('[data-window-close]').onclick = () => root.querySelector('[data-window="app"]').classList.remove('open');
