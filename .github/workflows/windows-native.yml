@@ -15,7 +15,7 @@ jobs:
           node-version: 20
       - uses: dtolnay/rust-toolchain@stable
       - name: Install frontend dependencies
-        working-directory: frontend
+        working-directory: frontend-MTP2026-2Desktop
         run: npm install
       - name: Build web application
         run: npm run frontend:build
@@ -25,7 +25,7 @@ jobs:
         working-directory: native/windows-tauri
         shell: pwsh
         run: |
-          cargo tauri icon ../../frontend/public/icon.svg --output icons
+          cargo tauri icon ../../frontend-MTP2026-2Desktop/public/icon.svg --output icons
           $iconPath = Join-Path $env:GITHUB_WORKSPACE 'native/windows-tauri/icons/icon.ico'
           if (-not (Test-Path -LiteralPath $iconPath -PathType Leaf)) {
             throw "Tauri icon generation did not create the required Windows ICO: $iconPath"
