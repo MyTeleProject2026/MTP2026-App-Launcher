@@ -8,6 +8,7 @@ on:
       - 'os/mtp2026-linux-arm64/**'
       - 'os/mtp2026-guest-profiles/**'
       - 'frontend/public/arm64/guest-manifest.json'
+      - 'frontend-MTP2026-2Desktop/public/arm64/guest-manifest.json'
       - 'tools/**'
       - 'frontend/src/arm64GuestRuntime.js'
       - 'frontend/src/guestBootController.js'
