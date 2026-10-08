@@ -49,6 +49,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential bc bison flex libssl-dev libelf-dev libgnutls28-dev cpio curl gzip rsync gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu qemu-system-arm mtools e2fsprogs
 
+      - name: Enable ARM64 container emulation
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - name: Build complete MTP2026 Desktop OS guest
         env:
           MTP2026_BUILD_PROFILES: desktop
