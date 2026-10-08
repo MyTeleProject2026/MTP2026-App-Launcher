@@ -175,7 +175,7 @@ export async function stopGuest() {
     if (native?.stopGuest) await native.stopGuest(id);
     else if (id) await stopArm64Guest(id);
   } finally {
-    publish({ phase: 'stopped', running: false, error: null, recoverable: false });
+    publish({ phase: 'stopped', running: false, provider: 'none', progress: 0, error: null, recoverable: false, requiresGuestImage: false });
   }
 }
 
