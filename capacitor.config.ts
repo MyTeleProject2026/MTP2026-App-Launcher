@@ -2,8 +2,8 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.myteleproject2026.mtp2026',
-  appName: 'MTP2026 App Launcher',
-  webDir: 'frontend/dist',
+  appName: 'MTP2026 Desktop Edition',
+  webDir: 'frontend-MTP2026-2Desktop/dist',
   bundledWebRuntime: false,
   server: {
     androidScheme: 'https'
