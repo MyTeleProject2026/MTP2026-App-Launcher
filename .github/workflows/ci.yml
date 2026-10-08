@@ -1,4 +1,4 @@
-name: MTP2026 App Launcher CI
+name: MTP2026 2DesktopOS CI
 
 on:
   push:
@@ -30,10 +30,6 @@ jobs:
       - name: Install repository dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm install --no-audit --no-fund
-
       - name: Check JavaScript syntax
         run: |
           set -euo pipefail
@@ -50,11 +46,11 @@ jobs:
           set -euo pipefail
           node - <<'NODE'
           const fs=require('fs');
-          const branding=JSON.parse(fs.readFileSync('frontend/public/branding/mtp2026-os-branding.json','utf8'));
+          const branding=JSON.parse(fs.readFileSync('frontend-MTP2026-2Desktop/public/branding/mtp2026-os-branding.json','utf8'));
           if (branding.name!=='MTP2026' || branding.deviceName!=='MTP2026 Device' || branding.osName!=='MTP2026 Device OS' || branding.identity?.provider!=='VexaAccount' || branding.store?.provider!=='VexaStore') {
             throw new Error('Invalid MTP2026 branding contract');
           }
-          const manifest=JSON.parse(fs.readFileSync('frontend/public/arm64/guest-manifest.json','utf8'));
+          const manifest=JSON.parse(fs.readFileSync('frontend-MTP2026-2Desktop/public/arm64/guest-manifest.json','utf8'));
           for (const id of ['mtp2026','android','desktop','gaming']) {
             const guest=manifest.guests?.[id];
             if (!guest || guest.architecture!=='arm64' || guest.imageRequired!==true) throw new Error('Invalid guest contract: '+id);
@@ -63,9 +59,9 @@ jobs:
           if (manifest.controlKernel?.realOs!==false) throw new Error('Control kernel must remain classified as non-OS control runtime');
           console.log('MTP2026 branding and guest contracts verified');
           NODE
-          test -s frontend/public/branding/mtp2026-mark.svg
-          test -s frontend/public/branding/mtp2026-logo-horizontal.svg
-          test -s frontend/public/branding/mtp2026-branding.json
+          test -s frontend-MTP2026-2Desktop/public/branding/mtp2026-mark.svg
+          test -s frontend-MTP2026-2Desktop/public/branding/mtp2026-logo-horizontal.svg
+          test -s frontend-MTP2026-2Desktop/public/branding/mtp2026-branding.json
           test -s os/mtp2026-linux-arm64/build.sh
           test -s os/mtp2026-guest-profiles/build-all.sh
 
@@ -77,7 +73,7 @@ jobs:
           npm run integration:generate -- --app ci-fixture --output /tmp/mtp-generated --framework all
           npm run integration:verify -- --dir /tmp/mtp-generated
 
-      - name: Build primary frontend
+      - name: Build MTP2026 2DesktopOS frontend
         run: npm run frontend:build
 
       - name: Install Desktop Edition dependencies
