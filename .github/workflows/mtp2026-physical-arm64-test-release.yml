@@ -7,12 +7,12 @@ on:
     paths:
       - 'os/mtp2026-linux-arm64/**'
       - 'os/mtp2026-guest-profiles/**'
-      - 'frontend/public/arm64/guest-manifest.json'
+      - 'frontend-MTP2026-2Desktop/public/arm64/guest-manifest.json'
       - 'frontend-MTP2026-2Desktop/public/arm64/guest-manifest.json'
       - 'tools/**'
-      - 'frontend/src/arm64GuestRuntime.js'
-      - 'frontend/src/guestBootController.js'
-      - 'frontend/src/guestRuntimeManifest.js'
+      - 'frontend-MTP2026-2Desktop/src/arm64GuestRuntime.js'
+      - 'frontend-MTP2026-2Desktop/src/guestBootController.js'
+      - 'frontend-MTP2026-2Desktop/src/guestRuntimeManifest.js'
       - 'native/windows-tauri/**'
       - '.github/workflows/mtp2026-physical-arm64-test-release.yml'
 
@@ -42,8 +42,8 @@ jobs:
             "MTP2026 Browser|os/mtp2026-linux-arm64/rootfs/browser.json"
             'CONFIG_DRM_VIRTIO_GPU|os/mtp2026-linux-arm64/build.sh'
             'CONFIG_DRM_FBDEV_EMULATION|os/mtp2026-linux-arm64/build.sh'
-            "QemuWasmGuest|frontend/src/arm64GuestRuntime.js frontend/src/qemuWasmGuestRuntime.js"
-            "browser-launcher|frontend/src/guestBootController.js frontend/src/arm64GuestRuntime.js"
+            "QemuWasmGuest|frontend-MTP2026-2Desktop/src/arm64GuestRuntime.js frontend-MTP2026-2Desktop/src/qemuWasmGuestRuntime.js"
+            "browser-launcher|frontend-MTP2026-2Desktop/src/guestBootController.js frontend-MTP2026-2Desktop/src/arm64GuestRuntime.js"
             "tauri-qemu-system-aarch64|native/windows-tauri/src/lib.rs"
             "MTP2026 ARM64 Boot Firmware|os/mtp2026-firmware/README.md"
           )
