@@ -13,15 +13,16 @@ export default defineConfig({
     {
       name: 'mtp-build-info',
       transformIndexHtml(html) {
-        return html.replace('</head>', '<script type="module" src="/src/networkResilience.js"></script><script type="module" src="/src/systemBootExperience.js"></script></head>');
+        return html.replace('</head>', '<meta name="mtp2026-product" content="MTP2026-2DesktopOS"><script type="module" src="/src/networkResilience.js"></script><script type="module" src="/src/systemBootExperience.js"></script></head>');
       },
       generateBundle() {
         this.emitFile({
           type: 'asset',
           fileName: 'build-info.json',
           source: JSON.stringify({
-            service: 'MTP2026 App Launcher',
+            service: 'MTP2026-2DesktopOS',
             product: 'MTP2026 Desktop Edition',
+            shell: 'frontend-MTP2026-2Desktop',
             architecture: 'arm64',
             commit: buildCommit,
             builtAt: new Date().toISOString()
