@@ -1,4 +1,4 @@
-const CACHE = 'mtp2026-shell-v7-desktop';
+const CACHE = 'mtp2026-2desktop-shell-v8';
 const STATIC_ASSETS = ['/', '/manifest.webmanifest', '/icon.svg'];
 
 self.addEventListener('install', event => {
@@ -21,14 +21,16 @@ self.addEventListener('fetch', event => {
 
   // Never cache authentication, account state, API responses, or callback URLs.
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) return;
-  // Site identity must always come from the deployed Desktop build, never an old cache.
-  if (url.pathname === '/site-profile.js' || url.pathname === '/index.html') return;
+  // Always retrieve the current deployed entry document and site identity.
+  if (url.pathname === '/site-profile.js' || url.pathname === '/index.html' || url.pathname === '/build-info.json') return;
 
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request, { cache: 'no-store' }).then(response => {
-        const copy = response.clone();
-        caches.open(CACHE).then(cache => cache.put('/', copy)).catch(() => {});
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE).then(cache => cache.put('/', copy)).catch(() => {});
+        }
         return response;
       }).catch(() => caches.match('/'))
     );
