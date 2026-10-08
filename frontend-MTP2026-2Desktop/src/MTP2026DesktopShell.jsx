@@ -96,7 +96,7 @@ function BrowserApp({initialUrl='https://www.google.com'}) {
   const [downloads,setDownloads]=useState([]); const [devtools,setDevtools]=useState(false); const [devtab,setDevtab]=useState('console');
   const [consoleLines,setConsoleLines]=useState(['MTP2026 Browser console ready.','Press F12 or Ctrl+Shift+I to toggle Developer Tools.']);
   const [settings,setSettings]=useState(false); const [incognito,setIncognito]=useState(false); const iframeRef=useRef(null);
-  const navigate=(next,push=true)=>{const target=normalize(next);setUrl(target);setInput(target);if(push){setHistory(h=>[...h.slice(0,historyIndex+1),target]);setHistoryIndex(i=>i+1)}setTabs(ts=>ts.map(t=>t.id===activeTab?{...t,url:target,title:target.replace(/^https?:\\/\\//,'').split('/')[0]||'New tab'}:t));setConsoleLines(l=>[...l,'Navigated to '+target].slice(-200));};
+  const navigate=(next,push=true)=>{const target=normalize(next);setUrl(target);setInput(target);if(push){setHistory(h=>[...h.slice(0,historyIndex+1),target]);setHistoryIndex(i=>i+1)}setTabs(ts=>ts.map(t=>t.id===activeTab?{...t,url:target,title:target.replace(/^https?:\/\//,'').split('/')[0]||'New tab'}:t));setConsoleLines(l=>[...l,'Navigated to '+target].slice(-200));};
   const addTab=()=>{const id=Date.now();setTabs(ts=>[...ts,{id,title:'New tab',url:'https://www.google.com'}]);setActiveTab(id);setUrl('https://www.google.com');setInput('https://www.google.com');};
   const closeTab=id=>{if(tabs.length===1)return;const next=tabs.filter(t=>t.id!==id);setTabs(next);if(activeTab===id){const t=next[next.length-1];setActiveTab(t.id);setUrl(t.url);setInput(t.url)}};
   const goBack=()=>{if(historyIndex<=0)return;const i=historyIndex-1;setHistoryIndex(i);navigate(history[i],false)};
