@@ -54,7 +54,7 @@ export async function setNativeMode(mode) {
     const orientation = normalized === 'windows' || normalized === 'gaming' ? 'landscape' : normalized === 'android' || normalized === 'mtp2026' || normalized === 'ios' ? 'portrait' : null;
     if (orientation && document.fullscreenElement && screen.orientation?.lock) { try { await screen.orientation.lock(orientation); } catch (_) {} }
   }
-  try { localStorage.setItem('mtp2026-default-system-os', mode); void window.MTP2026Runtime?.boot?.(mode, { nativeResult }); } catch (_) {}
+  try { localStorage.setItem('mtp2026-default-system-os', mode); } catch (_) {}
   return nativeResult;
 }
 
