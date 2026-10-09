@@ -27,6 +27,32 @@ The MTP backend is deployed as the Render web service `MTP2026-App-Launcher-Back
 
 A live deployment is not by itself end-to-end certification. The authenticated browser flow must still be verified through the deployed frontend, VexaAccount authorization, callback, MTP session, protected APIs and logout.
 
+## Host and independent OS frontends
+
+The Render Blueprint now defines a separate static host frontend at `frontend-MTP2026-AppLauncher/` in addition to the four independent OS static sites:
+
+- App Launcher host: `frontend-MTP2026-AppLauncher/`
+- Desktop OS: `frontend-MTP2026-2Desktop/`
+- Android OS: `frontend-MTP2026-Android/`
+- Gaming OS: `Frontend-MTP202026-ROG_gamingOS/`
+- Device OS: `frontend-MTP2026OS/`
+
+The host dashboard checks the shared backend and guest manifest and links to each independent frontend. Configure its `VITE_API_BASE_URL` to the deployed shared backend. Configure backend `FRONTEND_ORIGINS` as a comma-separated list of the exact HTTPS origins actually assigned to all five deployed static sites; the backend validates SSO return origins against this allowlist. Do not enter arbitrary return URLs.
+
+## Full-system emulator readiness boundary
+
+The frontend runtime adapters can use `window.MTP2026NativeGuestRuntime` or `window.MTP2026QemuWasmRuntime`, but those are provider contracts, not emulator binaries. The current static-site build does not bundle a complete `qemu-system-aarch64` WebAssembly engine, and a manifest/image URL alone does not boot a guest. The native QEMU runner script under `os/mtp2026-guest-profiles/run-qemu.sh` is a local/native execution path, not a browser-accessible remote VM service.
+
+A real web-hosted full-system guest still requires all of the following before the UI can report a VM as running:
+
+1. A built and licensed QEMU AArch64 system-emulator binary (WebAssembly or a remote runtime service).
+2. A compatible, verified guest boot bundle and persistent guest disk for each profile.
+3. A display/input bridge (for example, a QEMU display device exposed through a secure WebSocket viewer) and guest networking.
+4. Authenticated per-user start/stop/status APIs, resource limits, and lifecycle cleanup.
+5. Runtime integration tests proving that the guest kernel actually reaches a confirmed boot state.
+
+Until those components are deployed and tested, the browser OS shell is a frontend experience, not proof that a full ARM64 guest OS is executing. Do not label a browser-shell fallback as a real VM boot.
+
 ## SSO workflow
 
 ```text
