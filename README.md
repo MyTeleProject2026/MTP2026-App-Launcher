@@ -39,6 +39,19 @@ The Render Blueprint now defines a separate static host frontend at `frontend-MT
 
 The host dashboard checks the shared backend and guest manifest and links to each independent frontend. Configure its `VITE_API_BASE_URL` to the deployed shared backend. Configure backend `FRONTEND_ORIGINS` as a comma-separated list of the exact HTTPS origins actually assigned to all five deployed static sites; the backend validates SSO return origins against this allowlist. Do not enter arbitrary return URLs.
 
+## Remote QEMU runtime service
+
+The Blueprint now defines an isolated Docker service under `runtime/`. It downloads the selected MTP2026-owned ARM64 guest bundle from the physical-test GitHub Release, verifies the bundle SHA-256 against the release manifest, extracts the firmware/kernel/initramfs/boot disk, starts `qemu-system-aarch64`, preserves a per-user QCOW2 data disk, and exposes display/input through a token-scoped noVNC WebSocket bridge. The shared backend proxies start/status/stop only after VexaAccount-backed MTP session authentication; the runtime API key is server-side only.
+
+Required Render configuration after syncing the Blueprint:
+
+- On `mtp2026-qemu-runtime`, set `MTP2026_RUNTIME_API_KEY` to a long random secret and `MTP2026_RUNTIME_PUBLIC_URL` to that service's exact HTTPS origin.
+- On `mtp2026-app-launcher-api`, set `MTP2026_RUNTIME_API_KEY` to the same secret and `MTP2026_RUNTIME_URL` to the runtime service's exact HTTPS origin.
+- On all four OS static sites, set `VITE_API_BASE_URL` to the deployed shared backend URL. Configure `FRONTEND_ORIGINS` to the exact HTTPS origins for all five frontend sites.
+- Keep the persistent runtime disk attached. QEMU AArch64 software emulation is CPU- and memory-intensive; choose a Render instance with enough RAM/CPU for the guest memory configured in `runtime/server.js`. A Blueprint sync alone does not set those dashboard secrets or prove the live service has booted.
+
+The UI requests a guest only from an explicit Start action. The runtime does not report `running` until its serial log confirms both the guest system and GUI compositor boot markers. Missing release assets, checksum mismatch, runtime secrets, boot confirmation, or display configuration produce an error rather than a simulated boot.
+
 ## Full-system emulator readiness boundary
 
 The frontend runtime adapters can use `window.MTP2026NativeGuestRuntime` or `window.MTP2026QemuWasmRuntime`, but those are provider contracts, not emulator binaries. The current static-site build does not bundle a complete `qemu-system-aarch64` WebAssembly engine, and a manifest/image URL alone does not boot a guest. The native QEMU runner script under `os/mtp2026-guest-profiles/run-qemu.sh` is a local/native execution path, not a browser-accessible remote VM service.
