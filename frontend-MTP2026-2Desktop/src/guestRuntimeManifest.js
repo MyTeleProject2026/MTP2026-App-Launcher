@@ -3,7 +3,7 @@
 import { API } from './auth.js';
 
 const STATIC_MANIFEST_URL = '/arm64/guest-manifest.json';
-const CANONICAL_GUEST_IDS = Object.freeze(['mtp2026', 'android', 'desktop', 'gaming']);
+const CANONICAL_GUEST_IDS = Object.freeze(['desktop']);
 
 let manifestPromise = null;
 
