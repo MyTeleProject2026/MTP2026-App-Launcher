@@ -1,0 +1,35 @@
+name: MTP2026 Remote QEMU Runtime E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Guest profile to boot for end-to-end validation
+        type: choice
+        required: true
+        default: desktop
+        options:
+          - desktop
+          - android
+          - gaming
+          - mtp2026
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Boot real guest, verify display endpoint, and stop guest
+        env:
+          MTP2026_RUNTIME_URL: ${{ secrets.MTP2026_RUNTIME_URL }}
+          MTP2026_RUNTIME_API_KEY: ${{ secrets.MTP2026_RUNTIME_API_KEY }}
+          MTP2026_E2E_PROFILE: ${{ inputs.profile }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: node runtime/scripts/e2e.mjs
