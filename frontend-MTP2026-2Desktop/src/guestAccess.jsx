@@ -69,7 +69,16 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
     finally{setRuntimeBusy(false);}
   }
 
-  async function switchProfile(id){ if(id===profileId)return; if(guestRunning){await stopGuestExplicit(); if(guestRunning)return;} setProfileId(id); }
+  async function switchProfile(id){
+    if(id===profileId)return;
+    if(guestRunning){
+      setRuntimeBusy(true);
+      try{const state=await stopGuest();if(state?.running)throw new Error(state.error||'GUEST_STOP_FAILED');setGuestRunning(false);setGuestProvider('stopped');}
+      catch(e){setGuestBootError(String(e?.message||e||'GUEST_STOP_FAILED'));return;}
+      finally{setRuntimeBusy(false);}
+    }
+    setProfileId(id);
+  }
   function addWebApp(e){
     e.preventDefault(); setError('');
     try {
