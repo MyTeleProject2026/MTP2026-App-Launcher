@@ -90,6 +90,7 @@ app.post('/internal/start',internal,async(req,res)=>{
   const profile=String(req.body?.profile||'');
   const ownerId=String(req.body?.ownerId||'');
   const id=String(req.body?.sessionId||'');
+  if (!publicUrl || !/^https:\/\//.test(publicUrl)) return jsonError(res,'RUNTIME_PUBLIC_URL_NOT_CONFIGURED',503);
   if (!profiles.has(profile)) return jsonError(res,'GUEST_PROFILE_INVALID');
   if (!ownerId || ownerId.length>160 || !safeId(id)) return jsonError(res,'GUEST_SESSION_INVALID');
   if (sessions.size>=maxGuests) return jsonError(res,'RUNTIME_CAPACITY_REACHED',429);
