@@ -45,6 +45,17 @@
     panel.querySelector('[data-start-action="account"]').onclick = () => { panel.classList.remove('open'); dispatch('mtp2026:open-account'); };
     panel.querySelector('[data-start-action="store"]').onclick = () => openExternal('https://www.vexastore.2bd.net/');
     panel.querySelector('[data-start-action="device"]').onclick = () => { panel.classList.remove('open'); document.querySelector('#mtp2026-guest-shell [data-action="device-os"]')?.click(); };
+    const search = panel.querySelector('.mtp-start-search');
+    search.addEventListener('input', () => {
+      const query = search.value.trim().toLocaleLowerCase();
+      panel.querySelectorAll('.mtp-start-item').forEach(item => { item.hidden = Boolean(query) && !item.textContent.toLocaleLowerCase().includes(query); });
+      panel.querySelectorAll('[data-start-action]').forEach(item => { item.hidden = Boolean(query) && !item.textContent.toLocaleLowerCase().includes(query); });
+    });
+    search.addEventListener('keydown', event => {
+      if (event.key !== 'Enter') return;
+      const first = [...panel.querySelectorAll('.mtp-start-item, [data-start-action]')].find(item => !item.hidden);
+      if (first) first.click();
+    });
     return panel;
   }
 
@@ -57,7 +68,10 @@
     const installed = apps();
     grid.innerHTML = installed.length ? installed.slice(0, 16).map((app, index) => `<button class="mtp-start-item" data-app-start="${esc(app.id || app.slug || app.url)}"><b>${esc(app.name || app.title || `VexaApp ${index + 1}`)}</b><small>${esc(app.url || '')}</small></button>`).join('') : '<div style="grid-column:1/-1;color:#8197b0;font-size:11px;padding:8px">No installed WebApps. Open VexaStore or Install WebApp to add one.</div>';
     grid.querySelectorAll('[data-app-start]').forEach(b => b.onclick = () => { const id = b.dataset.appStart; const target = document.querySelector(`#mtp2026-guest-shell [data-app-id="${CSS.escape(id)}"]`); target?.click(); panel.classList.remove('open'); });
+    panel.querySelector('.mtp-start-search').value = '';
+    panel.querySelectorAll('.mtp-start-item, [data-start-action]').forEach(item => { item.hidden = false; });
     panel.classList.toggle('open');
+    if (panel.classList.contains('open')) panel.querySelector('.mtp-start-search').focus();
   }
 
   function openFileExplorer() {
