@@ -142,7 +142,7 @@ export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
   const runtimeKey=String(process.env.MTP2026_RUNTIME_API_KEY||'');
   async function runtimeRequest(path,options={}) {
     if(!runtimeBase||!runtimeKey) throw Object.assign(new Error('REMOTE_QEMU_RUNTIME_NOT_CONFIGURED'),{status:503});
-    const response=await fetch(runtimeBase+path,{...options,signal:AbortSignal.timeout(120000),headers:{'content-type':'application/json','authorization':`Bearer ${runtimeKey}',...(options.headers||{})}});
+    const response=await fetch(runtimeBase+path,{...options,signal:AbortSignal.timeout(120000),headers:{'content-type':'application/json','authorization':'Bearer '+runtimeKey,...(options.headers||{})}});
     const body=await response.json().catch(()=>({error:'RUNTIME_RESPONSE_INVALID'}));
     if(!response.ok) throw Object.assign(new Error(body.detail||body.error||'RUNTIME_REQUEST_FAILED'),{status:response.status,body});
     return body;
