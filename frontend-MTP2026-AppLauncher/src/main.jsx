@@ -28,14 +28,16 @@ function App() {
     else { setHealth({ state: 'offline' }); setError(results[0].reason?.message || 'Backend is unreachable.'); }
     if (results[1].status === 'fulfilled') setManifest(results[1].value);
     else { setManifest(null); setError(prev => [prev, results[1].reason?.message].filter(Boolean).join(' ')); }
-    if (results[2].status === 'fulfilled' && results[2].value?.engine === 'qemu-system-aarch64') setRuntime({ state: 'online', ...results[2].value });
-    else setRuntime({ state: 'unavailable', error: results[2].reason?.message || results[2].value?.error || 'Remote QEMU runtime is not configured.' });
+    if (results[2].status === 'fulfilled' && results[2].value?.engine === 'qemu-system-aarch64') {
+      const value = results[2].value;
+      setRuntime({ state: value.configured && value.bootMediaReady ? 'online' : 'incomplete', ...value });
+    } else setRuntime({ state: 'unavailable', error: results[2].reason?.message || results[2].value?.error || 'Remote QEMU runtime is not configured.' });
     setCheckedAt(new Date());
     setBusy(false);
   }, []);
   useEffect(() => { refresh(); }, [refresh]);
   const guestIds = useMemo(() => Object.keys(manifest?.guests || {}), [manifest]);
-  const hasEmulator = runtime.state === 'online' && runtime.engine === 'qemu-system-aarch64';
+  const hasEmulator = runtime.state === 'online' && runtime.engine === 'qemu-system-aarch64' && runtime.configured === true && runtime.bootMediaReady === true;
   const hasImageSources = SYSTEMS.every(s => {
     const g = manifest?.guests?.[s.id];
     return Boolean(g?.imageSource?.url && g?.imageSource?.sha256);
@@ -66,13 +68,13 @@ function App() {
     </section>
     <section className="runtime-panel">
       <div className="runtime-title"><span className="system-icon"><Cpu size={22}/></span><div><span className="eyebrow">VIRTUALIZATION</span><h2>Full-system runtime diagnostics</h2></div></div>
-      <div className="runtime-warning"><TriangleAlert size={20}/><div><b>{hasEmulator ? 'A runtime provider is present in this host context' : 'Full-system emulator is not attached to this host page'}</b><p>{hasEmulator ? 'A provider was detected in this browser context. Each OS still needs a compatible boot image and a confirmed boot result.' : 'The static host cannot execute ARM64 guest instructions itself. Configure the dedicated QEMU service, verified boot-media release, runtime API key, and public viewer URL before guest start can succeed.'}</p></div></div>
+      <div className="runtime-warning"><TriangleAlert size={20}/><div><b>{hasEmulator ? 'Remote QEMU and boot media are ready' : runtime.state === 'incomplete' ? 'Remote QEMU is reachable but not ready to boot' : 'Full-system emulator is not attached to this host page'}</b><p>{hasEmulator ? 'The remote QEMU service reports valid configuration and verified boot bundles. A guest starts only after the user presses Start.' : runtime.state === 'incomplete' ? `Runtime configuration: ${runtime.configured ? 'ready' : 'missing API key or public URL'}. Boot media: ${runtime.bootMediaReady ? 'verified' : runtime.bootMediaError || 'not verified'}.` : 'The static host cannot execute ARM64 guest instructions itself. Deploy the dedicated QEMU service and configure its runtime URL, API key, public viewer URL, and verified boot-media release.'}</p></div></div>
       <div className="diagnostics">
         <div><span>Backend API</span><strong className={health.state}>{health.state === 'online' ? 'Reachable' : health.state === 'checking' ? 'Checking…' : 'Unavailable'}</strong></div>
         <div><span>Guest manifest</span><strong>{manifest ? 'Loaded' : 'Not loaded'}</strong></div>
         <div><span>Profiles in shared manifest</span><strong>{guestIds.length ? guestIds.join(', ') : 'Not reported'}</strong></div>
         <div><span>Images configured for all four profiles</span><strong>{hasImageSources ? 'Yes' : 'Not confirmed'}</strong></div>
-        <div><span>Remote QEMU runtime service</span><strong>{runtime.state === 'online' ? 'Connected' : runtime.state === 'checking' ? 'Checking…' : 'Not configured'}</strong></div>
+        <div><span>Remote QEMU runtime service</span><strong>{runtime.state === 'online' ? 'Ready' : runtime.state === 'incomplete' ? 'Needs configuration' : runtime.state === 'checking' ? 'Checking…' : 'Not connected'}</strong></div>
       </div>
       {error && <p className="error-note">{error}</p>}
       <p className="small-note">A configured manifest or a “100% boot” animation is not proof of OS execution. MTP2026 reports real guest status only when an emulator confirms the boot. Last checked: {checkedAt ? checkedAt.toLocaleTimeString() : 'not yet checked'}.</p>
