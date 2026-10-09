@@ -149,6 +149,14 @@ export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
     if(!response.ok) throw Object.assign(new Error(body.detail||body.error||'RUNTIME_REQUEST_FAILED'),{status:response.status,body});
     return body;
   }
+  app.get('/api/runtime/health',async(_req,res)=>{
+    try {
+      const result=await runtimeRequest('/health');
+      res.set('Cache-Control','no-store').json({...result,configured:true});
+    } catch(error) {
+      res.status(error.status||503).json({ok:false,configured:Boolean(runtimeBase&&runtimeKey),error:error.message||'REMOTE_QEMU_RUNTIME_UNAVAILABLE'});
+    }
+  });
   app.post('/api/runtime/guests/start',auth,async(req,res)=>{
     const profile=String(req.body?.profile||'');
     if(!['mtp2026','android','desktop','gaming'].includes(profile))return res.status(400).json({error:'GUEST_PROFILE_INVALID'});
