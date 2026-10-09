@@ -25,6 +25,30 @@ services:
         sync: false
       - key: FRONTEND_ORIGINS
         sync: false
+      - key: MTP2026_RUNTIME_URL
+        sync: false
+      - key: MTP2026_RUNTIME_API_KEY
+        sync: false
+
+  - type: web
+    name: mtp2026-qemu-runtime
+    runtime: docker
+    rootDir: runtime
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: MTP2026_RUNTIME_API_KEY
+        sync: false
+      - key: MTP2026_RUNTIME_PUBLIC_URL
+        sync: false
+      - key: MTP2026_RELEASE_BASE_URL
+        value: https://github.com/MyTeleProject2026/MTP2026-App-Launcher/releases/download/mtp2026-physical-test
+      - key: MTP2026_MAX_GUESTS
+        value: "4"
+    disk:
+      name: mtp2026-guest-data
+      mountPath: /var/lib/mtp2026
+      sizeGB: 20
 
   - type: web
     name: mtp2026-app-launcher-host
