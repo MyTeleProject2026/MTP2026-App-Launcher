@@ -28,6 +28,8 @@ jobs:
           node-version: 20
       - name: Install runtime test dependencies
         run: npm install --prefix runtime --no-audit --no-fund
+      - name: Run runtime security and boot-confirmation tests
+        run: npm test --prefix runtime
       - name: Boot real guest, verify display endpoint, and stop guest
         env:
           MTP2026_RUNTIME_URL: ${{ secrets.MTP2026_RUNTIME_URL }}
