@@ -6,7 +6,7 @@ import { loadGuestImage, saveGuestImage } from './guestImageStore.js';
 import { bootQemuWasmGuest, stopQemuWasmGuest, qemuWasmCapabilities } from './qemuWasmGuestRuntime.js';
 
 const DEFAULT_KERNEL_URL = '/arm64/mtp2026-arm64-kernel.bin';
-const API_BASE = String(import.meta.env?.VITE_API_BASE_URL || 'https://mtp2026-app-launcher-backend.onrender.com').replace(/\/$/, '');
+const API_BASE = String(import.meta.env?.VITE_API_BASE_URL || 'https://mtp2026-app-launcher-backend.onrender.com').replace(/\/api\/?$/, '').replace(/\/$/, '');
 const remoteSessions = new Map();
 let displayNode = null;
 
