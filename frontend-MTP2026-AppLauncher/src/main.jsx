@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Activity, ArrowUpRight, Cpu, Download, Gamepad2, HardDrive, Monitor, RefreshCw, ShieldCheck, Smartphone, TriangleAlert, Wifi, X } from 'lucide-react';
+import { Activity, ArrowUpRight, Cpu, Download, Gamepad2, HardDrive, Monitor, RefreshCw, ShieldCheck, Smartphone, TriangleAlert, Wifi, X, Star, Clock3 } from 'lucide-react';
 import './style.css';
 
 const API = String(import.meta.env.VITE_API_BASE_URL || 'https://mtp2026-app-launcher-backend.onrender.com').replace(/\/$/, '');
@@ -21,6 +21,10 @@ function App() {
   const [installHelp, setInstallHelp] = useState(false);
   const [isInstalled, setIsInstalled] = useState(() => window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true);
   const [installing, setInstalling] = useState(false);
+  const [favorites, setFavorites] = useState(() => { try { return JSON.parse(localStorage.getItem('mtp2026-host-favorites') || '[]'); } catch { return []; } });
+  const [recent, setRecent] = useState(() => { try { return JSON.parse(localStorage.getItem('mtp2026-host-recent') || '[]'); } catch { return []; } });
+  const toggleFavorite = id => setFavorites(current => { const next = current.includes(id) ? current.filter(x => x !== id) : [...current, id]; localStorage.setItem('mtp2026-host-favorites', JSON.stringify(next)); return next; });
+  const recordLaunch = id => setRecent(current => { const next = [id, ...current.filter(x => x !== id)].slice(0, 5); localStorage.setItem('mtp2026-host-recent', JSON.stringify(next)); return next; });
   useEffect(() => {
     const onBeforeInstall = event => { event.preventDefault(); setInstallPrompt(event); };
     const onInstalled = () => { setIsInstalled(true); setInstallPrompt(null); setInstallHelp(false); };
@@ -78,12 +82,14 @@ function App() {
       </div>
     </section>
     <section className="section-head"><div><span className="eyebrow">OS LIBRARY</span><h2>Installed environments</h2></div><span className="muted">Open independently ↗</span></section>
+    <section className="section-head"><div><span className="eyebrow">QUICK ACCESS</span><h2>Favorites & recent</h2></div><span className="muted"><Star size={13}/> {favorites.length} favorites · <Clock3 size={13}/> {recent.length} recent</span></section>
+    {(favorites.length > 0 || recent.length > 0) && <section className="quick-access">{[...favorites.map(id=>({id,kind:'Favorite'})),...recent.filter(id=>!favorites.includes(id)).map(id=>({id,kind:'Recent'}))].map(item=>{const s=SYSTEMS.find(x=>x.id===item.id);if(!s)return null;return <a key={item.kind+item.id} href={s.url} target="_blank" rel="noreferrer" onClick={()=>recordLaunch(s.id)}><span>{item.kind}</span><b>{s.title}</b><ArrowUpRight size={14}/></a>})}</section>}
     <section className="system-grid">
       {SYSTEMS.map(s => { const Icon=s.icon; const g=manifest?.guests?.[s.id]; return <article className="system-card" key={s.id}>
         <div className="card-top"><span className="system-icon"><Icon size={22}/></span><span className={'runtime-tag ' + (g ? 'configured' : 'unknown')}>{g ? 'Manifest found' : 'Runtime unverified'}</span></div>
-        <h3>{s.title}</h3><p>{s.detail}</p>
+        <button className="favorite-toggle" onClick={()=>toggleFavorite(s.id)} aria-label={(favorites.includes(s.id)?'Remove':'Add')+' '+s.title+' '+(favorites.includes(s.id)?'from':'to')+' favorites'} aria-pressed={favorites.includes(s.id)}><Star size={16} fill={favorites.includes(s.id)?'currentColor':'none'}/></button><h3>{s.title}</h3><p>{s.detail}</p>
         <div className="card-meta"><span><HardDrive size={14}/>{g?.architecture?.toUpperCase() || 'ARM64 target'}</span><span><Activity size={14}/>{g?.runtimeBackend || 'Runtime not reported'}</span></div>
-        <a className="launch-link" href={s.url} target="_blank" rel="noreferrer">Open {s.title.replace('MTP2026 ','')} <ArrowUpRight size={16}/></a>
+        <a className="launch-link" href={s.url} target="_blank" rel="noreferrer" onClick={()=>recordLaunch(s.id)}>Open {s.title.replace('MTP2026 ','')} <ArrowUpRight size={16}/></a>
       </article>; })}
     </section>
     <section className="runtime-panel">
