@@ -80,9 +80,13 @@ export async function bootArm64Guest({ id, image, storage, controlKernel = false
     return {...result,provider:result?.provider||'native-qemu-system-aarch64',realGuest:result?.realGuest===true};
   }
   if (!controlKernel && qemuWasmCapabilities().available) {
-    const resolved = await resolveImage(id,image);
-    const result = await bootQemuWasmGuest({id,image:resolved.bytes,storage,contract:guestContract});
-    return {...result,provider:result?.provider||'qemu-system-aarch64-wasm',realGuest:true,ready:true};
+    try {
+      const resolved = await resolveImage(id,image);
+      const result = await bootQemuWasmGuest({id,image:resolved.bytes,storage,contract:guestContract});
+      return {...result,provider:result?.provider||'qemu-system-aarch64-wasm',realGuest:true,ready:true};
+    } catch(error) {
+      if (!remoteRuntimeAvailable() || error?.message !== 'REAL_GUEST_IMAGE_NOT_INSTALLED') throw error;
+    }
   }
   if (!controlKernel && remoteRuntimeAvailable()) return bootRemoteGuest(id);
   return {id,provider:'none',realGuest:false,browserShell:true,imageRequired:!controlKernel,guestKind:controlKernel?'mtp2026-control-kernel':'mtp2026-owned-guest-os',storage:storage||null,reason:'REAL_GUEST_RUNTIME_NOT_CONFIGURED'};
