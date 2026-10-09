@@ -68,7 +68,9 @@ class DesktopErrorBoundary extends React.Component {
 }
 
 function DesktopApp() {
-  const [guestProfile, setGuestProfile] = useState(null);
+  // Start directly in the desktop shell. Authentication and optional guest-runtime
+  // setup must never block the basic desktop workspace from appearing.
+  const [guestProfile, setGuestProfile] = useState('mtp2026');
   const [apps, setApps] = useState([]);
   const [profile, setProfile] = useState(null);
   const [logged, setLogged] = useState(false);
@@ -131,7 +133,7 @@ function DesktopApp() {
     window.location.assign(window.location.pathname);
   }
 
-  if (guestProfile) return <MTP2026DesktopShell apps={[]} onExit={() => setGuestProfile(null)} />;
+  if (guestProfile) return <MTP2026DesktopShell apps={apps} profile={profile} onExit={() => window.location.reload()} />;
   if (loading) return <main className="vexa-login-page"><section className="vexa-login-card"><div className="vexa-login-brand"><div className="brand-mark"><span>M</span></div><div><strong>MTP2026 Desktop OS</strong><small>Starting secure desktop session…</small></div></div></section></main>;
   if (!logged) return <DesktopLogin error={error} onGuest={() => setGuestProfile('mtp2026')} />;
 
