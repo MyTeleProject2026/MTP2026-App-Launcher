@@ -58,11 +58,9 @@ export async function setNativeMode(mode) {
   else if (hasIOSBridge()) { window.webkit.messageHandlers.mtp2026.postMessage({ mode: normalized }); nativeResult = true; }
   else {
     const orientation = normalized === 'desktop' || normalized === 'gaming' ? 'landscape' : 'portrait';
-    if (pluginAvailable('ScreenOrientation')) {
-      try { const plugin = await import('@capacitor/screen-orientation'); await plugin.ScreenOrientation.lock({ orientation }); } catch (_) {}
-    } else if (document.fullscreenElement && screen.orientation?.lock) {
-      try { await screen.orientation.lock(orientation); } catch (_) {}
-    }
+    let locked = false;
+    try { const plugin = await import('@capacitor/screen-orientation'); await plugin.ScreenOrientation.lock({ orientation }); locked = true; } catch (_) {}
+    if (!locked && document.fullscreenElement && screen.orientation?.lock) { try { await screen.orientation.lock(orientation); } catch (_) {} }
   }
   try { localStorage.setItem('mtp2026-default-system-os', normalized); void window.MTP2026Runtime?.boot?.(normalized, { nativeResult }); } catch (_) {}
   return nativeResult;
@@ -134,9 +132,7 @@ export async function nativeFullscreen(enter, element) {
 export async function nativeOpenExternal(url) {
   if (hasTauri()) return invoke('open_external', { url });
   if (window.MTP2026Native?.openExternal) return window.MTP2026Native.openExternal(url);
-  if (pluginAvailable('Browser')) {
-    try { const plugin = await import('@capacitor/browser'); return await plugin.Browser.open({ url }); } catch (_) {}
-  }
+  try { const plugin = await import('@capacitor/browser'); if (plugin.Browser?.open) return await plugin.Browser.open({ url }); } catch (_) {}
   if (hasIOSBridge()) { window.webkit.messageHandlers.mtp2026.postMessage({ action: 'openExternal', url }); return true; }
   const opened = window.open(url, '_blank', 'noopener,noreferrer');
   if (!opened) throw new Error('EXTERNAL_BROWSER_BLOCKED');
@@ -148,9 +144,7 @@ export async function notifyNative(title, body) {
   const safeBody = String(body || '');
   if (hasTauri()) return invoke('notify_native', { title: safeTitle, body: safeBody });
   if (window.MTP2026Native?.notify) return window.MTP2026Native.notify(safeTitle, safeBody);
-  if (pluginAvailable('LocalNotifications')) {
-    try { const plugin = await import('@capacitor/local-notifications'); return await plugin.LocalNotifications.schedule({ notifications: [{ id: Date.now() % 2147483647, title: safeTitle, body: safeBody }] }); } catch (_) {}
-  }
+  try { const plugin = await import('@capacitor/local-notifications'); if (plugin.LocalNotifications?.schedule) return await plugin.LocalNotifications.schedule({ notifications: [{ id: Date.now() % 2147483647, title: safeTitle, body: safeBody }] }); } catch (_) {}
   const NotificationAPI = browserNotification();
   if (NotificationAPI?.permission === 'granted') return new NotificationAPI(safeTitle, { body: safeBody });
   if (NotificationAPI?.permission === 'default') { try { const permission = await NotificationAPI.requestPermission(); if (permission === 'granted') return new NotificationAPI(safeTitle, { body: safeBody }); } catch (_) {} }
