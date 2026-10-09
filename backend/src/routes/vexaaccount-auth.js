@@ -152,7 +152,7 @@ export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
   app.get('/api/runtime/health',async(_req,res)=>{
     try {
       const result=await runtimeRequest('/health');
-      res.set('Cache-Control','no-store').json({...result,configured:true});
+      res.set('Cache-Control','no-store').json({...result,backendConfigured:Boolean(runtimeBase&&runtimeKey),configured:Boolean(runtimeBase&&runtimeKey)&&result.configured===true});
     } catch(error) {
       res.status(error.status||503).json({ok:false,configured:Boolean(runtimeBase&&runtimeKey),error:error.message||'REMOTE_QEMU_RUNTIME_UNAVAILABLE'});
     }
