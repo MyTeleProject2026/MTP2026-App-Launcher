@@ -19,7 +19,7 @@ function AppIcon({ app }) { return app.icon ? <img src={app.icon} alt="" /> : <G
 
 export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
   const [profileId,setProfileId]=useState(normalizeMTP2026GuestProfile(initialProfile).id);
-  const [booted,setBooted]=useState(false);
+  const [booted,setBooted]=useState(true);
   const [apps,setApps]=useState(()=>loadApps(normalizeMTP2026GuestProfile(initialProfile).id));
   const [url,setUrl]=useState('');
   const [apkName,setApkName]=useState('');
