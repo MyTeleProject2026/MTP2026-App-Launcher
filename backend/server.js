@@ -34,7 +34,7 @@ function createDbPool() {
 }
 
 const pool = createDbPool();
-const allowedOrigins = (process.env.FRONTEND_ORIGIN || '').split(',').map(x => x.trim()).filter(Boolean);
+const allowedOrigins = [...new Set([process.env.FRONTEND_ORIGIN || '', process.env.FRONTEND_ORIGINS || ''].flatMap(value => value.split(',')).map(x => x.trim()).filter(Boolean))];
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : true, credentials: true }));
 app.use(express.json({ limit: '350kb' }));
