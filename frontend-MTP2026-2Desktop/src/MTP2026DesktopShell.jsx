@@ -483,7 +483,7 @@ function SystemMonitor({runtime,guestState}){
   const mem=Number.isFinite(metrics?.memory_percent)?Math.round(metrics.memory_percent):null;
   const network=Number.isFinite(metrics?.network_rx_bytes)?Math.min(100,Math.round(((metrics.network_rx_bytes+metrics.network_tx_bytes)/Math.max(1,1024*1024*1024))*100)):null;
   const storage=Number.isFinite(metrics?.storage_percent)?Math.round(metrics.storage_percent):null;
-  const guestReady=Boolean(guestState?.running&&guestState?.provider!=='browser-launcher'&&guestState?.phase!=='browser-shell'&&(guestState?.phase==='ready'||guestState?.phase==='native-qemu'));
+  const guestReady=Boolean(guestState?.running&&guestState?.provider!=='browser-launcher'&&guestState?.phase!=='browser-shell');
   const guestMeter=guestReady?100:Math.max(0,Math.min(100,guestState?.provider==='browser-launcher'||guestState?.phase==='browser-shell'?0:(guestState?.progress||0)));
   const meters=[['CPU',cpu,'%'],['Memory',mem,'%'],['Storage',storage,'%'],['Network',network,'%'],['Guest runtime',guestMeter,'%']];
   return <div className="mtp11-monitor"><div className="mtp11-runtime-badge"><span className="dot"/> {runtime.mode==='native-vm'?'ARM64 guest provider active':runtime.mode==='qemu-wasm'?'QEMU-WASM ARM64 provider available':'Browser shell runtime'} · {runtime.guestProfile}</div><div className="mtp11-monitor-hero"><Activity/><div><b>MTP2026 System Monitor</b><small>{metrics?.native?'Live native host telemetry':'Browser sandbox telemetry only'} · {runtime.architecture}</small></div></div>
