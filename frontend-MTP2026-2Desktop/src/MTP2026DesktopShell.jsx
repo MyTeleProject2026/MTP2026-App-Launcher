@@ -421,7 +421,25 @@ function SystemMonitor({runtime,guestState}){
     const refresh=async()=>{
       const [m,si,fi]=await Promise.all([nativeSystemMetrics(),nativeSystemInfo(),nativeFilesystemInfo()]);
       if(!mounted)return;
-      if(m?.supported)setMetrics(m.value||null);
+      if(m?.supported)setMetrics({...m.value,native:true});
+      else {
+        const estimate=await getBrowserStorageEstimate();
+        const quota=estimate.quota;
+        const usage=estimate.usage;
+        setMetrics({
+          native:false,
+          cpu_percent:null,
+          memory_percent:null,
+          network_rx_bytes:null,
+          network_tx_bytes:null,
+          storage_percent:Number.isFinite(quota)&&quota>0&&Number.isFinite(usage)?Math.min(100,Math.round(usage/quota*100)):null,
+          browser_storage_usage_bytes:usage,
+          browser_storage_quota_bytes:quota,
+          browser_storage_persistent:estimate.persistent,
+          device_memory_gb:Number.isFinite(navigator.deviceMemory)?navigator.deviceMemory:null,
+          logical_cpu_count:Number.isFinite(navigator.hardwareConcurrency)?navigator.hardwareConcurrency:null,
+        });
+      }
       if(si?.supported)setNativeInfo(si.value||null);
       if(fi?.supported)setFsInfo(fi.value||null);
     };
@@ -434,8 +452,10 @@ function SystemMonitor({runtime,guestState}){
   const guestReady=Boolean(guestState?.running&&(guestState?.phase==='ready'||guestState?.phase==='browser-shell'));
   const guestMeter=guestReady?100:Math.max(0,Math.min(100,guestState?.progress||0));
   const meters=[['CPU',cpu,'%'],['Memory',mem,'%'],['Storage',storage,'%'],['Network',network,'%'],['Guest runtime',guestMeter,'%']];
-  return <div className="mtp11-monitor"><div className="mtp11-runtime-badge"><span className="dot"/> {runtime.mode==='native-vm'?'ARM64 guest provider active':runtime.mode==='qemu-wasm'?'QEMU-WASM ARM64 provider available':'Browser shell runtime'} · {runtime.guestProfile}</div><div className="mtp11-monitor-hero"><Activity/><div><b>MTP2026 System Monitor</b><small>{metrics?.native?'Native host telemetry':'Shell telemetry'} · {runtime.architecture}</small></div></div>
+  return <div className="mtp11-monitor"><div className="mtp11-runtime-badge"><span className="dot"/> {runtime.mode==='native-vm'?'ARM64 guest provider active':runtime.mode==='qemu-wasm'?'QEMU-WASM ARM64 provider available':'Browser shell runtime'} · {runtime.guestProfile}</div><div className="mtp11-monitor-hero"><Activity/><div><b>MTP2026 System Monitor</b><small>{metrics?.native?'Live native host telemetry':'Browser sandbox telemetry only'} · {runtime.architecture}</small></div></div>
     {meters.map(([n,v,u])=><div className="mtp11-meter" key={n}><div><span>{n}</span><b>{v===null?'—':v+u}</b></div><i><em style={{width:(v===null?0:v)+'%'}}/></i></div>)}
+    {!metrics?.native&&<div className="mtp11-taskmgr-native"><span>Browser device hints</span><b>{metrics?.device_memory_gb?metrics.device_memory_gb+' GB reported':'RAM amount unavailable'}</b><span>{metrics?.logical_cpu_count?metrics.logical_cpu_count+' logical CPU threads reported':'CPU count unavailable'} · CPU and RAM utilization are blocked by browser security</span></div>}
+    {!metrics?.native&&<div className="mtp11-taskmgr-native"><span>Browser storage for this website only</span><b>{Number.isFinite(metrics?.browser_storage_usage_bytes)?(metrics.browser_storage_usage_bytes/1024/1024).toFixed(1)+' MB used':'Usage unavailable'}</b><span>{Number.isFinite(metrics?.browser_storage_quota_bytes)?(metrics.browser_storage_quota_bytes/1024/1024).toFixed(1)+' MB quota':'Quota unavailable'} · {metrics?.browser_storage_persistent?'persistent permission granted':'browser-managed; may be cleared'}</span></div>}
     {nativeInfo&&<div className="mtp11-taskmgr-native"><span>Host</span><b>{nativeInfo.host_os}</b><span>{nativeInfo.architecture} · PID {nativeInfo.process_id}</span></div>}
     {fsInfo&&<div className="mtp11-taskmgr-native"><span>Native filesystem</span><b>{fsInfo.root||'host root'}</b><span>{fsInfo.separator} · {fsInfo.exists?'available':'unavailable'}</span></div>}
     {metrics?.native&&<div className="mtp11-taskmgr-native"><span>Network I/O</span><b>{Math.round((metrics.network_rx_bytes||0)/1024/1024)} MB RX</b><span>{Math.round((metrics.network_tx_bytes||0)/1024/1024)} MB TX</span></div>}{qemuInfo&&<div className="mtp11-taskmgr-native"><span>QEMU ARM64</span><b>{qemuInfo.running?`Running · PID ${qemuInfo.pid||"?"}`:qemuInfo.available?"Ready":"Unavailable"}</b><span>{qemuInfo.executable||"qemu-system-aarch64"}</span></div>}
