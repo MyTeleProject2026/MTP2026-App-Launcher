@@ -36,7 +36,7 @@ async function nativeFilesystem() {
   return filesystemPromise;
 }
 function safeFileName(name) {
-  const clean = String(name || 'file').replace(/[\\/\\0-\\x1f:*?"<>|]/g, '_').replace(/^\\.+$/, '_').slice(0, 180);
+  const clean = String(name || 'file').replaceAll('/', '_').replaceAll(String.fromCharCode(92), '_').replace(/[<>:"|?*\u0000-\u001f]/g, '_').replace(/^\.+$/, '_').slice(0, 180);
   return clean || 'file';
 }
 function bytesToBase64(bytes) {
