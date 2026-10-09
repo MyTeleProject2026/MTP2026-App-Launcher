@@ -43,6 +43,7 @@ jobs:
           node --check backend/server.js
           node --check backend/src/routes/vexaaccount-auth.js
           node --check runtime/server.js
+          node --check runtime/scripts/e2e.mjs
 
       - name: Verify MTP2026 branding and guest contracts
         run: |
