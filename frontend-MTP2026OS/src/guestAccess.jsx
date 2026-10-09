@@ -31,14 +31,15 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
   const [guestBootError,setGuestBootError]=useState('');
   const [guestRunning,setGuestRunning]=useState(false);
   const [runtimeBusy,setRuntimeBusy]=useState(false);
-  const [showBootSplash,setShowBootSplash]=useState(normalizeMTP2026GuestProfile(initialProfile).id!=='mtp2026');
+  const [showBootSplash,setShowBootSplash]=useState(normalizeMTP2026GuestProfile(initialProfile).id!=='mtp2026'||window.__MTP2026_SITE_PROFILE?.deviceMode==='mtp2026');
 
   const profile=useMemo(()=>GUEST_PROFILES.find(x=>x.id===profileId)||GUEST_PROFILES[0],[profileId]);
   const Icon=ICONS[profile.id]||Smartphone;
 
   useEffect(()=>{
-    setShowBootSplash(profile.id!=='mtp2026');
-    const splashTimer=profile.id!=='mtp2026'?window.setTimeout(()=>setShowBootSplash(false),1450):null;
+    const shouldShowSplash=profile.id!=='mtp2026'||window.__MTP2026_SITE_PROFILE?.deviceMode==='mtp2026';
+    setShowBootSplash(shouldShowSplash);
+    const splashTimer=shouldShowSplash?window.setTimeout(()=>setShowBootSplash(false),1450):null;
     applyMTP2026GuestProfile(profile.id);
     setApps(loadApps(profile.id));
     setBooted(true);
