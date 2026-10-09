@@ -10,7 +10,10 @@ const hasTauri = () => Boolean(window.__TAURI_INTERNALS__);
 const hasIOSBridge = () => Boolean(window.webkit?.messageHandlers?.mtp2026);
 const cap = () => window.Capacitor || null;
 const browserNotification = () => typeof window !== 'undefined' && 'Notification' in window ? window.Notification : null;
+const modeAliases = Object.freeze({ windows: 'desktop', windows11: 'desktop', win11: 'desktop', 'ios-device': 'mtp2026', ios: 'mtp2026' });
 const validModes = new Set(['mtp2026', 'android', 'desktop', 'gaming']);
+const normalizeMode = mode => modeAliases[String(mode || '').toLowerCase()] || String(mode || '').toLowerCase();
+const pluginAvailable = name => { try { return Boolean(cap()?.isPluginAvailable?.(name)); } catch (_) { return false; } };
 
 let invokePromise;
 async function invoke(command, args) {
@@ -21,40 +24,47 @@ async function invoke(command, args) {
 
 export function nativeHost() {
   const capacitor = cap();
-  if (hasTauri()) return 'desktop';
-  if (capacitor?.getPlatform) return capacitor.getPlatform();
+  if (hasTauri()) return 'windows';
+  if (capacitor?.getPlatform) {
+    const platform = capacitor.getPlatform();
+    return platform === 'web' ? 'web' : platform;
+  }
   if (hasIOSBridge()) return 'ios';
   return 'web';
 }
 
 export function nativeCapabilities() {
   const host = nativeHost();
-  const plugins = cap()?.Plugins || {};
+  const native = Boolean(cap()?.isNativePlatform?.()) || hasTauri() || hasIOSBridge();
   return Object.freeze({
-    native: host !== 'web', host,
-    orientation: host === 'android' || host === 'ios', fullscreen: true,
-    filesystem: Boolean(plugins.Filesystem) || host === 'windows' || host === 'android' || host === 'ios' || Boolean(window.MTP2026NativeGuestStorage),
+    native, host,
+    orientation: pluginAvailable('ScreenOrientation') || Boolean(window.MTP2026Native?.setOrientation), fullscreen: hasTauri() || Boolean(document.documentElement.requestFullscreen),
+    filesystem: pluginAvailable('Filesystem') || Boolean(window.MTP2026NativeGuestStorage) || Boolean(window.MTP2026Native?.filesystem),
     guestStorage: Boolean(window.MTP2026NativeGuestStorage),
-    notifications: Boolean(plugins.LocalNotifications) || host === 'windows' || host === 'android' || host === 'ios',
-    clipboard: Boolean(navigator.clipboard), externalApps: host !== 'web',
-    gamepad: 'getGamepads' in navigator && host !== 'ios', windowManagement: host === 'windows',
-    guestRuntime: Boolean(window.MTP2026GuestBoot), packageInstaller: host === 'android' || host === 'windows',
-    realArm64GuestRuntime: hasTauri(),
+    notifications: pluginAvailable('LocalNotifications') || Boolean(window.MTP2026Native?.notify) || (host === 'web' && Boolean(browserNotification())),
+    clipboard: Boolean(navigator.clipboard), externalApps: hasTauri() || pluginAvailable('Browser') || Boolean(window.MTP2026Native?.openExternal) || hasIOSBridge(),
+    gamepad: 'getGamepads' in navigator && host !== 'ios', windowManagement: hasTauri(),
+    guestRuntime: Boolean(window.MTP2026GuestBoot), packageInstaller: (host === 'android' && Boolean(window.MTP2026Native?.installApkFromUrl)) || (host === 'windows' && hasTauri()),
+    realArm64GuestRuntime: hasTauri() && Boolean(window.MTP2026NativeGuestRuntime),
   });
 }
 
 export async function setNativeMode(mode) {
-  const normalized = mode === 'mtp2026' ? 'mtp2026' : mode;
-  if (!validModes.has(mode) || !validModes.has(normalized)) throw new Error('Unsupported MTP2026 device mode');
+  const normalized = normalizeMode(mode);
+  if (!validModes.has(normalized)) throw new Error('Unsupported MTP2026 device mode');
   let nativeResult = null;
   if (hasTauri()) nativeResult = await invoke('set_device_mode', { mode: normalized });
   else if (window.MTP2026Native?.setDeviceMode) nativeResult = await window.MTP2026Native.setDeviceMode(normalized);
   else if (hasIOSBridge()) { window.webkit.messageHandlers.mtp2026.postMessage({ mode: normalized }); nativeResult = true; }
   else {
-    const orientation = normalized === 'windows' || normalized === 'gaming' ? 'landscape' : normalized === 'android' || normalized === 'mtp2026' || normalized === 'ios' ? 'portrait' : null;
-    if (orientation && document.fullscreenElement && screen.orientation?.lock) { try { await screen.orientation.lock(orientation); } catch (_) {} }
+    const orientation = normalized === 'desktop' || normalized === 'gaming' ? 'landscape' : 'portrait';
+    if (pluginAvailable('ScreenOrientation')) {
+      try { const plugin = await import('@capacitor/screen-orientation'); await plugin.ScreenOrientation.lock({ orientation }); } catch (_) {}
+    } else if (document.fullscreenElement && screen.orientation?.lock) {
+      try { await screen.orientation.lock(orientation); } catch (_) {}
+    }
   }
-  try { localStorage.setItem('mtp2026-default-system-os', mode); void window.MTP2026Runtime?.boot?.(mode, { nativeResult }); } catch (_) {}
+  try { localStorage.setItem('mtp2026-default-system-os', normalized); void window.MTP2026Runtime?.boot?.(normalized, { nativeResult }); } catch (_) {}
   return nativeResult;
 }
 
@@ -124,9 +134,13 @@ export async function nativeFullscreen(enter, element) {
 export async function nativeOpenExternal(url) {
   if (hasTauri()) return invoke('open_external', { url });
   if (window.MTP2026Native?.openExternal) return window.MTP2026Native.openExternal(url);
-  const browser = cap()?.Plugins?.Browser;
-  if (browser?.open) return browser.open({ url });
-  window.open(url, '_blank', 'noopener,noreferrer');
+  if (pluginAvailable('Browser')) {
+    try { const plugin = await import('@capacitor/browser'); return await plugin.Browser.open({ url }); } catch (_) {}
+  }
+  if (hasIOSBridge()) { window.webkit.messageHandlers.mtp2026.postMessage({ action: 'openExternal', url }); return true; }
+  const opened = window.open(url, '_blank', 'noopener,noreferrer');
+  if (!opened) throw new Error('EXTERNAL_BROWSER_BLOCKED');
+  return true;
 }
 
 export async function notifyNative(title, body) {
@@ -134,8 +148,9 @@ export async function notifyNative(title, body) {
   const safeBody = String(body || '');
   if (hasTauri()) return invoke('notify_native', { title: safeTitle, body: safeBody });
   if (window.MTP2026Native?.notify) return window.MTP2026Native.notify(safeTitle, safeBody);
-  const notifications = cap()?.Plugins?.LocalNotifications;
-  if (notifications?.schedule) return notifications.schedule({ notifications: [{ id: Date.now() % 2147483647, title: safeTitle, body: safeBody }] });
+  if (pluginAvailable('LocalNotifications')) {
+    try { const plugin = await import('@capacitor/local-notifications'); return await plugin.LocalNotifications.schedule({ notifications: [{ id: Date.now() % 2147483647, title: safeTitle, body: safeBody }] }); } catch (_) {}
+  }
   const NotificationAPI = browserNotification();
   if (NotificationAPI?.permission === 'granted') return new NotificationAPI(safeTitle, { body: safeBody });
   if (NotificationAPI?.permission === 'default') { try { const permission = await NotificationAPI.requestPermission(); if (permission === 'granted') return new NotificationAPI(safeTitle, { body: safeBody }); } catch (_) {} }
@@ -144,7 +159,7 @@ export async function notifyNative(title, body) {
 
 window.MTP2026NativePlatform = { nativeHost, nativeCapabilities, setNativeMode, nativeInstallPackage, nativeFullscreen, nativeOpenExternal, notifyNative };
 
-const startupMode = window.localStorage?.getItem('mtp2026-default-system-os');
+const startupMode = normalizeMode(window.localStorage?.getItem('mtp2026-default-system-os'));
 if (startupMode && validModes.has(startupMode)) void setNativeMode(startupMode).catch(() => {});
 
 (function showStartupLogoBeforeOsPicker() {
