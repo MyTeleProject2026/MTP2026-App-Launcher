@@ -33,7 +33,7 @@ export function nativeCapabilities() {
   return Object.freeze({
     native: host !== 'web', host,
     orientation: host === 'android' || host === 'ios', fullscreen: true,
-    filesystem: Boolean(plugins.Filesystem) || host === 'windows' || Boolean(window.MTP2026NativeGuestStorage),
+    filesystem: Boolean(plugins.Filesystem) || host === 'windows' || host === 'android' || host === 'ios' || Boolean(window.MTP2026NativeGuestStorage),
     guestStorage: Boolean(window.MTP2026NativeGuestStorage),
     notifications: Boolean(plugins.LocalNotifications) || host === 'windows' || host === 'android' || host === 'ios',
     clipboard: Boolean(navigator.clipboard), externalApps: host !== 'web',
