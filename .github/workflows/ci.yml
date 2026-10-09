@@ -74,6 +74,16 @@ jobs:
           npm run integration:generate -- --app ci-fixture --output /tmp/mtp-generated --framework all
           npm run integration:verify -- --dir /tmp/mtp-generated
 
+      - name: Install dependencies and build MTP2026 App Launcher host
+        working-directory: frontend-MTP2026-AppLauncher
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Verify host launcher build output
+        working-directory: frontend-MTP2026-AppLauncher
+        run: test -s dist/index.html
+
       - name: Install dependencies and build MTP2026 Desktop Edition
         working-directory: frontend-MTP2026-2Desktop
         env:
