@@ -40,6 +40,9 @@ jobs:
           node --check tools/patch-generated-integration.mjs
           node --check tools/verify-generated-integration.mjs
           node --check tools/build-arm64-kernel.mjs
+          node --check backend/server.js
+          node --check backend/src/routes/vexaaccount-auth.js
+          node --check runtime/server.js
 
       - name: Verify MTP2026 branding and guest contracts
         run: |
@@ -74,6 +77,12 @@ jobs:
           npm run integration:generate -- --app ci-fixture --output /tmp/mtp-generated --framework all
           npm run integration:verify -- --dir /tmp/mtp-generated
 
+      - name: Test remote QEMU runtime contracts
+        working-directory: runtime
+        run: |
+          npm install --no-audit --no-fund
+          npm test
+
       - name: Install dependencies and build MTP2026 App Launcher host
         working-directory: frontend-MTP2026-AppLauncher
         run: |
@@ -88,6 +97,24 @@ jobs:
         working-directory: frontend-MTP2026-2Desktop
         env:
           VITE_BUILD_COMMIT: ${{ github.sha }}
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Build Android OS frontend
+        working-directory: frontend-MTP2026-Android
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Build Gaming OS frontend
+        working-directory: Frontend-MTP202026-ROG_gamingOS
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Build Device OS frontend
+        working-directory: frontend-MTP2026OS
         run: |
           npm install --no-audit --no-fund
           npm run build
