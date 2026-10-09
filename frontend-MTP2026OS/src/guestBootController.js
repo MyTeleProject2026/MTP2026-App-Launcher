@@ -5,7 +5,7 @@
 import { getGuestSystem, normalizeGuestSystem } from './guestSystemRegistry.js';
 import { getGuestImageContract } from './guestRuntimeManifest.js';
 import { loadGuestMetadata, saveGuestMetadata } from './guestStorage.js';
-import { bootArm64Guest, stopArm64Guest, installGuestImage } from './arm64GuestRuntime.js';
+import { bootArm64Guest, stopArm64Guest, installGuestImage, remoteRuntimeAvailable } from './arm64GuestRuntime.js';
 import { qemuWasmCapabilities } from './qemuWasmGuestRuntime.js';
 
 const listeners = new Set();
@@ -40,14 +40,14 @@ export async function bootGuest(mode, options = {}) {
     const installedImage = metadata?.status === 'installed' ? metadata?.image : null;
     const image = suppliedImage || installedImage || null;
 
-    if (!native?.bootGuest && !qemuAvailable) {
+    if (!native?.bootGuest && !qemuAvailable && !remoteRuntimeAvailable()) {
       throw new Error('REAL_GUEST_RUNTIME_NOT_CONFIGURED');
     }
-    if (!controlKernel && !image) {
+    if (!controlKernel && !image && !remoteRuntimeAvailable()) {
       throw new Error('REAL_GUEST_IMAGE_NOT_INSTALLED');
     }
 
-    publish({ phase: 'booting', provider: native?.bootGuest ? 'native-vm' : 'qemu-wasm', progress: 10, contract });
+    publish({ phase: 'booting', provider: native?.bootGuest ? 'native-vm' : qemuAvailable ? 'qemu-wasm' : 'remote-qemu', progress: 10, contract });
     const result = await bootArm64Guest({
       id, image, storage: options.storage || metadata?.storage || null, controlKernel, guestContract: contract
     });
