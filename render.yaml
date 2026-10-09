@@ -53,9 +53,8 @@ services:
   - type: web
     name: mtp2026-app-launcher-host
     runtime: static
-    rootDir: frontend-MTP2026-AppLauncher
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
+    buildCommand: cd frontend-MTP2026-AppLauncher && npm install --no-audit --no-fund && npm run build
+    staticPublishPath: frontend-MTP2026-AppLauncher/dist
     envVars:
       - key: VITE_API_BASE_URL
         sync: false
@@ -65,11 +64,10 @@ services:
         destination: /index.html
 
   - type: web
-    name: mtp2026-desktop-os
+    name: mtp2026-desktopos
     runtime: static
-    rootDir: frontend-MTP2026-2Desktop
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
+    buildCommand: cd frontend-MTP2026-2Desktop && npm install --no-audit --no-fund && npm run build
+    staticPublishPath: frontend-MTP2026-2Desktop/dist
     envVars:
       - key: VITE_API_BASE_URL
         sync: false
@@ -81,9 +79,8 @@ services:
   - type: web
     name: mtp2026-android-os
     runtime: static
-    rootDir: frontend-MTP2026-Android
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
+    buildCommand: cd frontend-MTP2026-Android && npm install --no-audit --no-fund && npm run build
+    staticPublishPath: frontend-MTP2026-Android/dist
     envVars:
       - key: VITE_API_BASE_URL
         sync: false
@@ -95,9 +92,8 @@ services:
   - type: web
     name: mtp2026-rog-gaming-os
     runtime: static
-    rootDir: Frontend-MTP202026-ROG_gamingOS
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
+    buildCommand: cd Frontend-MTP202026-ROG_gamingOS && npm install --no-audit --no-fund && npm run build
+    staticPublishPath: Frontend-MTP202026-ROG_gamingOS/dist
     envVars:
       - key: VITE_API_BASE_URL
         sync: false
@@ -109,9 +105,8 @@ services:
   - type: web
     name: mtp2026-device-os
     runtime: static
-    rootDir: frontend-MTP2026OS
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
+    buildCommand: cd frontend-MTP2026OS && npm install --no-audit --no-fund && npm run build
+    staticPublishPath: frontend-MTP2026OS/dist
     envVars:
       - key: VITE_API_BASE_URL
         sync: false
