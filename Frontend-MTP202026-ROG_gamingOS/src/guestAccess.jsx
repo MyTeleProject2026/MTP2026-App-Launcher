@@ -31,11 +31,14 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
   const [guestBootError,setGuestBootError]=useState('');
   const [guestRunning,setGuestRunning]=useState(false);
   const [runtimeBusy,setRuntimeBusy]=useState(false);
+  const [showBootSplash,setShowBootSplash]=useState(normalizeMTP2026GuestProfile(initialProfile).id==='gaming');
 
   const profile=useMemo(()=>GUEST_PROFILES.find(x=>x.id===profileId)||GUEST_PROFILES[0],[profileId]);
   const Icon=ICONS[profile.id]||Smartphone;
 
   useEffect(()=>{
+    setShowBootSplash(profile.id==='gaming');
+    const splashTimer=profile.id==='gaming'?window.setTimeout(()=>setShowBootSplash(false),1650):null;
     applyMTP2026GuestProfile(profile.id);
     setApps(loadApps(profile.id));
     setBooted(true);
@@ -44,6 +47,7 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
     setGuestBootError('');
     setGuestRunning(false);
     setGuestProvider('stopped');
+    return ()=>{if(splashTimer)window.clearTimeout(splashTimer);};
   },[profile.id]);
 
   async function startGuestExplicit(){
@@ -100,6 +104,8 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
       setBrowserUrl(parsed.toString()); setPanel('browser');
     } catch(e){ setError(e.message||'Enter a valid HTTPS address.'); }
   }
+
+  if(showBootSplash) return <main className="mtp-gaming-boot" aria-label="MTP2026 Gaming OS starting"><div className="mtp-gaming-boot-orbit"><span>◆</span></div><div className="mtp-gaming-boot-kicker">MTP2026 SYSTEM STARTUP</div><h1>GAMING <span>OS</span></h1><p>Preparing your play space</p><div className="mtp-gaming-boot-track"><i/></div><small>Checking interface · controller support · app library</small></main>;
 
   if(!booted) return <MTP2026Arm64Firmware profileId={profile.id} onReady={()=>{}} />;
 
