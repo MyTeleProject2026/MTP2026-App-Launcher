@@ -13,7 +13,9 @@ function configuredFrontendOrigins() {
   // custom domains configurable, but never accept an arbitrary return URL.
   const knownOrigins = [
     'https://mtp2026-app-launcher.onrender.com',
+    'https://mtp2026-app-launcher-host.onrender.com',
     'https://mtp2026-desktopos.onrender.com',
+    'https://mtp2026-desktopos-peun.onrender.com',
     'https://mtp2026-desktop-os.onrender.com',
     'https://mtp2026-android-os.onrender.com',
     'https://mtp2026-rog-gaming-os.onrender.com',
