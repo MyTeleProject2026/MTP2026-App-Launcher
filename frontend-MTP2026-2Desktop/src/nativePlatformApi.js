@@ -134,8 +134,13 @@ export async function nativeOpenExternal(url) {
   if (window.MTP2026Native?.openExternal) return window.MTP2026Native.openExternal(url);
   try { const plugin = await import('@capacitor/browser'); if (plugin.Browser?.open) return await plugin.Browser.open({ url }); } catch (_) {}
   if (hasIOSBridge()) { window.webkit.messageHandlers.mtp2026.postMessage({ action: 'openExternal', url }); return true; }
-  const opened = window.open(url, '_blank', 'noopener,noreferrer');
+  // Do not pass `noopener` to window.open here: browsers may then return
+  // null even when the new tab was opened successfully. Detach the opener
+  // from the returned window instead, and only report a block when no window
+  // was created at all.
+  const opened = window.open(url, '_blank');
   if (!opened) throw new Error('EXTERNAL_BROWSER_BLOCKED');
+  try { opened.opener = null; } catch (_) {}
   return true;
 }
 
