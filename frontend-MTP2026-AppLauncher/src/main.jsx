@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Activity, ArrowUpRight, Cpu, Gamepad2, HardDrive, Monitor, RefreshCw, ShieldCheck, Smartphone, TriangleAlert, Wifi } from 'lucide-react';
+import { Activity, ArrowUpRight, Cpu, Download, Gamepad2, HardDrive, Monitor, RefreshCw, ShieldCheck, Smartphone, TriangleAlert, Wifi, X } from 'lucide-react';
 import './style.css';
 
 const API = String(import.meta.env.VITE_API_BASE_URL || 'https://mtp2026-app-launcher-backend.onrender.com').replace(/\/$/, '');
@@ -17,6 +17,25 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [checkedAt, setCheckedAt] = useState(null);
   const [error, setError] = useState('');
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [installHelp, setInstallHelp] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(() => window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true);
+  const [installing, setInstalling] = useState(false);
+  useEffect(() => {
+    const onBeforeInstall = event => { event.preventDefault(); setInstallPrompt(event); };
+    const onInstalled = () => { setIsInstalled(true); setInstallPrompt(null); setInstallHelp(false); };
+    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => { window.removeEventListener('beforeinstallprompt', onBeforeInstall); window.removeEventListener('appinstalled', onInstalled); };
+  }, []);
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+  const installApp = async () => {
+    if (installPrompt) {
+      setInstalling(true);
+      try { await installPrompt.prompt(); await installPrompt.userChoice; setInstallPrompt(null); }
+      finally { setInstalling(false); }
+    } else setInstallHelp(true);
+  };
   const refresh = useCallback(async () => {
     setBusy(true); setError('');
     const results = await Promise.allSettled([
@@ -45,8 +64,9 @@ function App() {
   return <main className="shell">
     <header className="topbar">
       <a className="brand" href="/" aria-label="MTP2026 App Launcher home"><span className="brandmark">M</span><span><b>MTP2026</b><small>APP LAUNCHER · HOST</small></span></a>
-      <div className="top-actions"><span className={'health-pill ' + health.state}><i />{health.state === 'online' ? 'Backend connected' : health.state === 'checking' ? 'Checking backend' : 'Backend unavailable'}</span><button className="icon-button" onClick={refresh} disabled={busy} title="Refresh status"><RefreshCw size={17} className={busy ? 'spin' : ''}/></button></div>
+      <div className="top-actions">{!isInstalled && <button className="install-button" onClick={installApp} disabled={installing}><Download size={15}/>{installing ? 'Opening…' : 'Install app'}</button>}<span className={'health-pill ' + health.state}><i />{health.state === 'online' ? 'Backend connected' : health.state === 'checking' ? 'Checking backend' : 'Backend unavailable'}</span><button className="icon-button" onClick={refresh} disabled={busy} title="Refresh status"><RefreshCw size={17} className={busy ? 'spin' : ''}/></button></div>
     </header>
+    {installHelp && !isInstalled && <div className="install-overlay" role="presentation" onClick={event => { if (event.target === event.currentTarget) setInstallHelp(false); }}><section className="install-dialog" role="dialog" aria-modal="true" aria-labelledby="install-title"><button className="install-close" onClick={() => setInstallHelp(false)} aria-label="Close install instructions"><X size={18}/></button><img src="/mtp2026-icon.svg" alt="MTP2026 app icon"/><h2 id="install-title">Install MTP2026</h2><p>Add the Host Dashboard to your home screen for an app-style launch.</p>{isIOS ? <ol><li>Tap the <b>Share</b> button in Safari.</li><li>Choose <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b> to finish.</li></ol> : <ol><li>Open your browser menu (⋮).</li><li>Choose <b>Install app</b> or <b>Add to Home screen</b>.</li><li>Confirm the installation prompt.</li></ol>}<button className="install-primary" onClick={() => setInstallHelp(false)}>Got it</button></section></div>}
     <section className="hero">
       <div className="eyebrow"><ShieldCheck size={15}/> SHARED IDENTITY · INDEPENDENT OS SITES</div>
       <h1>Your systems.<br/><span>One control center.</span></h1>
