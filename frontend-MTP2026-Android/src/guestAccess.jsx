@@ -25,6 +25,10 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
   const [apkName,setApkName]=useState('');
   const [error,setError]=useState('');
   const [panel,setPanel]=useState('home');
+  const [networkOnline,setNetworkOnline]=useState(navigator.onLine);
+  const [batteryState,setBatteryState]=useState(null);
+  const [notificationPermission,setNotificationPermission]=useState(typeof Notification==='undefined'?'unsupported':Notification.permission);
+  const [notificationNote,setNotificationNote]=useState('');
   const [browserUrl,setBrowserUrl]=useState('https://vexaaccount-management.onrender.com');
   const [browserAddress,setBrowserAddress]=useState('https://vexaaccount-management.onrender.com');
   const [guestProvider,setGuestProvider]=useState('stopped');
@@ -32,6 +36,17 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
   const [guestRunning,setGuestRunning]=useState(false);
   const [runtimeBusy,setRuntimeBusy]=useState(false);
   const [showBootSplash,setShowBootSplash]=useState(normalizeMTP2026GuestProfile(initialProfile).id!=='mtp2026');
+
+  useEffect(()=>{
+    const updateOnline=()=>setNetworkOnline(navigator.onLine);
+    window.addEventListener('online',updateOnline);window.addEventListener('offline',updateOnline);
+    let batteryRef=null;
+    const updateBattery=()=>{if(batteryRef)setBatteryState({level:Math.round(batteryRef.level*100),charging:Boolean(batteryRef.charging)});};
+    if(navigator.getBattery){navigator.getBattery().then(b=>{batteryRef=b;updateBattery();b.addEventListener('levelchange',updateBattery);b.addEventListener('chargingchange',updateBattery);}).catch(()=>setBatteryState(null));}
+    return ()=>{window.removeEventListener('online',updateOnline);window.removeEventListener('offline',updateOnline);if(batteryRef){batteryRef.removeEventListener('levelchange',updateBattery);batteryRef.removeEventListener('chargingchange',updateBattery);}};
+  },[]);
+  async function enableNotifications(){if(typeof Notification==='undefined'){setNotificationPermission('unsupported');setNotificationNote('Notifications are not supported by this browser or WebView.');return;}try{const permission=await Notification.requestPermission();setNotificationPermission(permission);setNotificationNote(permission==='granted'?'Notifications are enabled for this browser.':permission==='denied'?'Notifications are blocked in browser or system settings.':'Permission was not granted.');}catch{setNotificationNote('Could not request notification permission in this environment.');}}
+  function sendTestNotification(){if(typeof Notification==='undefined'||Notification.permission!=='granted'){setNotificationNote('Enable notifications first, then try again.');return;}try{new Notification('MTP2026 Android OS',{body:'Notification center is working in this browser session.'});setNotificationNote('Test notification sent.');}catch{setNotificationNote('The browser blocked this notification.');}}
 
   const profile=useMemo(()=>GUEST_PROFILES.find(x=>x.id===profileId)||GUEST_PROFILES[0],[profileId]);
   const Icon=ICONS[profile.id]||Smartphone;
@@ -126,6 +141,8 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
 
         <nav className="mtp-os-nav">
           <button className={panel==='home'?'active':''} onClick={()=>setPanel('home')}><Grid2X2/> Home</button>
+          <button className={panel==='quick'?'active':''} onClick={()=>setPanel('quick')}><Wifi/> Quick settings</button>
+          <button className={panel==='notifications'?'active':''} onClick={()=>setPanel('notifications')}><Bell/> Notifications</button>
           <button className={panel==='apps'?'active':''} onClick={()=>setPanel('apps')}><Store/> Apps</button>
           <button className={panel==='install'?'active':''} onClick={()=>setPanel('install')}><Package/> Install</button>
           <button className={panel==='browser'?'active':''} onClick={()=>setPanel('browser')}><Globe2/> Browser</button><button className={panel==='settings'?'active':''} onClick={()=>setPanel('settings')}><Settings/> Settings</button>
@@ -139,6 +156,9 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
           <button onClick={onLogin}><UserRound/><b>VexaAccount</b><small>Device account & cloud library</small></button>
           <button onClick={()=>setPanel('browser')}><Globe2/><b>MTP2026 Browser</b><small>Built-in Chromium/WebView browser workspace</small></button><button onClick={()=>setPanel('settings')}><Settings/><b>System Settings</b><small>OS profile, storage, security</small></button>
         </div>}
+
+        {panel==='quick' && <section className="mtp-os-panel mtp-android-quick"><div className="mtp-os-panel-head"><div><h2>Quick settings</h2><p>Live browser and device signals. Hardware radios are shown as status only because a web page cannot directly switch Wi-Fi or mobile data.</p></div></div><div className="mtp-android-quick-grid"><article><Wifi/><span>Network</span><b>{networkOnline?'Online':'Offline'}</b><small>{navigator.connection?.effectiveType||'Connection details unavailable'}</small></article><article><Package/><span>Battery</span><b>{batteryState?batteryState.level+'%':'Unavailable'}</b><small>{batteryState?(batteryState.charging?'Charging':'On battery'):'Browser does not expose battery status'}</small></article><article><Bell/><span>Notifications</span><b>{notificationPermission==='unsupported'?'Unsupported':notificationPermission}</b><small>Browser permission</small><button onClick={enableNotifications}>Manage permission</button></article><article><Smartphone/><span>Display</span><b>{window.innerWidth} × {window.innerHeight}</b><small>{window.matchMedia('(orientation: portrait)').matches?'Portrait':'Landscape'} viewport</small></article></div></section>}
+        {panel==='notifications' && <section className="mtp-os-panel mtp-android-notifications"><div className="mtp-os-panel-head"><div><h2>Notification center</h2><p>Manage browser notification permission and verify delivery with a test notification.</p></div></div><div className="mtp-android-notice-card"><div className="mtp-android-notice-icon"><Bell/></div><div><b>MTP2026 notifications</b><small>Permission status: {notificationPermission}</small><p>{notificationNote||'Allow notifications to receive browser-supported alerts. Availability depends on browser and system settings.'}</p></div></div><div className="mtp-android-notification-actions"><button onClick={enableNotifications}>Enable notifications</button><button onClick={sendTestNotification} disabled={notificationPermission!=='granted'}>Send test notification</button></div></section>}
 
         {panel==='apps' && <section className="mtp-os-panel"><div className="mtp-os-panel-head"><div><h2>Applications</h2><p>Only MTP2026 WebApp/PWA entries are executed directly in the browser.</p></div><button onClick={()=>setPanel('install')}><Plus/> Add</button></div><div className="mtp-os-app-grid">{apps.map(app=><article key={app.id}><div className="mtp-os-app-icon"><AppIcon app={app}/></div><b>{app.title}</b><small>WebApp</small><div><a href={app.url} target="_blank" rel="noopener noreferrer"><ExternalLink/> Open</a><button onClick={()=>removeApp(app.id)}><Trash2/></button></div></article>)}{!apps.length&&<div className="mtp-os-empty">No applications installed. Open Install to add a WebApp/PWA.</div>}</div></section>}
 
