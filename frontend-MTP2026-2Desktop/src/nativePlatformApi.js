@@ -2,7 +2,6 @@
 
 import './startupOrchestrator.js';
 import './nativeGuestStorage.js';
-import './osRuntime.js';
 import './guestBootController.js';
 import { getGuestImageContract, getGuestImageSource } from './guestRuntimeManifest.js';
 
@@ -11,7 +10,7 @@ const hasIOSBridge = () => Boolean(window.webkit?.messageHandlers?.mtp2026);
 const cap = () => window.Capacitor || null;
 const browserNotification = () => typeof window !== 'undefined' && 'Notification' in window ? window.Notification : null;
 const modeAliases = Object.freeze({ windows: 'desktop', windows11: 'desktop', win11: 'desktop', 'ios-device': 'mtp2026', ios: 'mtp2026' });
-const validModes = new Set(['mtp2026', 'android', 'desktop', 'gaming']);
+const validModes = new Set(['desktop']);
 const normalizeMode = mode => modeAliases[String(mode || '').toLowerCase()] || String(mode || '').toLowerCase();
 const pluginAvailable = name => { try { return Boolean(cap()?.isPluginAvailable?.(name)); } catch (_) { return false; } };
 
@@ -65,7 +64,7 @@ export async function setNativeMode(mode) {
     try { const plugin = await import('@capacitor/screen-orientation'); await plugin.ScreenOrientation.lock({ orientation }); locked = true; } catch (_) {}
     if (!locked && document.fullscreenElement && screen.orientation?.lock) { try { await screen.orientation.lock(orientation); } catch (_) {} }
   }
-  try { localStorage.setItem('mtp2026-default-system-os', normalized); void window.MTP2026Runtime?.boot?.(normalized, { nativeResult }); } catch (_) {}
+  try { localStorage.setItem('mtp2026-default-system-os', 'desktop'); } catch (_) {}
   return nativeResult;
 }
 
