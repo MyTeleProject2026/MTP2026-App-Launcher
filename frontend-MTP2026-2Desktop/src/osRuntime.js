@@ -4,12 +4,12 @@ import './guestBootController.js';
 const MODES = {
   mtp2026: { name: 'MTP2026 Device OS', subtitle: 'MTP2026 ARM64 mobile guest' },
   android: { name: 'MTP2026 Android OS', subtitle: 'MTP2026 ARM64 mobile guest' },
-  windows11: { name: 'MTP2026 Desktop OS', subtitle: 'MTP2026 ARM64 desktop guest' },
+  desktop: { name: 'MTP2026 Desktop OS', subtitle: 'MTP2026 ARM64 desktop guest' },
   gaming: { name: 'MTP2026 Gaming OS', subtitle: 'MTP2026 ARM64 gaming guest' },
 };
 let state = { mode: null, phase: 'idle', provider: 'none', ready: false, error: null, recoverable: false };
 let bootToken = 0;
-const normalize = mode => mode === 'ios' || mode === 'ios-device' ? 'mtp2026' : mode === 'windows' ? 'windows11' : MODES[mode] ? mode : 'android';
+const normalize = mode => mode === 'ios' || mode === 'ios-device' ? 'mtp2026' : mode === 'windows' || mode === 'windows11' ? 'desktop' : MODES[mode] ? mode : 'android';
 function capabilities() {
   const platform = window.MTP2026NativePlatform;
   const arm64 = window.MTP2026Arm64GuestRuntime;
@@ -42,6 +42,15 @@ export async function boot(mode, options = {}) {
   try {
     state.phase = 'kernel'; render('kernel', 42, 'Starting ARM64 guest execution', normalized, caps.provider);
     const guestState = await window.MTP2026GuestBoot.bootGuest(normalized, options); if (token !== bootToken) return state;
+    // The browser shell is usable launcher UI, not a booted ARM64 guest.
+    // Reveal it without labeling the guest ready or leaving the splash overlay on top.
+    if (guestState?.running && guestState.phase === 'browser-shell') {
+      state = { ...state, phase: 'browser-shell', ready: false, shellReady: true, recoverable: false, error: null, provider: 'browser-launcher' };
+      document.documentElement.dataset.mtpRuntime = normalized;
+      hide(token);
+      window.dispatchEvent(new CustomEvent('mtp2026:runtime-shell-ready', { detail: { ...state, guestState } }));
+      return state;
+    }
     // A boot request can legitimately return a recoverable needs-install state.
     // Never turn that state into READY; doing so used to leave the iOS guest surface frozen.
     if (!guestState?.running || guestState.phase !== 'ready') {
