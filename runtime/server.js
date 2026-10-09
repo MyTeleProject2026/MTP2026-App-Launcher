@@ -104,7 +104,7 @@ app.post('/internal/start',internal,async(req,res)=>{
     const listing=spawn('tar',['-tzf',bundle],{stdio:['ignore','pipe','ignore']});
     let entries=''; listing.stdout.setEncoding('utf8'); listing.stdout.on('data',chunk=>{entries+=chunk;});
     const listCode=await new Promise((resolve,reject)=>{listing.once('error',reject);listing.once('exit',resolve);});
-    if(listCode!==0||entries.trim().split('\\n').some(name=>!allowedFiles.has(name)||name.includes('..')||name.includes('/'))) throw new Error('GUEST_BUNDLE_CONTENTS_INVALID');
+    if(listCode!==0||entries.trim().split('\n').some(name=>!allowedFiles.has(name)||name.includes('..')||name.includes('/'))) throw new Error('GUEST_BUNDLE_CONTENTS_INVALID');
     await new Promise((resolve,reject)=>{const p=spawn('tar',['-xzf',bundle,'-C',bundleDir,'--no-same-owner','--no-same-permissions'],{stdio:'ignore'});p.once('error',reject);p.once('exit',code=>code===0?resolve():reject(new Error('GUEST_BUNDLE_EXTRACT_FAILED')));});
     await fsp.rm(bundle,{force:true});
     const kernel=`mtp2026-${profile}-arm64-linux.Image`;
