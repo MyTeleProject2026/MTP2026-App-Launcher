@@ -5,7 +5,7 @@ import './style.css';
 
 const API = String(import.meta.env.VITE_API_BASE_URL || 'https://mtp2026-app-launcher-backend.onrender.com').replace(/\/$/, '');
 const SYSTEMS = [
-  { id: 'desktop', title: 'MTP2026 Desktop OS', detail: 'Desktop shell and productivity profile', url: 'https://mtp2026-desktop-os.onrender.com', icon: Monitor },
+  { id: 'desktop', title: 'MTP2026 Desktop OS', detail: 'Desktop shell and productivity profile', url: 'https://mtp2026-desktopos-peun.onrender.com', icon: Monitor },
   { id: 'gaming', title: 'MTP2026 Gaming OS', detail: 'Gaming-oriented independent frontend', url: 'https://mtp2026-rog-gaming-os.onrender.com', icon: Gamepad2 },
   { id: 'android', title: 'MTP2026 Android OS', detail: 'Mobile profile and package handoff', url: 'https://mtp2026-android-os.onrender.com', icon: Smartphone },
   { id: 'mtp2026', title: 'MTP2026 Device OS', detail: 'General-purpose mobile/device profile', url: 'https://mtp2026-device-os.onrender.com', icon: Cpu },
