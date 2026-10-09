@@ -5,7 +5,6 @@ import './styles.css';
 import MTP2026DesktopShell from './MTP2026DesktopShell.jsx';
 import './mtp2026DesktopShell.css';
 import { API, finishVexaLogin, signOut, startVexaLogin } from './auth';
-import { GuestAccess } from './guestAccess.jsx';
 
 async function json(response) {
   const data = await response.json().catch(() => ({}));
@@ -132,7 +131,7 @@ function DesktopApp() {
     window.location.assign(window.location.pathname);
   }
 
-  if (guestProfile) return <GuestAccess initialProfile={guestProfile} onLogin={() => setGuestProfile(null)} />;
+  if (guestProfile) return <MTP2026DesktopShell apps={[]} onExit={() => setGuestProfile(null)} />;
   if (loading) return <main className="vexa-login-page"><section className="vexa-login-card"><div className="vexa-login-brand"><div className="brand-mark"><span>M</span></div><div><strong>MTP2026 Desktop OS</strong><small>Starting secure desktop session…</small></div></div></section></main>;
   if (!logged) return <DesktopLogin error={error} onGuest={() => setGuestProfile('mtp2026')} />;
 
