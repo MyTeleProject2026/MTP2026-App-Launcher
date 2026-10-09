@@ -29,32 +29,47 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
   const [panel,setPanel]=useState('home');
   const [browserUrl,setBrowserUrl]=useState('https://vexaaccount-management.onrender.com');
   const [browserAddress,setBrowserAddress]=useState('https://vexaaccount-management.onrender.com');
-  const [guestProvider,setGuestProvider]=useState('browser-launcher');
+  const [guestProvider,setGuestProvider]=useState('stopped');
   const [guestBootError,setGuestBootError]=useState('');
+  const [guestRunning,setGuestRunning]=useState(false);
+  const [runtimeBusy,setRuntimeBusy]=useState(false);
 
   const profile=useMemo(()=>GUEST_PROFILES.find(x=>x.id===profileId)||GUEST_PROFILES[0],[profileId]);
   const Icon=ICONS[profile.id]||Smartphone;
 
-  useEffect(()=>{ 
-    let cancelled=false;
-    applyMTP2026GuestProfile(profile.id); setApps(loadApps(profile.id)); setBooted(false); setPanel('home'); setError(''); setGuestBootError('');
-    (async()=>{ 
-      try {
-        const state=await bootGuest(profile.id);
-        if(cancelled) return;
-        if(state?.error) setGuestBootError(state.error);
-        setGuestProvider(state?.provider || 'browser-launcher');
-        setBooted(true);
-      } catch(e) {
-        if(cancelled) return;
-        setGuestBootError(String(e?.message||e||'GUEST_BOOT_FAILED'));
-        setBooted(true);
-      }
-    })();
-    return ()=>{ cancelled=true; void stopGuest().catch(()=>{}); };
+  useEffect(()=>{
+    applyMTP2026GuestProfile(profile.id);
+    setApps(loadApps(profile.id));
+    setBooted(true);
+    setPanel('home');
+    setError('');
+    setGuestBootError('');
+    setGuestRunning(false);
+    setGuestProvider('stopped');
   },[profile.id]);
 
-  function switchProfile(id){ setProfileId(id); }
+  async function startGuestExplicit(){
+    if(runtimeBusy||guestRunning)return;
+    setRuntimeBusy(true);setGuestBootError('');
+    try{
+      const state=await bootGuest(profile.id);
+      if(state?.error||state?.running!==true)throw new Error(state?.error||'GUEST_BOOT_NOT_CONFIRMED');
+      setGuestRunning(true);setGuestProvider(state.provider||'remote-qemu-system-aarch64');
+    }catch(e){setGuestRunning(false);setGuestProvider('stopped');setGuestBootError(String(e?.message||e||'GUEST_BOOT_FAILED'));}
+    finally{setRuntimeBusy(false);}
+  }
+  async function stopGuestExplicit(){
+    if(runtimeBusy||!guestRunning)return;
+    setRuntimeBusy(true);setGuestBootError('');
+    try{
+      const state=await stopGuest();
+      if(state?.running)throw new Error(state.error||'GUEST_STOP_FAILED');
+      setGuestRunning(false);setGuestProvider('stopped');
+    }catch(e){setGuestBootError(String(e?.message||e||'GUEST_STOP_FAILED'));}
+    finally{setRuntimeBusy(false);}
+  }
+
+  async function switchProfile(id){ if(id===profileId)return; if(guestRunning){await stopGuestExplicit(); if(guestRunning)return;} setProfileId(id); }
   function addWebApp(e){
     e.preventDefault(); setError('');
     try {
@@ -87,7 +102,7 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
     <section className="mtp-guest-shell">
       <header className="mtp-guest-header">
         <div className="mtp-guest-brand"><div className="mtp-guest-brand-mark">M</div><div><strong>{profile.label}</strong><small>ARM64 device profile · MTP2026 platform · {guestProvider}</small></div></div>
-        <div className="mtp-os-account"><ShieldCheck/><span><b>VexaAccount</b><small>Device identity</small></span><button onClick={onLogin}><LogIn/> Sign in</button></div>
+        <div className="mtp-os-account"><ShieldCheck/><span><b>VexaAccount</b><small>Device identity</small></span><button disabled={runtimeBusy} onClick={guestRunning?stopGuestExplicit:startGuestExplicit}><Power/> {runtimeBusy?'Working…':guestRunning?'Stop guest':'Start guest'}</button><button onClick={onLogin}><LogIn/> Sign in</button></div>
       </header>
 
       <div className="mtp-guest-profile-strip">
@@ -95,7 +110,7 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
       </div>
 
       <section className="mtp-os-desktop">
-        <div className="mtp-os-status"><span><Wifi/> Connected</span><span><ShieldCheck/> Runtime: {guestProvider}</span><span><ShieldCheck/> VexaAccount protected</span><span><Bell/> System ready</span></div>
+        <div className="mtp-os-status"><span><Wifi/> Frontend ready</span><span><ShieldCheck/> Guest: {guestRunning?'Running':'Stopped'}</span><span><ShieldCheck/> VexaAccount protected</span><span><Bell/> {guestRunning?'Guest ready':'Start required'}</span></div>
         <div className="mtp-os-hero"><div className="mtp-guest-hero-icon"><Icon/></div><div><div className="mtp-guest-kicker">MTP2026 DEVICE OS</div><h1>{profile.label}</h1><p>One MTP2026 application environment across all four ARM64 device profiles. The built-in app layer includes <b>MTP2026 Browser</b> for HTTPS WebApp/PWA use, plus <b>Android APK package handoff</b> on a compatible native host.</p></div></div>
 
         <nav className="mtp-os-nav">
@@ -105,7 +120,7 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
           <button className={panel==='browser'?'active':''} onClick={()=>setPanel('browser')}><Globe2/> Browser</button><button className={panel==='settings'?'active':''} onClick={()=>setPanel('settings')}><Settings/> Settings</button>
         </nav>
 
-        {guestBootError&&<div className="mtp-guest-error" role="status">Guest runtime notice: {guestBootError}. MTP2026 is continuing in browser shell mode where native ARM64 execution is unavailable.</div>}
+        {guestBootError&&<div className="mtp-guest-error" role="status">Guest runtime notice: {guestBootError}. No simulated OS boot is reported; check the runtime configuration and retry.</div>}
 
         {panel==='home' && <div className="mtp-os-home-grid">
           <button onClick={()=>setPanel('apps')}><Store/><b>Application Center</b><small>{apps.length} WebApp entries</small></button>
@@ -133,7 +148,7 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
           <iframe title="MTP2026 Browser" src={browserUrl} style={{display:'block',width:'100%',height:'min(72vh,760px)',border:0,background:'#fff'}} sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts" />
         </section>}
 
-        {panel==='settings' && <section className="mtp-os-panel"><div className="mtp-os-settings-grid"><div><span>Device OS</span><b>{profile.label}</b></div><div><span>Architecture</span><b>ARM64 / AArch64</b></div><div><span>Account</span><b>VexaAccount</b></div><div><span>App model</span><b>WebApp/PWA + APK handoff</b></div><div><span>Cloud library</span><b>VexaAccount + MTP2026</b></div><div><span>Runtime</span><b>Browser shell / native VM provider</b></div></div><button className="mtp-os-danger" onClick={onLogin}><Power/> Exit guest profile / use VexaAccount</button></section>}
+        {panel==='settings' && <section className="mtp-os-panel"><div className="mtp-os-settings-grid"><div><span>Device OS</span><b>{profile.label}</b></div><div><span>Architecture</span><b>ARM64 / AArch64</b></div><div><span>Account</span><b>VexaAccount</b></div><div><span>App model</span><b>WebApp/PWA + APK handoff</b></div><div><span>Cloud library</span><b>VexaAccount + MTP2026</b></div><div><span>Runtime</span><b>Remote/native QEMU · explicit Start required</b></div></div><button className="mtp-os-danger" onClick={onLogin}><Power/> Exit guest profile / use VexaAccount</button></section>}
       </section>
 
       <footer className="mtp-guest-footer"><span>MTP2026 · VexaAccount device identity · ARM64 profile {profile.id}</span><button onClick={onLogin}><LogIn/> Continue with VexaAccount</button></footer>
