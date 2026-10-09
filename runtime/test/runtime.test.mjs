@@ -34,3 +34,19 @@ test('all four OS frontends preserve the selected origin and reject simulated bo
     assert.doesNotMatch(boot, /phase:\s*'browser-shell'/, `${frontend} must not simulate a running guest`);
   }
 });
+
+test('frontend selection and authentication never invoke guest boot automatically', async () => {
+  const fs = await import('node:fs/promises');
+  const root = new URL('../../', import.meta.url);
+  for (const frontend of ['frontend-MTP2026OS','frontend-MTP2026-Android','Frontend-MTP202026-ROG_gamingOS']) {
+    const startup = await fs.readFile(new URL(`${frontend}/src/startupOrchestrator.js`, root), 'utf8');
+    assert.doesNotMatch(startup, /MTP2026Runtime\?\.boot/, `${frontend} must not boot after login`);
+    assert.match(startup, /mtp2026:frontend-selected/);
+  }
+  for (const frontend of ['frontend-MTP2026OS','frontend-MTP2026-Android','Frontend-MTP202026-ROG_gamingOS','frontend-MTP2026-2Desktop']) {
+    const access = await fs.readFile(new URL(`${frontend}/src/guestAccess.jsx`, root), 'utf8');
+    const effect = access.match(/useEffect\(\(\)=>\{[\s\S]*?\},\[profile\.id\]\);/)?.[0] || '';
+    assert.doesNotMatch(effect, /bootGuest\(/, `${frontend} must not boot on mount/profile selection`);
+    assert.match(access, /startGuestExplicit/);
+  }
+});
