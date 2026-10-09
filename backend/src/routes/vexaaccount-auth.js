@@ -136,5 +136,37 @@ export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
 
   app.post('/api/apps/:id/install',auth,async(req,res)=>{try{const userId=req.mtpSession.userId;const [exists]=await pool.execute('SELECT id FROM applications WHERE id=? LIMIT 1',[req.params.id]);if(!exists.length)return res.status(404).json({error:'APPLICATION_NOT_FOUND'});await pool.execute('INSERT IGNORE INTO user_applications(user_id,application_id) VALUES(?,?)',[userId,req.params.id]);res.json({ok:true,installed:true});}catch{res.status(400).json({error:'APPLICATION_INSTALL_FAILED'});}});
 
+  // Remote QEMU guest lifecycle. The browser never receives the runtime's
+  // service credential; all lifecycle operations require an authenticated MTP session.
+  const runtimeBase=String(process.env.MTP2026_RUNTIME_URL||'').replace(/\/$/,'');
+  const runtimeKey=String(process.env.MTP2026_RUNTIME_API_KEY||'');
+  async function runtimeRequest(path,options={}) {
+    if(!runtimeBase||!runtimeKey) throw Object.assign(new Error('REMOTE_QEMU_RUNTIME_NOT_CONFIGURED'),{status:503});
+    const response=await fetch(runtimeBase+path,{...options,signal:AbortSignal.timeout(120000),headers:{'content-type':'application/json','authorization':`Bearer ${runtimeKey}',...(options.headers||{})}});
+    const body=await response.json().catch(()=>({error:'RUNTIME_RESPONSE_INVALID'}));
+    if(!response.ok) throw Object.assign(new Error(body.detail||body.error||'RUNTIME_REQUEST_FAILED'),{status:response.status,body});
+    return body;
+  }
+  app.post('/api/runtime/guests/start',auth,async(req,res)=>{
+    const profile=String(req.body?.profile||'');
+    if(!['mtp2026','android','desktop','gaming'].includes(profile))return res.status(400).json({error:'GUEST_PROFILE_INVALID'});
+    const sessionId=crypto.randomUUID().replace(/-/g,'');
+    try {
+      const result=await runtimeRequest('/internal/start',{method:'POST',body:JSON.stringify({profile,ownerId:req.mtpSession.userId,sessionId})});
+      if(result.realGuest!==true||result.ready!==true||result.running!==true||!result.viewerUrl)return res.status(502).json({error:'GUEST_BOOT_NOT_CONFIRMED'});
+      res.status(201).json(result);
+    } catch(error) { res.status(error.status||502).json({error:error.message||'GUEST_START_FAILED',detail:error.body?.detail||null}); }
+  });
+  app.get('/api/runtime/guests/:id',auth,async(req,res)=>{
+    if(!/^[a-f0-9]{32}$/.test(req.params.id))return res.status(400).json({error:'GUEST_SESSION_INVALID'});
+    try { res.json(await runtimeRequest(`/internal/status/${req.params.id}?ownerId=${encodeURIComponent(req.mtpSession.userId)}`)); }
+    catch(error) { res.status(error.status||502).json({error:error.message||'GUEST_STATUS_FAILED'}); }
+  });
+  app.post('/api/runtime/guests/:id/stop',auth,async(req,res)=>{
+    if(!/^[a-f0-9]{32}$/.test(req.params.id))return res.status(400).json({error:'GUEST_SESSION_INVALID'});
+    try { res.json(await runtimeRequest(`/internal/stop/${req.params.id}`,{method:'POST',body:JSON.stringify({ownerId:req.mtpSession.userId})})); }
+    catch(error) { res.status(error.status||502).json({error:error.message||'GUEST_STOP_FAILED'}); }
+  });
+
   return auth;
 }
