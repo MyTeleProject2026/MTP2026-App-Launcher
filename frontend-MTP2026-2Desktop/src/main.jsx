@@ -133,7 +133,7 @@ function DesktopApp() {
     window.location.assign(window.location.pathname);
   }
 
-  if (guestProfile) return <MTP2026DesktopShell apps={apps} profile={profile} onExit={() => window.location.reload()} />;
+  if (guestProfile) return <DesktopErrorBoundary><MTP2026DesktopShell apps={apps} profile={profile} onExit={() => window.location.reload()} /></DesktopErrorBoundary>;
   if (loading) return <main className="vexa-login-page"><section className="vexa-login-card"><div className="vexa-login-brand"><div className="brand-mark"><span>M</span></div><div><strong>MTP2026 Desktop OS</strong><small>Starting secure desktop session…</small></div></div></section></main>;
   if (!logged) return <DesktopLogin error={error} onGuest={() => setGuestProfile('mtp2026')} />;
 
