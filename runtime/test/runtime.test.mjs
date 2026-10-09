@@ -7,7 +7,7 @@ test('runtime image profile allowlist is explicit', async () => {
   assert.match(source, /GUEST_BUNDLE_CHECKSUM_MISMATCH/);
   assert.match(source, /MTP2026 GUI COMPOSITOR STARTED/);
   assert.match(source, /authorization.*Bearer/);
-  assert.match(source, /realGuest:guest\.confirmed/);
+  assert.match(source, /realGuest:s\.confirmed/);
 });
 
 test('runtime does not advertise a guest as running without confirmed boot markers', async () => {
