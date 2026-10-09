@@ -724,6 +724,30 @@ export function MTP2026DesktopShell({apps=[],profile=null,onExit,onOpenBrowser})
     const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);setDesktopBox(null);};
     window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
   };
+  useEffect(()=>{
+    const onShortcut=e=>{
+      const target=e.target;
+      const typing=target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+      if(e.key==='Escape'){
+        if(start){setStart(false);e.preventDefault();return;}
+        if(quickSettings){setQuickSettings(false);e.preventDefault();return;}
+        if(notifications){setNotifications(false);e.preventDefault();return;}
+        if(calendar){setCalendar(false);e.preventDefault();return;}
+        if(power){setPower(false);e.preventDefault();return;}
+      }
+      if(typing) return;
+      const mod=e.metaKey||e.ctrlKey;
+      if(mod && e.altKey && e.key==='Delete'){e.preventDefault();setLocked(true);setStart(false);setPower(false);return;}
+      if(!mod) return;
+      const key=e.key.toLowerCase();
+      if(key==='e'){e.preventDefault();open('files');}
+      else if(key==='i'){e.preventDefault();open('settings');}
+      else if(key==='r'){e.preventDefault();setRunDialog(true);setStart(false);}
+      else if(key==='s'){e.preventDefault();setStart(true);setStartTab('home');}
+    };
+    window.addEventListener('keydown',onShortcut);
+    return ()=>window.removeEventListener('keydown',onShortcut);
+  },[start,quickSettings,notifications,calendar,power,windows,currentDesktop,locked]);
   return (
     <main className={`mtp11-desktop ${bg}`} onPointerDown={desktopPointerDown}>
      {locked ? (
