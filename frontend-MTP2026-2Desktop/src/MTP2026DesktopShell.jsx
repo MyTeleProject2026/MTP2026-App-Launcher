@@ -297,7 +297,7 @@ function SettingsApp(){
   const [metered,setMetered]=useState(()=>localStorage.getItem('mtp2026-desktop-metered')==='on');
   const [lockScreen,setLockScreen]=useState(()=>localStorage.getItem('mtp2026-desktop-lock')!=='off');
   const [notifications,setNotifications]=useState(()=>localStorage.getItem('mtp2026-desktop-notifications')!=='off');
-  const toggle=(setter,key,value)=>{setter(!value);localStorage.setItem(key,!value?'off':'on');};
+  const toggle=(setter,key,value)=>{const next=!value;setter(next);localStorage.setItem(key,next?'on':'off');window.dispatchEvent(new CustomEvent('mtp2026:settings-changed',{detail:{key,value:next}}));};
   const event=(name,detail={})=>window.dispatchEvent(new CustomEvent(name,{detail}));
   const themeCard=<div className="mtp11-setting-card"><Monitor/><div><b>Theme</b><span>Desktop shell appearance</span></div><select value={theme} onChange={e=>{setTheme(e.target.value);localStorage.setItem('mtp2026-desktop-theme',e.target.value);event('mtp2026:theme-changed',{theme:e.target.value})}}><option value="dark">Dark</option><option value="light">Light</option></select></div>;
   const content={
