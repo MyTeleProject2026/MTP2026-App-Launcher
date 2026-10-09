@@ -20,14 +20,14 @@ try {
   assert.equal(health.body.engine,'qemu-system-aarch64');
   const start=await request('/internal/start',{method:'POST',body:JSON.stringify({profile,ownerId,sessionId})});
   assert.equal(start.response.status,201,JSON.stringify(start.body));
+  started=true;
   assert.equal(start.body.realGuest,true,'runtime must confirm real guest execution');
   assert.equal(start.body.ready,true,'guest boot must be confirmed');
   assert.equal(start.body.running,true,'guest must be running');
   assert.match(start.body.viewerUrl,/^https:\/\//);
-  started=true;
   const viewer=await fetch(start.body.viewerUrl,{redirect:'manual',signal:AbortSignal.timeout(15000)});
   assert.equal(viewer.status,302,'viewer endpoint must issue noVNC redirect');
-  assert.match(viewer.headers.get('location')||/,/,'viewer redirect must include noVNC path');
+  assert.match(viewer.headers.get('location')||'',/\/novnc\/vnc\.html\?/,'viewer redirect must include noVNC path');
   const stop=await request(`/internal/stop/${sessionId}`,{method:'POST',body:JSON.stringify({ownerId})});
   assert.equal(stop.response.status,200,JSON.stringify(stop.body));
   started=false;
