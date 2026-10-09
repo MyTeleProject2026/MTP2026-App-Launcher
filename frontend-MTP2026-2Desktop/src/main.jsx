@@ -68,9 +68,9 @@ class DesktopErrorBoundary extends React.Component {
 }
 
 function DesktopApp() {
-  // Start directly in the desktop shell. Authentication and optional guest-runtime
-  // setup must never block the basic desktop workspace from appearing.
-  const [guestProfile, setGuestProfile] = useState('mtp2026');
+  // Require the backend-managed VexaAccount session by default. Guest access is
+  // an explicit choice, not a default that silently bypasses the SSO gate.
+  const [guestProfile, setGuestProfile] = useState(null);
   const [apps, setApps] = useState([]);
   const [profile, setProfile] = useState(null);
   const [logged, setLogged] = useState(false);
