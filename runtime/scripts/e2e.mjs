@@ -29,6 +29,45 @@ try {
   const viewer=await fetch(start.body.viewerUrl,{redirect:'manual',signal:AbortSignal.timeout(15000)});
   assert.equal(viewer.status,302,'viewer endpoint must issue noVNC redirect');
   assert.match(viewer.headers.get('location')||'',/\/novnc\/vnc\.html\?/,'viewer redirect must include noVNC path');
+  const token = new URL(start.body.viewerUrl).pathname.split('/').filter(Boolean).at(-1);
+  const websocketUrl = base.replace(/^http/, 'ws') + '/ws/' + encodeURIComponent(token);
+  await new Promise((resolve,reject)=>{
+    const ws=new WebSocket(websocketUrl);
+    let buffer=Buffer.alloc(0), stage=0, timer;
+    const finish=error=>{clearTimeout(timer);try{ws.close();}catch{};error?reject(error):resolve();};
+    timer=setTimeout(()=>finish(new Error('VNC_RFB_HANDSHAKE_TIMEOUT')),12000);
+    ws.on('error',finish);
+    ws.on('message',data=>{
+      buffer=Buffer.concat([buffer,Buffer.from(data)]);
+      try {
+        if(stage===0 && buffer.length>=12) {
+          const version=buffer.subarray(0,12).toString('ascii');
+          assert.match(version,/^RFB 003\\.00[38]\\n$/,'VNC bridge must expose an RFB server banner');
+          ws.send(version);buffer=buffer.subarray(12);stage=1;
+        }
+        if(stage===1 && buffer.length>=1) {
+          const count=buffer[0];
+          if(count<1)throw new Error('VNC_SERVER_OFFERED_NO_SECURITY_TYPES');
+          if(buffer.length<1+count)return;
+          const types=buffer.subarray(1,1+count);
+          if(!types.includes(1))throw new Error('VNC_NO_AUTH_SECURITY_TYPE_UNAVAILABLE');
+          ws.send(Buffer.from([1]));buffer=buffer.subarray(1+count);stage=2;
+        }
+        if(stage===2 && buffer.length>=4) {
+          if(buffer.readUInt32BE(0)!==0)throw new Error('VNC_SECURITY_NEGOTIATION_FAILED');
+          ws.send(Buffer.from([1]));buffer=buffer.subarray(4);stage=3;
+        }
+        if(stage===3 && buffer.length>=24) {
+          const width=buffer.readUInt16BE(0),height=buffer.readUInt16BE(2),nameLength=buffer.readUInt32BE(20);
+          if(width<1||height<1||nameLength>4096)throw new Error('VNC_SERVER_INIT_INVALID');
+          if(buffer.length<24+nameLength)return;
+          assert.ok(width>=320&&height>=200,'guest framebuffer dimensions must be plausible');
+          console.log(`VNC RFB handshake passed: ${width}x${height}`);
+          finish();
+        }
+      } catch(error) { finish(error); }
+    });
+  });
   const stop=await request(`/internal/stop/${sessionId}`,{method:'POST',body:JSON.stringify({ownerId})});
   assert.equal(stop.response.status,200,JSON.stringify(stop.body));
   started=false;
