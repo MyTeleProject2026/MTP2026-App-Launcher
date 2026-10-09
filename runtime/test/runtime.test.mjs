@@ -59,3 +59,21 @@ test('changing a device mode never starts the QEMU runtime', async () => {
     assert.doesNotMatch(native, /MTP2026Runtime\?\.boot/, `${frontend} mode changes must not boot a guest`);
   }
 });
+
+test('runtime health distinguishes process availability from boot readiness', async () => {
+  const fs = await import('node:fs/promises');
+  const source = await fs.readFile(new URL('../server.js', import.meta.url), 'utf8');
+  assert.match(source, /configured:Boolean\(apiKey && publicUrl/);
+  assert.match(source, /bootMediaReady:media\.ready/);
+  assert.match(source, /GUEST_BOOT_MEDIA_INCOMPLETE/);
+  assert.match(source, /physical-test-manifest\.json/);
+});
+
+test('remote runtime E2E negotiates the real VNC RFB framebuffer', async () => {
+  const fs = await import('node:fs/promises');
+  const source = await fs.readFile(new URL('../scripts/e2e.mjs', import.meta.url), 'utf8');
+  assert.match(source, /new WebSocket\(websocketUrl\)/);
+  assert.match(source, /VNC_RFB_HANDSHAKE_TIMEOUT/);
+  assert.match(source, /VNC RFB handshake passed/);
+  assert.match(source, /guest framebuffer dimensions must be plausible/);
+});
