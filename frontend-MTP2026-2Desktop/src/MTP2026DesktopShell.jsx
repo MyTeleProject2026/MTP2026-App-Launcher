@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import {
   Bell, ChevronDown, File, Folder, FolderOpen, Globe2, Grid2X2, HardDrive, Info, Clipboard,
   Monitor, Power, Search, Settings, ShieldCheck, Store, Terminal, UserRound,
@@ -91,7 +92,7 @@ function DesktopTaskView({desktops,currentDesktop,windows,windowDesktops,apps,on
 
 function BrowserApp({initialUrl='https://www.google.com'}) {
   const normalize=url=>{const raw=String(url||'').trim();if(!raw)return 'https://www.google.com';try{const u=new URL(raw);if(!['http:','https:'].includes(u.protocol))throw new Error('Unsupported protocol');return u.toString()}catch{return 'https://www.google.com/search?q='+encodeURIComponent(raw)}};
-  const openExternal=async target=>{try{const {Browser}=await import('@capacitor/browser');if(Browser&&globalThis.Capacitor?.isNativePlatform?.()){await Browser.open({url:target});return}}catch{}try{const w=window.open(target,'_blank','noopener,noreferrer');if(!w)window.location.assign(target)}catch{window.location.assign(target)}};
+  const openExternal=async target=>{try{const {Browser}=await import('@capacitor/browser');if(Browser&&Capacitor.isNativePlatform()){await Browser.open({url:target});return}}catch{}try{const w=window.open(target,'_blank','noopener,noreferrer');if(!w)window.location.assign(target)}catch{window.location.assign(target)}};
   const installCurrentSite=()=>{try{localStorage.setItem('mtp2026:webapp-installer-prefill',url)}catch{};window.dispatchEvent(new CustomEvent('mtp2026:open-window',{detail:{id:'webapp-installer'}}))};
   const [url,setUrl]=useState(initialUrl); const [input,setInput]=useState(initialUrl);
   const [tabs,setTabs]=useState([{id:1,title:'New tab',url:initialUrl}]); const [activeTab,setActiveTab]=useState(1);
