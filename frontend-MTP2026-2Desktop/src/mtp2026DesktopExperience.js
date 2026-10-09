@@ -79,21 +79,100 @@
     if (panel.classList.contains('open')) panel.querySelector('.mtp-start-search').focus();
   }
 
+  const WORKSPACE_KEY = 'mtp2026-desktop-virtual-files-v1';
+  const readWorkspace = () => {
+    try { const value = JSON.parse(localStorage.getItem(WORKSPACE_KEY) || '[]'); return Array.isArray(value) ? value : []; } catch (_) { return []; }
+  };
+  const writeWorkspace = items => { localStorage.setItem(WORKSPACE_KEY, JSON.stringify(items)); };
+  const folderName = path => path === '/' ? 'This PC' : path.split('/').filter(Boolean).pop();
   function openFileExplorer() {
     let win = document.getElementById('mtp2026-desktop-window');
     if (!win) {
       win = document.createElement('div'); win.id = 'mtp2026-desktop-window';
-      win.innerHTML = `<div class="mtp-desktop-window-head"><span>📁</span><b>This PC · MTP2026 Files</b><button type="button" data-close>×</button></div><div class="mtp-desktop-window-body"><div style="color:#8da3bc;font-size:10px;margin-bottom:12px">MTP2026 virtual storage workspace · local browser storage / native storage when available</div><div class="mtp-pc-grid"><div class="mtp-pc-card"><b>🗂 Desktop</b><small>Desktop workspace</small></div><div class="mtp-pc-card"><b>📄 Documents</b><small>MTP2026 documents</small></div><div class="mtp-pc-card"><b>⬇ Downloads</b><small>Downloaded files</small></div><div class="mtp-pc-card"><b>🖼 Pictures</b><small>Pictures and icons</small></div><div class="mtp-pc-card"><b>🎵 Music</b><small>Media storage</small></div><div class="mtp-pc-card"><b>🎮 Games</b><small>Gaming application data</small></div><div class="mtp-pc-card"><b>☁ MTP2026 Cloud</b><small>VexaAccount-synchronized workspace</small></div><div class="mtp-pc-card"><b>💾 Device Storage</b><small>OPFS / native storage</small></div></div></div><div style="height:33px;border-top:1px solid rgba(255,255,255,.08);padding:0 12px;display:flex;align-items:center;color:#7188a2;font-size:10px">ARM64 · MTP2026 Desktop OS</div>`;
+      win.innerHTML = `<div class="mtp-desktop-window-head"><span>📁</span><b data-window-title>File Explorer · This PC</b><button type="button" data-close aria-label="Close File Explorer">×</button></div>
+        <div class="mtp-desktop-window-body">
+          <div class="mtp-explorer-toolbar" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px">
+            <button type="button" data-explorer-action="back">← Back</button><button type="button" data-explorer-action="new-file">＋ New file</button><button type="button" data-explorer-action="new-folder">＋ New folder</button><button type="button" data-explorer-action="upload">↑ Import text file</button><button type="button" data-explorer-action="rename">Rename</button><button type="button" data-explorer-action="download">Download</button><button type="button" data-explorer-action="delete">Delete</button><button type="button" data-explorer-action="pick-folder">Open device folder</button><input type="file" data-explorer-file hidden accept=".txt,.md,.json,.csv,.html,.css,.js,.xml,.log">
+          </div>
+          <div data-explorer-breadcrumb style="color:#8da3bc;font-size:11px;margin:8px 0 12px">This PC</div>
+          <div class="mtp-pc-grid" data-explorer-grid></div>
+          <p data-explorer-status role="status" aria-live="polite" style="color:#9eb4cd;font-size:12px;padding:8px 2px">Virtual workspace is stored in this browser on this device.</p>
+          <div data-native-folder hidden style="margin-top:14px"><b>Granted device folder</b><div data-native-list class="mtp-pc-grid" style="margin-top:8px"></div></div>
+        </div><div style="height:33px;border-top:1px solid rgba(255,255,255,.08);padding:0 12px;display:flex;align-items:center;color:#7188a2;font-size:10px">MTP2026 virtual workspace · browser storage</div>`;
       document.body.appendChild(win);
-      win.querySelector('[data-close]').onclick = () => win.style.display = 'none';
-      const head = win.querySelector('.mtp-desktop-window-head');
-      let drag = null;
-      head.addEventListener('pointerdown', event => { if (event.target.closest('button')) return; const rect = win.getBoundingClientRect(); drag = {x:event.clientX,y:event.clientY,left:rect.left,top:rect.top}; head.setPointerCapture?.(event.pointerId); });
-      head.addEventListener('pointermove', event => { if (!drag) return; const left = Math.max(0,Math.min(window.innerWidth-win.offsetWidth,drag.left+event.clientX-drag.x)); const top = Math.max(0,Math.min(window.innerHeight-100,drag.top+event.clientY-drag.y)); win.style.left = left+'px'; win.style.top = top+'px'; win.style.right='auto'; win.style.bottom='auto'; });
-      const stopDrag = () => { drag = null; }; head.addEventListener('pointerup',stopDrag); head.addEventListener('pointercancel',stopDrag);
-      win.querySelectorAll('.mtp-pc-card').forEach(card => { card.tabIndex=0; card.setAttribute('role','button'); card.addEventListener('click',()=>{ const label=card.querySelector('b')?.textContent||'Folder'; let content=win.querySelector('[data-folder-status]'); if(!content){content=document.createElement('p');content.dataset.folderStatus='';content.style.cssText='color:#9eb4cd;font-size:12px;padding:8px 2px';win.querySelector('.mtp-desktop-window-body').appendChild(content);} content.textContent=label+' selected. Browser sandbox storage is available; native folders require a granted file-system permission.'; }); card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();card.click();}}); });
+      const body = win.querySelector('.mtp-desktop-window-body');
+      const status = win.querySelector('[data-explorer-status]');
+      const grid = win.querySelector('[data-explorer-grid]');
+      let currentPath = '/';
+      let selectedId = null;
+      let nativeDirectory = null;
+      const statusMessage = message => { status.textContent = message; };
+      const pathJoin = (parent, name) => (parent === '/' ? '' : parent.replace(/\/$/, '')) + '/' + name;
+      const safeName = value => String(value || '').trim().replace(/[\\/\\\\]/g, '-').replace(/[\\x00-\\x1f]/g, '').slice(0, 120);
+      const itemsAt = path => readWorkspace().filter(item => item.parent === path);
+      const selectedItem = () => readWorkspace().find(item => item.id === selectedId);
+      const buttonStyle = `.mtp-explorer-toolbar button{border:1px solid rgba(150,190,230,.2);border-radius:8px;background:#11233a;color:#e8f4ff;padding:8px 10px;font-size:11px;cursor:pointer}.mtp-explorer-toolbar button:hover{background:#1b3554}.mtp-explorer-toolbar button:focus-visible{outline:2px solid #55c9ff;outline-offset:2px}`;
+      if (!document.getElementById('mtp2026-explorer-toolbar-style')) { const style=document.createElement('style');style.id='mtp2026-explorer-toolbar-style';style.textContent=buttonStyle;document.head.appendChild(style); }
+      const render = () => {
+        selectedId = selectedId && readWorkspace().some(item => item.id === selectedId && item.parent === currentPath) ? selectedId : null;
+        win.querySelector('[data-window-title]').textContent = 'File Explorer · ' + folderName(currentPath);
+        win.querySelector('[data-explorer-breadcrumb]').textContent = 'This PC' + (currentPath === '/' ? '' : '  /  ' + currentPath.split('/').filter(Boolean).join('  /  '));
+        grid.innerHTML = '';
+        if (currentPath === '/') {
+          const folders = ['Desktop','Documents','Downloads','Pictures','Music','Games','MTP2026 Cloud','Device Storage'];
+          folders.forEach((name,index) => {
+            const card=document.createElement('button');card.type='button';card.className='mtp-pc-card';card.style.cssText='color:#eef6ff;text-align:left;cursor:pointer';
+            card.innerHTML='<b>'+['🗂','📄','⬇','🖼','🎵','🎮','☁','💾'][index]+' '+esc(name)+'</b><small>Open virtual '+esc(name)+' workspace</small>';
+            card.addEventListener('click',()=>{currentPath='/'+name;render();statusMessage('Opened '+name+'. Changes are stored in this browser profile.');});
+            grid.appendChild(card);
+          });
+        } else {
+          const back=document.createElement('button');back.type='button';back.className='mtp-pc-card';back.innerHTML='<b>↩ Parent folder</b><small>Go up one level</small>';back.addEventListener('click',()=>{currentPath=currentPath.split('/').slice(0,-1).join('/')||'/';selectedId=null;render();});grid.appendChild(back);
+          const entries=itemsAt(currentPath).sort((a,b)=>Number(b.kind==='folder')-Number(a.kind==='folder')||a.name.localeCompare(b.name));
+          if(!entries.length){const empty=document.createElement('p');empty.style.cssText='color:#8197b0;font-size:12px;grid-column:1/-1';empty.textContent='This folder is empty. Create a file or import a text document to get started.';grid.appendChild(empty);}
+          entries.forEach(item=>{
+            const card=document.createElement('button');card.type='button';card.className='mtp-pc-card';card.style.cssText='color:#eef6ff;text-align:left;cursor:pointer'+(item.id===selectedId?';outline:2px solid #55c9ff':'');
+            card.innerHTML='<b>'+esc(item.kind==='folder'?'📁':'📄')+' '+esc(item.name)+'</b><small>'+esc(item.kind==='folder'?'Folder':(item.size||new Blob([item.content||'']).size)+' bytes · '+(item.updatedAt||'local file'))+'</small>';
+            card.addEventListener('click',()=>{selectedId=item.id;if(item.kind==='folder'){currentPath=pathJoin(currentPath,item.name);selectedId=null;render();}else{render();statusMessage('Selected '+item.name+'. Use Download, Rename, or Delete.');}});
+            card.addEventListener('dblclick',()=>{if(item.kind==='folder'){currentPath=pathJoin(currentPath,item.name);selectedId=null;render();}else{const blob=new Blob([item.content||''],{type:item.mime||'text/plain;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=item.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);statusMessage('Downloaded '+item.name+'.');}});
+            grid.appendChild(card);
+          });
+        }
+        const nativeWrap=win.querySelector('[data-native-folder]');
+        nativeWrap.hidden=!nativeDirectory;
+        if(nativeDirectory) renderNativeDirectory();
+      };
+      const renderNativeDirectory = async () => {
+        const target=win.querySelector('[data-native-list]');target.innerHTML='';
+        try { for await (const [name,handle] of nativeDirectory.entries()) { const card=document.createElement('div');card.className='mtp-pc-card';card.innerHTML='<b>'+esc(handle.kind==='directory'?'📁':'📄')+' '+esc(name)+'</b><small>Granted device folder · '+esc(handle.kind)+'</small>';target.appendChild(card); } }
+        catch(error){statusMessage('Could not read the granted folder: '+error.message);}
+      };
+      const saveItem = item => { const all=readWorkspace();all.push(item);writeWorkspace(all);selectedId=item.id;render(); };
+      const selectedAction = action => {
+        const item=selectedItem();
+        if(!item){statusMessage('Select a file first.');return;}
+        const all=readWorkspace();
+        if(action==='rename'){const name=safeName(prompt('New name',item.name));if(!name){statusMessage('Rename cancelled.');return;}if(all.some(x=>x.parent===item.parent&&x.name.toLowerCase()===name.toLowerCase()&&x.id!==item.id)){statusMessage('A file or folder with that name already exists.');return;}writeWorkspace(all.map(x=>x.id===item.id?{...x,name,updatedAt:new Date().toISOString()}:x));statusMessage('Renamed to '+name+'.');render();}
+        if(action==='delete'){if(!confirm('Delete "'+item.name+'" from this browser workspace?'))return;const removeIds=new Set([item.id]);if(item.kind==='folder'){const prefix=pathJoin(item.parent,item.name);let changed=true;while(changed){changed=false;all.forEach(x=>{if(x.parent===prefix||[...removeIds].some(id=>all.find(y=>y.id===id)?.kind==='folder'&&x.parent===pathJoin(all.find(y=>y.id===id).parent,all.find(y=>y.id===id).name))){if(!removeIds.has(x.id)){removeIds.add(x.id);changed=true;}}});}}writeWorkspace(all.filter(x=>!removeIds.has(x.id)));selectedId=null;render();statusMessage('Deleted '+item.name+' from browser storage.');}
+        if(action==='download'){if(item.kind==='folder'){statusMessage('Choose a file to download.');return;}const url=URL.createObjectURL(new Blob([item.content||''],{type:item.mime||'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=item.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);statusMessage('Downloaded '+item.name+'.');}
+      };
+      win.querySelector('[data-close]').onclick=()=>{win.style.display='none';};
+      win.querySelector('[data-explorer-action="back"]').onclick=()=>{if(currentPath==='/'){statusMessage('You are already at This PC.');return;}currentPath=currentPath.split('/').slice(0,-1).join('/')||'/';selectedId=null;render();};
+      win.querySelector('[data-explorer-action="new-file"]').onclick=()=>{if(currentPath==='/'){statusMessage('Open a folder before creating a file.');return;}const name=safeName(prompt('File name (for example notes.txt)','notes.txt'));if(!name)return;if(itemsAt(currentPath).some(x=>x.name.toLowerCase()===name.toLowerCase())){statusMessage('That name already exists in this folder.');return;}const content=prompt('Text content for '+name,'')??null;if(content===null)return;saveItem({id:crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random(),parent:currentPath,name,kind:'file',content,mime:'text/plain;charset=utf-8',size:new Blob([content]).size,updatedAt:new Date().toISOString()});statusMessage('Created '+name+'.');};
+      win.querySelector('[data-explorer-action="new-folder"]').onclick=()=>{if(currentPath==='/'){statusMessage('Open a folder before creating a subfolder.');return;}const name=safeName(prompt('Folder name','New Folder'));if(!name)return;if(itemsAt(currentPath).some(x=>x.name.toLowerCase()===name.toLowerCase())){statusMessage('That name already exists in this folder.');return;}saveItem({id:crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random(),parent:currentPath,name,kind:'folder',content:'',updatedAt:new Date().toISOString()});statusMessage('Created folder '+name+'.');};
+      win.querySelector('[data-explorer-action="upload"]').onclick=()=>{if(currentPath==='/'){statusMessage('Open a folder before importing a file.');return;}win.querySelector('[data-explorer-file]').click();};
+      win.querySelector('[data-explorer-file]').onchange=async event=>{const file=event.target.files?.[0];event.target.value='';if(!file)return;if(file.size>2*1024*1024){statusMessage('For this browser workspace, import text files up to 2 MB.');return;}try{const content=await file.text();const name=safeName(file.name);if(itemsAt(currentPath).some(x=>x.name.toLowerCase()===name.toLowerCase())){statusMessage('A file with that name already exists. Rename it before importing.');return;}saveItem({id:crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random(),parent:currentPath,name,kind:'file',content,mime:file.type||'text/plain;charset=utf-8',size:file.size,updatedAt:new Date().toISOString()});statusMessage('Imported '+name+' into browser storage.');}catch(error){statusMessage('Import failed: '+error.message);}};
+      win.querySelector('[data-explorer-action="rename"]').onclick=()=>selectedAction('rename');
+      win.querySelector('[data-explorer-action="download"]').onclick=()=>selectedAction('download');
+      win.querySelector('[data-explorer-action="delete"]').onclick=()=>selectedAction('delete');
+      win.querySelector('[data-explorer-action="pick-folder"]').onclick=async()=>{if(!window.showDirectoryPicker){statusMessage('Device folder access is not supported in this browser. Use Import text file or the virtual workspace instead.');return;}try{nativeDirectory=await window.showDirectoryPicker({mode:'readwrite'});statusMessage('Device folder access granted for this session. Native folder changes are separate from the virtual workspace.');render();}catch(error){statusMessage(error.name==='AbortError'?'Folder selection cancelled.':'Could not open folder: '+error.message);}};
+      const head=win.querySelector('.mtp-desktop-window-head');let drag=null;
+      head.addEventListener('pointerdown',event=>{if(event.target.closest('button'))return;const rect=win.getBoundingClientRect();drag={x:event.clientX,y:event.clientY,left:rect.left,top:rect.top};head.setPointerCapture?.(event.pointerId);});
+      head.addEventListener('pointermove',event=>{if(!drag)return;const left=Math.max(0,Math.min(window.innerWidth-win.offsetWidth,drag.left+event.clientX-drag.x));const top=Math.max(0,Math.min(window.innerHeight-100,drag.top+event.clientY-drag.y));win.style.left=left+'px';win.style.top=top+'px';win.style.right='auto';win.style.bottom='auto';});
+      const stopDrag=()=>{drag=null;};head.addEventListener('pointerup',stopDrag);head.addEventListener('pointercancel',stopDrag);
+      render();
     }
-    win.style.display = 'block';
+    win.style.display='block';
   }
 
   function buildTaskbar(desktop) {
