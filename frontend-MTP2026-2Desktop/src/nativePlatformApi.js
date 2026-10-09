@@ -114,8 +114,18 @@ export async function nativeInstallPackage(url, version = '', metadata = {}) {
   if (!/^https:\/\//i.test(safeUrl)) throw new Error('NATIVE_PACKAGE_HTTPS_REQUIRED');
   const host = nativeHost();
   if (host === 'android' && typeof window.MTP2026Native?.installApkFromUrl === 'function') {
-    window.MTP2026Native.installApkFromUrl(safeUrl, metadata.packageName || '');
-    return { success: true, status: 'installer_started', host, version, requiresUserApproval: true };
+    const result = await window.MTP2026Native.installApkFromUrl(safeUrl, metadata.packageName || '');
+    if (result === false || result?.success === false) {
+      throw new Error(result?.error || 'NATIVE_INSTALL_FAILED');
+    }
+    return {
+      ...(result && typeof result === 'object' ? result : {}),
+      success: true,
+      status: result?.status || 'installer_started',
+      host,
+      version,
+      requiresUserApproval: true
+    };
   }
   if (host === 'windows' && hasTauri()) return invoke('install_package', { url: safeUrl, packageType: metadata.packageType || 'windows' });
   if (host === 'ios') { await nativeOpenExternal(safeUrl); return { success: true, status: 'external_install_handoff', host, version, requiresUserApproval: true }; }
