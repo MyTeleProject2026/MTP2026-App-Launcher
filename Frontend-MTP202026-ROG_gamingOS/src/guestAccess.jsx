@@ -25,6 +25,7 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
   const [apkName,setApkName]=useState('');
   const [error,setError]=useState('');
   const [panel,setPanel]=useState('home');
+  const [gameQuery,setGameQuery]=useState('');
   const [browserUrl,setBrowserUrl]=useState('https://vexaaccount-management.onrender.com');
   const [browserAddress,setBrowserAddress]=useState('https://vexaaccount-management.onrender.com');
   const [guestProvider,setGuestProvider]=useState('stopped');
@@ -126,6 +127,7 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
 
         <nav className="mtp-os-nav">
           <button className={panel==='home'?'active':''} onClick={()=>setPanel('home')}><Grid2X2/> Home</button>
+          <button className={panel==='games'?'active':''} onClick={()=>setPanel('games')}><Gamepad2/> Game Library</button>
           <button className={panel==='apps'?'active':''} onClick={()=>setPanel('apps')}><Store/> Apps</button>
           <button className={panel==='install'?'active':''} onClick={()=>setPanel('install')}><Package/> Install</button>
           <button className={panel==='browser'?'active':''} onClick={()=>setPanel('browser')}><Globe2/> Browser</button><button className={panel==='settings'?'active':''} onClick={()=>setPanel('settings')}><Settings/> Settings</button>
@@ -139,6 +141,8 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
           <button onClick={onLogin}><UserRound/><b>VexaAccount</b><small>Device account & cloud library</small></button>
           <button onClick={()=>setPanel('browser')}><Globe2/><b>MTP2026 Browser</b><small>Built-in Chromium/WebView browser workspace</small></button><button onClick={()=>setPanel('settings')}><Settings/><b>System Settings</b><small>OS profile, storage, security</small></button>
         </div>}
+
+        {panel==='games' && <section className="mtp-os-panel mtp-game-library"><div className="mtp-os-panel-head"><div><h2>Game Library</h2><p>Launch HTTPS games and web applications saved to this Gaming OS profile. Some sites may block embedded play and require opening in a new tab.</p></div><button onClick={()=>setPanel('install')}><Plus/> Add game</button></div><label className="mtp-game-search"><span>⌕</span><input value={gameQuery} onChange={e=>setGameQuery(e.target.value)} placeholder="Search games and web apps..." aria-label="Search game library"/></label><div className="mtp-game-grid">{apps.filter(app=>(String(app.title||'')+' '+String(app.url||'')).toLowerCase().includes(gameQuery.trim().toLowerCase())).map(app=><article key={app.id} className="mtp-game-card"><div className="mtp-game-card-mark"><Gamepad2/></div><div className="mtp-game-card-copy"><b>{app.title||new URL(app.url).hostname}</b><small>{app.url}</small></div><button onClick={()=>{setBrowserAddress(app.url);setBrowserUrl(app.url);setPanel('browser');setError('');}} aria-label={'Launch '+(app.title||'application')}><ExternalLink/> Play</button><button className="mtp-game-remove" onClick={()=>removeApp(app.id)} aria-label={'Remove '+(app.title||'application')}><Trash2/></button></article>)}{!apps.length&&<div className="mtp-os-empty">Your game library is empty. Add an HTTPS game or web application to get started.</div>}{apps.length>0&&!apps.some(app=>(String(app.title||'')+' '+String(app.url||'')).toLowerCase().includes(gameQuery.trim().toLowerCase()))&&<div className="mtp-os-empty">No games or apps match “{gameQuery}”. Try another search.</div>}</div></section>}
 
         {panel==='apps' && <section className="mtp-os-panel"><div className="mtp-os-panel-head"><div><h2>Applications</h2><p>Only MTP2026 WebApp/PWA entries are executed directly in the browser.</p></div><button onClick={()=>setPanel('install')}><Plus/> Add</button></div><div className="mtp-os-app-grid">{apps.map(app=><article key={app.id}><div className="mtp-os-app-icon"><AppIcon app={app}/></div><b>{app.title}</b><small>WebApp</small><div><a href={app.url} target="_blank" rel="noopener noreferrer"><ExternalLink/> Open</a><button onClick={()=>removeApp(app.id)}><Trash2/></button></div></article>)}{!apps.length&&<div className="mtp-os-empty">No applications installed. Open Install to add a WebApp/PWA.</div>}</div></section>}
 
