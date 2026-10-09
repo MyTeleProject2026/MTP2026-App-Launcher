@@ -41,7 +41,7 @@ export function nativeCapabilities() {
   const native = Boolean(cap()?.isNativePlatform?.()) || hasTauri() || Boolean(window.MTP2026Native) || hasIOSBridge();
   return Object.freeze({
     native, host,
-    orientation: pluginAvailable('ScreenOrientation') || Boolean(window.MTP2026Native?.setOrientation), fullscreen: hasTauri() || Boolean(document.documentElement.requestFullscreen),
+    orientation: pluginAvailable('ScreenOrientation') || Boolean(window.MTP2026Native?.setOrientation) || Boolean(window.MTP2026Native?.setDeviceMode), fullscreen: hasTauri() || Boolean(window.MTP2026Native?.enterFullscreen) || Boolean(document.documentElement.requestFullscreen),
     filesystem: pluginAvailable('Filesystem') || Boolean(window.MTP2026NativeGuestStorage) || Boolean(window.MTP2026Native?.filesystem),
     guestStorage: Boolean(window.MTP2026NativeGuestStorage),
     notifications: pluginAvailable('LocalNotifications') || Boolean(window.MTP2026Native?.notify) || (host === 'web' && Boolean(browserNotification())),
