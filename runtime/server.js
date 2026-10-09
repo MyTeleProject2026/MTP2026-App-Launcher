@@ -16,7 +16,7 @@ const wss = new WebSocketServer({ noServer: true, maxPayload: 1024 * 1024 });
 const port = Number(process.env.PORT || 10000);
 const apiKey = process.env.MTP2026_RUNTIME_API_KEY || '';
 const publicUrl = String(process.env.MTP2026_RUNTIME_PUBLIC_URL || '').replace(/\/$/, '');
-const releaseBase = process.env.MTP2026_RELEASE_BASE_URL || 'https://github.com/MyTeleProject2026/MTP2026-App-Launcher/releases/download/mtp2026-physical-test';
+const releaseBase = String(process.env.MTP2026_RELEASE_BASE_URL || 'https://github.com/MyTeleProject2026/MTP2026-App-Launcher/releases/download/mtp2026-physical-test').replace(/\\/+$/, '');
 const root = process.env.MTP2026_RUNTIME_DATA_DIR || '/var/lib/mtp2026';
 const tempRoot = '/tmp/mtp2026-guests';
 const maxGuests = Math.max(1, Math.min(8, Number(process.env.MTP2026_MAX_GUESTS || 4)));
@@ -27,7 +27,40 @@ const jsonError = (res, code, status=400) => res.status(status).json({ error: co
 app.disable('x-powered-by');
 app.use(express.json({ limit: '32kb' }));
 
-app.get('/health', (_req,res) => res.json({ ok:true, service:'mtp2026-qemu-runtime', engine:'qemu-system-aarch64', profiles:[...profiles], activeGuests:sessions.size, capacity:maxGuests }));
+let mediaHealthCache = { checkedAt: 0, ready: false, profiles: [], error: 'BOOT_MEDIA_NOT_CHECKED' };
+async function checkBootMedia() {
+  if (Date.now() - mediaHealthCache.checkedAt < 30000) return mediaHealthCache;
+  try {
+    const response = await fetch(`${releaseBase}/physical-test-manifest.json`, { redirect:'follow', signal:AbortSignal.timeout(5000) });
+    if (!response.ok) throw new Error(`PHYSICAL_TEST_MANIFEST_HTTP_${response.status}`);
+    const manifest = await response.json();
+    if (manifest.schema !== 'mtp2026-physical-arm64-test-v2') throw new Error('PHYSICAL_TEST_MANIFEST_SCHEMA_INVALID');
+    const readyProfiles = [...profiles].filter(id => {
+      const item = manifest.guests?.[id];
+      return item?.architecture === 'arm64' && item?.imageSource?.kind === 'arm64-qemu-guest-bundle' && /^[a-f0-9]{64}$/i.test(String(item?.imageSource?.sha256 || ''));
+    });
+    if (readyProfiles.length !== profiles.size) throw new Error('GUEST_BOOT_MEDIA_INCOMPLETE');
+    mediaHealthCache = { checkedAt:Date.now(), ready:true, profiles:readyProfiles, error:null };
+  } catch(error) {
+    mediaHealthCache = { checkedAt:Date.now(), ready:false, profiles:[], error:String(error?.message||error) };
+  }
+  return mediaHealthCache;
+}
+app.get('/health', async (_req,res) => {
+  const media = await checkBootMedia();
+  res.set('Cache-Control','no-store').json({
+    ok:true,
+    service:'mtp2026-qemu-runtime',
+    engine:'qemu-system-aarch64',
+    configured:Boolean(apiKey && publicUrl && /^https:\\/\\//.test(publicUrl)),
+    bootMediaReady:media.ready,
+    bootMediaProfiles:media.profiles,
+    bootMediaError:media.error,
+    profiles:[...profiles],
+    activeGuests:sessions.size,
+    capacity:maxGuests
+  });
+});
 app.use('/novnc', express.static('/usr/share/novnc', { fallthrough:false, index:false, maxAge:'1h' }));
 app.get('/viewer/:token', (req,res) => {
   const guest = [...sessions.values()].find(s => s.viewerToken === req.params.token && s.confirmed);
