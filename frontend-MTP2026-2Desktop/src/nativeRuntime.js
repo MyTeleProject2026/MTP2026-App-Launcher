@@ -1,9 +1,7 @@
-/* MTP2026 native/runtime compatibility layer.
- * This keeps the existing MTP2026Runtime API stable while connecting the
- * startup orchestrator to the real guest boot controller.
- * Native APK and Web/PWA implementations remain separate underneath.
+/* Dedicated MTP2026 Desktop OS native/runtime adapter.
+ * Do not import the retired shared multi-OS shell or its profile switchers here.
+ * The Desktop shell and its own app/runtime modules are mounted by main.jsx.
  */
-
 import {
   nativeCapabilities,
   setNativeMode,
@@ -12,38 +10,27 @@ import {
   notifyNative,
 } from './nativePlatformApi.js';
 
-import './guestSystemSwitcher.js';
-import './mtp2026Branding.js';
-import './vexaStoreInstaller.js';
-import './mtp2026VexaStoreUI.js';
-import './mtp2026VexaStoreRuntime.js';
-import './mtp2026OsPackageRuntime.js';
-import './mtp2026GuestPackageRuntime.js';
-import './mtp2026GuestProfiles.js';
-import './mtp2026GuestShell.js';
-import './mtp2026GuestShell.css';
-import './mtp2026GuestShellEnhancements.js';
-import './mtp2026UniversalOS.js';
-import './mtp2026UniversalOS.css';
-import './mtp2026VexaAccountSSO.js';
-import './mtp2026SystemApps.js';
-import './mtp2026GuestOSRuntime.js';
-import './mtp2026GuestOSRuntimeFixes.css';
-import './mtp2026GuestOSBridge.js';
+function assertDesktopMode(mode) {
+  const value = String(mode || 'desktop').trim().toLowerCase();
+  if (!['desktop', 'windows', 'windows11', 'win11'].includes(value)) {
+    throw new Error('This package runs MTP2026 Desktop OS only.');
+  }
+  return 'desktop';
+}
 
 export function getNativeCapabilities() {
   return nativeCapabilities();
 }
 
-export async function applyDeviceMode(mode) {
-  const normalized = mode === 'desktop' ? 'desktop' : mode || 'android';
+export async function applyDeviceMode(mode = 'desktop') {
+  const normalized = assertDesktopMode(mode);
   const result = await setNativeMode(normalized);
   window.dispatchEvent(new CustomEvent('mtp2026:device-mode', { detail: { mode: normalized } }));
   return result;
 }
 
-export async function boot(mode, options = {}) {
-  const normalized = mode === 'desktop' ? 'desktop' : mode || 'android';
+export async function boot(mode = 'desktop', options = {}) {
+  const normalized = assertDesktopMode(mode);
   try {
     const { bootGuest } = await import('./guestBootController.js');
     const result = await bootGuest(normalized, options);
@@ -71,7 +58,7 @@ export async function notify(title, body) {
   return notifyNative(title, body);
 }
 
-window.MTP2026Runtime = {
+window.MTP2026Runtime = Object.freeze({
   getNativeCapabilities,
   applyDeviceMode,
   boot,
@@ -79,4 +66,4 @@ window.MTP2026Runtime = {
   exitMTPFullscreen,
   openExternal,
   notify,
-};
+});
