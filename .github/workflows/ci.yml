@@ -47,11 +47,12 @@ jobs:
           node - <<'NODE'
           const fs=require('fs');
           const branding=JSON.parse(fs.readFileSync('frontend-MTP2026-2Desktop/public/branding/mtp2026-os-branding.json','utf8'));
-          if (branding.name!=='MTP2026' || branding.deviceName!=='MTP2026 Device' || branding.osName!=='MTP2026 Device OS' || branding.identity?.provider!=='VexaAccount' || branding.store?.provider!=='VexaStore') {
+          if (branding.name!=='MTP2026' || branding.deviceName!=='MTP2026 Desktop Device' || branding.osName!=='MTP2026 Desktop Edition' || branding.identity?.provider!=='VexaAccount' || branding.store?.provider!=='VexaStore') {
             throw new Error('Invalid MTP2026 branding contract');
           }
           const manifest=JSON.parse(fs.readFileSync('frontend-MTP2026-2Desktop/public/arm64/guest-manifest.json','utf8'));
-          for (const id of ['mtp2026','android','desktop','gaming']) {
+          if (JSON.stringify(Object.keys(manifest.guests||{}))!==JSON.stringify(['desktop'])) throw new Error('Desktop frontend must expose only the desktop guest profile');
+          for (const id of ['desktop']) {
             const guest=manifest.guests?.[id];
             if (!guest || guest.architecture!=='arm64' || guest.imageRequired!==true) throw new Error('Invalid guest contract: '+id);
             if (guest.imageKind!=='mtp2026-owned-arm64-linux-profile') throw new Error('Invalid guest image kind: '+id);
