@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import WebSocket from 'ws';
 
 const base=String(process.env.MTP2026_RUNTIME_URL||'').replace(/\/$/,'');
 const key=String(process.env.MTP2026_RUNTIME_API_KEY||'');
