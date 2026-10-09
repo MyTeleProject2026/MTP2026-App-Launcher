@@ -2,10 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#07111f" />
     <meta name="description" content="MTP2026 App Launcher host and guest runtime manager." />
+    <meta name="application-name" content="MTP2026 App Launcher" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MTP2026" />
+    <link rel="icon" type="image/svg+xml" href="/mtp2026-icon.svg" />
+    <link rel="apple-touch-icon" href="/mtp2026-icon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="preload" as="image" href="/mtp2026-banner.svg" />
     <title>MTP2026 App Launcher</title>
   </head>
-  <body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body>
+  <body><div id="root"></div><script type="module" src="/src/main.jsx"></script><script>if ('serviceWorker' in navigator && location.protocol === 'https:') window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script></body>
 </html>
