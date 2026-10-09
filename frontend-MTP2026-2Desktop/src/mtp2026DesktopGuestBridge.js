@@ -2,8 +2,8 @@
  *
  * Connects the Desktop shell to the existing MTP2026 guest boot controller.
  * It never substitutes the browser shell for a real guest provider: when no
- * native/QEMU-WASM provider and verified image are available, the controller
- * intentionally returns the MTP2026-owned browser shell state.
+ * native/remote-QEMU provider and verified boot media are available, the
+ * controller reports an explicit runtime error instead of simulated execution.
  */
 
 import { bootGuest, stopGuest, subscribeGuestState, getGuestState } from './guestBootController.js';
