@@ -16,7 +16,7 @@ const wss = new WebSocketServer({ noServer: true, maxPayload: 1024 * 1024 });
 const port = Number(process.env.PORT || 10000);
 const apiKey = process.env.MTP2026_RUNTIME_API_KEY || '';
 const publicUrl = String(process.env.MTP2026_RUNTIME_PUBLIC_URL || '').replace(/\/$/, '');
-const releaseBase = String(process.env.MTP2026_RELEASE_BASE_URL || 'https://github.com/MyTeleProject2026/MTP2026-App-Launcher/releases/download/mtp2026-physical-test').replace(/\\/+$/, '');
+const releaseBase = String(process.env.MTP2026_RELEASE_BASE_URL || 'https://github.com/MyTeleProject2026/MTP2026-App-Launcher/releases/download/mtp2026-physical-test').replace(/\/+$/, '');
 const root = process.env.MTP2026_RUNTIME_DATA_DIR || '/var/lib/mtp2026';
 const tempRoot = '/tmp/mtp2026-guests';
 const maxGuests = Math.max(1, Math.min(8, Number(process.env.MTP2026_MAX_GUESTS || 4)));
@@ -52,7 +52,7 @@ app.get('/health', async (_req,res) => {
     ok:true,
     service:'mtp2026-qemu-runtime',
     engine:'qemu-system-aarch64',
-    configured:Boolean(apiKey && publicUrl && /^https:\\/\\//.test(publicUrl)),
+    configured:Boolean(apiKey && publicUrl && /^https:\/\//.test(publicUrl)),
     bootMediaReady:media.ready,
     bootMediaProfiles:media.profiles,
     bootMediaError:media.error,
