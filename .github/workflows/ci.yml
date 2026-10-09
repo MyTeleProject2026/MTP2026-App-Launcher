@@ -74,18 +74,13 @@ jobs:
           npm run integration:generate -- --app ci-fixture --output /tmp/mtp-generated --framework all
           npm run integration:verify -- --dir /tmp/mtp-generated
 
-      - name: Build MTP2026 2DesktopOS frontend
-        run: npm run frontend:build
-
-      - name: Install Desktop Edition dependencies
-        working-directory: frontend-MTP2026-2Desktop
-        run: npm install --no-audit --no-fund
-
-      - name: Build Desktop Edition
+      - name: Install dependencies and build MTP2026 Desktop Edition
         working-directory: frontend-MTP2026-2Desktop
         env:
           VITE_BUILD_COMMIT: ${{ github.sha }}
-        run: npm run build
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
 
       - name: Verify Desktop Edition build output
         working-directory: frontend-MTP2026-2Desktop
