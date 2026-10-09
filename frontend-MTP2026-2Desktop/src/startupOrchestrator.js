@@ -1,78 +1,34 @@
-/* MTP2026 startup orchestration.
- * Contract: fresh launcher session -> choose guest OS -> VexaAccount login ->
- * selected guest runtime. The OS picker is never allowed to block the shell.
+/* Dedicated MTP2026 Desktop OS startup.
+ * This frontend is not the multi-profile launcher. Every web/native package
+ * built from this directory boots the Desktop shell directly.
  */
-const API = (import.meta.env.VITE_API_BASE_URL || 'https://mtp2026-app-launcher-backend.onrender.com/api').replace(/\/$/, '');
+const DESKTOP_MODE = 'desktop';
 const MODE_KEY = 'mtp2026-default-system-os';
-const SESSION_SELECTION = 'mtp2026-selection-in-progress';
-const MODES = Object.freeze({ mtp2026: 'MTP2026 Device OS', android: 'MTP2026 Android OS', desktop: 'MTP2026 Desktop OS', gaming: 'MTP2026 Gaming OS' });
-const MODE_ALIASES = Object.freeze({ ios: 'mtp2026', 'ios-device': 'mtp2026' });
 
-function normalizeMode(value) { const mode = MODE_ALIASES[value] || value; return MODES[mode] ? mode : null; }
-function selected() { try { const value = normalizeMode(sessionStorage.getItem(SESSION_SELECTION)); return value || null; } catch (_) { return null; } }
-function saveMode(mode) { const value = normalizeMode(mode); if (!value) return; try { localStorage.setItem(MODE_KEY, value); sessionStorage.setItem(SESSION_SELECTION, value); } catch (_) {} }
-function currentMode() { try { return normalizeMode(window.__MTP2026_SITE_PROFILE?.deviceMode || localStorage.getItem(MODE_KEY)); } catch (_) { return null; } }
-function pickerMode(value) { return normalizeMode(value); }
-let reactReady = false;
-function hidePicker() { const picker = document.getElementById('mtp-os-picker'); if (picker) { picker.classList.add('mtp-os-hidden'); setTimeout(() => picker.remove(), 320); } }
-
-function ensurePicker() {
-  let picker = document.getElementById('mtp-os-picker');
-  if (!picker) {
-    picker = document.createElement('div'); picker.id = 'mtp-os-picker'; picker.setAttribute('role', 'dialog'); picker.setAttribute('aria-modal', 'true');
-    picker.innerHTML = `<div class="mtp-os-card"><div class="mtp-os-brand"><div class="mtp-os-mark">M</div><b>MTP2026 App Launcher</b></div><div class="mtp-os-eyebrow">STARTUP · GUEST SYSTEM</div><h1 class="mtp-os-title">Choose your system</h1><p class="mtp-os-copy">Select the guest environment first. VexaAccount sign-in continues immediately after your selection.</p><div class="mtp-os-grid">${Object.entries(MODES).map(([id,name]) => `<button type="button" class="mtp-os-option" data-mtp-mode="${id}"><span class="mtp-os-logo">${id === 'android' ? '⌂' : id === 'mtp2026' ? 'M' : id === 'desktop' ? '⊞' : '◆'}</span><b>${name}</b><small>ARM64 MTP2026 guest profile</small></button>`).join('')}</div><div class="mtp-os-foot">The selected guest is booted only after VexaAccount authentication.</div></div>`;
-    const style = document.createElement('style'); style.id = 'mtp2026-startup-picker-style'; style.textContent = '#mtp-os-picker{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:18px;background:radial-gradient(circle at 50% 0%,#14284a 0,#070811 48%,#03050b 100%);color:#eef6ff;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}#mtp-os-picker.mtp-os-hidden{display:none}.mtp-os-card{width:min(900px,100%);padding:26px;border:1px solid rgba(148,190,255,.18);border-radius:26px;background:rgba(8,18,35,.94);box-shadow:0 28px 90px rgba(0,0,0,.55)}.mtp-os-brand{display:flex;align-items:center;gap:10px}.mtp-os-mark{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,#21d4fd,#4f46e5);font-weight:900}.mtp-os-eyebrow{margin-top:22px;font-size:10px;letter-spacing:.16em;color:#79d9ff;font-weight:800}.mtp-os-title{margin:5px 0 8px;font-size:32px}.mtp-os-copy{margin:0 0 20px;color:#9fb1c9;font-size:13px}.mtp-os-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.mtp-os-option{min-height:145px;padding:16px;text-align:left;border:1px solid rgba(148,190,255,.14);border-radius:18px;background:#0f1e35;color:inherit;cursor:pointer}.mtp-os-option:hover,.mtp-os-option:focus{border-color:#63daff;background:#142844;outline:none}.mtp-os-logo{width:48px;height:48px;display:grid;place-items:center;border-radius:14px;background:rgba(255,255,255,.07);font-size:24px;margin-bottom:14px}.mtp-os-option b,.mtp-os-option small{display:block}.mtp-os-option small{margin-top:5px;color:#8ea2bd;font-size:11px}.mtp-os-foot{text-align:center;margin-top:16px;color:#71849f;font-size:11px}@media(max-width:700px){.mtp-os-grid{grid-template-columns:repeat(2,1fr)}.mtp-os-card{padding:19px}.mtp-os-title{font-size:26px}}'; document.head.appendChild(style); document.body.appendChild(picker);
-  }
-  picker.classList.remove('mtp-os-hidden');
-  picker.style.pointerEvents = 'auto';
-  picker.querySelectorAll('[data-mtp-mode]').forEach(button => {
-    if (button.dataset.mtpStartupBound === '1') return;
-    button.dataset.mtpStartupBound = '1';
-    button.addEventListener('click', () => {
-      const mode = pickerMode(button.dataset.mtpMode);
-      if (!mode) return;
-      saveMode(mode);
-      document.documentElement.dataset.mtpDefaultSystem = mode;
-      picker.classList.add('mtp-os-hidden');
-      window.dispatchEvent(new CustomEvent('mtp2026:default-system-os', { detail: { mode } }));
-      window.dispatchEvent(new CustomEvent('mtp2026:startup-recheck', { detail: { mode } }));
-    });
-  });
-  return picker;
+function normalizeMode(value) {
+  const mode = String(value || '').trim().toLowerCase();
+  return ['desktop', 'windows', 'windows11', 'win11'].includes(mode) ? DESKTOP_MODE : null;
 }
 
-async function session() {
-  try { const response = await fetch(`${API}/auth/session`, { credentials: 'include', headers: { Accept: 'application/json' }, cache: 'no-store' }); if (response.status === 401) return null; return response.ok ? response.json() : null; } catch (_) { return null; }
-}
-async function persistServerMode(mode) { try { await fetch(`${API}/settings`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ deviceMode: normalizeMode(mode) }) }); } catch (_) {} }
-
-async function continueAfterSelection(mode) {
-  const normalized = normalizeMode(mode);
-  if (!normalized) return;
-  document.documentElement.dataset.mtpStartup = 'authenticating';
-  const s = await session();
-  if (!s?.profile) return;
-  document.documentElement.dataset.mtpStartup = 'booting';
-  await persistServerMode(normalized);
-  if (window.MTP2026Runtime?.boot) await window.MTP2026Runtime.boot(normalized);
+function run() {
+  try {
+    localStorage.setItem(MODE_KEY, DESKTOP_MODE);
+    localStorage.setItem('mtp2026-default-system-os-set', '1');
+  } catch (_) {}
+  document.documentElement.dataset.mtpDefaultSystem = DESKTOP_MODE;
+  document.documentElement.dataset.mtpStartup = 'desktop-direct';
+  return { mode: DESKTOP_MODE, phase: 'desktop-direct', picker: false };
 }
 
-async function run() {
-  const siteMode = normalizeMode(window.__MTP2026_SITE_PROFILE?.deviceMode);
-  // A dedicated Desktop deployment is already the selected OS. Do not run\n  // shared launcher authentication/runtime orchestration, which can otherwise\n  // start a different guest mode before the Desktop shell mounts.\n  if (siteMode === 'desktop') {\n    document.documentElement.dataset.mtpDefaultSystem = 'desktop';\n    document.documentElement.dataset.mtpStartup = 'desktop-direct';\n    return;\n  }\n  const inProgress = siteMode || selected();
-  const mode = siteMode || inProgress || currentMode();
-  if (!inProgress) {
-    const picker = ensurePicker();
-    document.documentElement.dataset.mtpStartup = 'selecting';
-    // A fresh launcher session must choose again; do not auto-boot a previous mode.
-    return;
-  }
-  if (reactReady) hidePicker();
-  document.documentElement.dataset.mtpDefaultSystem = inProgress;
-  await continueAfterSelection(inProgress);
-}
+window.MTP2026Startup = Object.freeze({
+  run,
+  currentMode: () => DESKTOP_MODE,
+  normalizeMode,
+  ensurePicker: () => null
+});
 
-window.MTP2026Startup = Object.freeze({ run, currentMode, ensurePicker, normalizeMode });
-window.addEventListener('mtp2026:react-ready', () => { reactReady = true; if (selected()) hidePicker(); }, { once: true });
-window.addEventListener('mtp2026:startup-recheck', event => { const mode = event.detail?.mode; if (mode) void continueAfterSelection(mode); });
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => void run(), { once: true }); else void run();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', run, { once: true });
+} else {
+  run();
+}
