@@ -486,8 +486,8 @@ function SystemMonitor({runtime,guestState}){
   </div>;
 }
 
-function DesktopSystemCenter({onOpen}){
-  const [tab,setTab]=useState('overview');
+function DesktopSystemCenter({onOpen,initialTab='overview'}){
+  const [tab,setTab]=useState(initialTab);
   const tabs=[['overview','Overview'],['network','Network & Internet'],['devices','Devices'],['storage','Storage'],['security','Security']];
   const cards={
     overview:[['Desktop Shell','MTP2026 Desktop Shell','Running'],['Architecture','ARM64 / AArch64','Active'],['Guest Machine','qemu-aarch64-virt','Ready'],['Session','MTP2026 Desktop session','Active']],
@@ -687,7 +687,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     if(id==='runtime')body=<GuestRuntime runtime={runtime} guestState={guestState} onState={setGuestState}/>;
     if(id==='about')body=<SystemInformation runtime={runtime} guestState={guestState}/>;
     if(id==='properties')body=<PropertiesApp/>;
-    if(id==='network'||id==='devices'||id==='storage'||id==='security'||id==='calendar'||id==='notifications')body=<DesktopSystemCenter onOpen={open}/>;
+    if(id==='network'||id==='devices'||id==='storage'||id==='security'||id==='calendar'||id==='notifications')body=<DesktopSystemCenter onOpen={open} initialTab={({network:'network',devices:'devices',storage:'storage',security:'security'}[id]||'overview')}/>;
     if(id==='services')body=<ServiceManager/>;
     if(id==='terminal')body=<TerminalApp onOpen={open}/>;
     if(id==='legacy-terminal')body=<div className="mtp11-terminal"><div>mtp2026@desktop:~$ system-info</div><div>{MTP2026_DESKTOP_BRANDING.productName}</div><div>Architecture: aarch64</div><div>Runtime: browser-shell / native-vm compatible</div><div>Guest profile: desktop</div><div className="cursor">█</div></div>;
