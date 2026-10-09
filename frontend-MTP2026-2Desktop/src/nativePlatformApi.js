@@ -25,6 +25,9 @@ async function invoke(command, args) {
 export function nativeHost() {
   const capacitor = cap();
   if (hasTauri()) return 'windows';
+  // The packaged Android app uses a WebView JavaScript bridge, not a
+  // Capacitor Activity. Detect that host before falling back to `web`.
+  if (window.MTP2026Native) return 'android';
   if (capacitor?.getPlatform) {
     const platform = capacitor.getPlatform();
     return platform === 'web' ? 'web' : platform;
@@ -35,7 +38,7 @@ export function nativeHost() {
 
 export function nativeCapabilities() {
   const host = nativeHost();
-  const native = Boolean(cap()?.isNativePlatform?.()) || hasTauri() || hasIOSBridge();
+  const native = Boolean(cap()?.isNativePlatform?.()) || hasTauri() || Boolean(window.MTP2026Native) || hasIOSBridge();
   return Object.freeze({
     native, host,
     orientation: pluginAvailable('ScreenOrientation') || Boolean(window.MTP2026Native?.setOrientation), fullscreen: hasTauri() || Boolean(document.documentElement.requestFullscreen),
