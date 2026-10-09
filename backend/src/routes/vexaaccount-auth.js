@@ -8,11 +8,35 @@ import { revokeVexaSession } from '../auth/vexaaccount-revoke.js';
 const SESSION_COOKIE='mtp_session';
 const SESSION_COOKIE_OPTIONS={maxAge:30*24*60*60,httpOnly:true,sameSite:'None',secure:true};
 
+function configuredFrontendOrigins() {
+  return [...new Set([
+    ...String(process.env.FRONTEND_ORIGINS || '').split(','),
+    ...String(process.env.FRONTEND_ORIGIN || '').split(',')
+  ].map(value => {
+    try {
+      const url = new URL(String(value || '').trim());
+      return url.protocol === 'https:' ? url.origin : '';
+    } catch { return ''; }
+  }).filter(Boolean))];
+}
+
+function resolveFrontendOrigin(candidate) {
+  const allowed = configuredFrontendOrigins();
+  if (!candidate) return allowed[0] || '';
+  let origin = '';
+  try {
+    const url = new URL(String(candidate));
+    if (url.protocol === 'https:' && !url.username && !url.password) origin = url.origin;
+  } catch {}
+  return origin && allowed.includes(origin) ? origin : null;
+}
+
 export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
   async function ensureAuthTables() {
     if (!pool) return;
     await pool.execute(`CREATE TABLE IF NOT EXISTS mtp_sso_sessions (id VARCHAR(128) PRIMARY KEY,user_id CHAR(36) NOT NULL,vexa_subject VARCHAR(255) NOT NULL,profile_json JSON NOT NULL,access_token_enc TEXT NOT NULL,refresh_token_enc TEXT NULL,access_expires_at DATETIME NULL,expires_at DATETIME NOT NULL,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,INDEX idx_mtp_sso_sessions_subject(vexa_subject),INDEX idx_mtp_sso_sessions_expires(expires_at))`);
-    await pool.execute(`CREATE TABLE IF NOT EXISTS mtp_sso_login_transactions (state VARCHAR(128) PRIMARY KEY,verifier VARCHAR(128) NOT NULL,challenge VARCHAR(128) NOT NULL,created_at DATETIME NOT NULL,expires_at DATETIME NOT NULL,INDEX idx_mtp_login_transactions_expires(expires_at))`);
+    await pool.execute(`CREATE TABLE IF NOT EXISTS mtp_sso_login_transactions (state VARCHAR(128) PRIMARY KEY,verifier VARCHAR(128) NOT NULL,challenge VARCHAR(128) NOT NULL,return_origin VARCHAR(512) NULL,created_at DATETIME NOT NULL,expires_at DATETIME NOT NULL,INDEX idx_mtp_login_transactions_expires(expires_at))`);
+    await pool.execute(`ALTER TABLE mtp_sso_login_transactions ADD COLUMN return_origin VARCHAR(512) NULL`).catch(()=>{});
     await pool.execute(`CREATE TABLE IF NOT EXISTS mtp_user_preferences (user_id CHAR(36) NOT NULL PRIMARY KEY,theme VARCHAR(20) NOT NULL DEFAULT 'system',default_view VARCHAR(30) NOT NULL DEFAULT 'launcher',open_behavior VARCHAR(30) NOT NULL DEFAULT 'new_tab',compact_mode TINYINT(1) NOT NULL DEFAULT 0,device_mode VARCHAR(20) NOT NULL DEFAULT 'android',updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)`);
     await pool.execute(`ALTER TABLE mtp_user_preferences ADD COLUMN device_mode VARCHAR(20) NOT NULL DEFAULT 'android'`).catch(()=>{});
     await pool.execute(`ALTER TABLE user_applications ADD COLUMN custom_icon_data MEDIUMTEXT NULL`).catch(()=>{});
@@ -20,11 +44,11 @@ export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
   }
   const authTablesReady=ensureAuthTables();
 
-  async function saveLoginTransaction(tx) {
+  async function saveLoginTransaction(tx, returnOrigin) {
     if (!pool) throw new Error('DATABASE_NOT_CONFIGURED');
     await authTablesReady;
     await pool.execute('DELETE FROM mtp_sso_login_transactions WHERE expires_at<=UTC_TIMESTAMP()');
-    await pool.execute('INSERT INTO mtp_sso_login_transactions(state,verifier,challenge,created_at,expires_at) VALUES(?,?,?,?,?)',[tx.state,tx.verifier,tx.challenge,new Date(),new Date(Date.now()+10*60*1000)]);
+    await pool.execute('INSERT INTO mtp_sso_login_transactions(state,verifier,challenge,return_origin,created_at,expires_at) VALUES(?,?,?,?,?,?)',[tx.state,tx.verifier,tx.challenge,returnOrigin || null,new Date(),new Date(Date.now()+10*60*1000)]);
   }
 
   async function consumeLoginTransaction(state) {
@@ -33,7 +57,7 @@ export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
     const conn=await pool.getConnection();
     try {
       await conn.beginTransaction();
-      const [rows]=await conn.execute('SELECT state,verifier,challenge,created_at,expires_at FROM mtp_sso_login_transactions WHERE state=? AND expires_at>UTC_TIMESTAMP() LIMIT 1 FOR UPDATE',[state]);
+      const [rows]=await conn.execute('SELECT state,verifier,challenge,return_origin,created_at,expires_at FROM mtp_sso_login_transactions WHERE state=? AND expires_at>UTC_TIMESTAMP() LIMIT 1 FOR UPDATE',[state]);
       const tx=rows[0];
       if (!tx) { await conn.rollback(); return null; }
       await conn.execute('DELETE FROM mtp_sso_login_transactions WHERE state=?',[state]);
@@ -75,11 +99,11 @@ export function registerVexaAuthRoutes(app,{pool,ensureUser}) {
     return {id,userId:session.user_id,profile:typeof session.profile_json==='string'?JSON.parse(session.profile_json):session.profile_json,accessToken,refreshToken};
   }
 
-  app.get('/api/auth/login',async(req,res)=>{try{const tx=createLoginTransaction();await saveLoginTransaction(tx);const loginHint=String(req.query.login_hint||'').trim();const prompt=String(req.query.prompt||'').trim();res.redirect(302,buildAuthorizeUrl(tx,{loginHint,prompt}));}catch(error){res.status(503).json({error:error.message||'VEXA_SSO_UNAVAILABLE'});}});
+  app.get('/api/auth/login',async(req,res)=>{try{const requestedOrigin=String(req.query.return_origin||'').trim();const returnOrigin=resolveFrontendOrigin(requestedOrigin);if(requestedOrigin&&!returnOrigin)return res.status(400).json({error:'SSO_RETURN_ORIGIN_NOT_ALLOWED'});if(!returnOrigin)return res.status(503).json({error:'FRONTEND_ORIGIN_NOT_CONFIGURED'});const tx=createLoginTransaction();await saveLoginTransaction(tx,returnOrigin);const loginHint=String(req.query.login_hint||'').trim();const prompt=String(req.query.prompt||'').trim();res.redirect(302,buildAuthorizeUrl(tx,{loginHint,prompt}));}catch(error){res.status(503).json({error:error.message||'VEXA_SSO_UNAVAILABLE'});}});
 
   app.post('/api/auth/callback',async(req,res)=>{try{const {code,state}=req.body||{};if(!code||!state)return res.status(400).json({error:'INVALID_SSO_STATE'});const tx=await consumeLoginTransaction(String(state));if(!tx)return res.status(400).json({error:'INVALID_SSO_STATE'});const tokens=await exchangeAuthorizationCode(String(code),tx.verifier);const profile=await fetchVexaUser(tokens.access_token);const session=await createSession(profile,tokens);res.setHeader('Set-Cookie',serializeCookie(SESSION_COOKIE,session.id,SESSION_COOKIE_OPTIONS));res.json({authenticated:true,profile:session.profile});}catch(e){res.status(401).json({error:e.message||'SSO_LOGIN_FAILED'});}});
 
-  async function handleBrowserCallback(req,res){const frontend=(process.env.FRONTEND_ORIGIN||'').split(',')[0].trim().replace(/\/$/,'');const fail=code=>res.redirect(302,`${frontend}/?sso_error=${encodeURIComponent(code)}`);try{const {code,state,error,error_description}=req.query;if(error)return fail(error_description||error);if(!code||!state)return fail('INVALID_SSO_STATE');const tx=await consumeLoginTransaction(String(state));if(!tx)return fail('INVALID_SSO_STATE');const tokens=await exchangeAuthorizationCode(String(code),tx.verifier);const profile=await fetchVexaUser(tokens.access_token);const session=await createSession(profile,tokens);res.setHeader('Set-Cookie',serializeCookie(SESSION_COOKIE,session.id,SESSION_COOKIE_OPTIONS));res.redirect(302,`${frontend}/`);}catch(e){return fail(e.message||'SSO_LOGIN_FAILED');}}
+  async function handleBrowserCallback(req,res){let frontend=resolveFrontendOrigin('')||'';const fail=code=>{if(!frontend)return res.status(500).send('MTP2026 SSO return origin is not configured.');return res.redirect(302,`${frontend}/?sso_error=${encodeURIComponent(code)}`);};try{const {code,state,error,error_description}=req.query;if(!state)return fail('INVALID_SSO_STATE');const tx=await consumeLoginTransaction(String(state));if(tx?.return_origin){const validated=resolveFrontendOrigin(tx.return_origin);if(validated)frontend=validated;}if(error)return fail(error_description||error);if(!code||!tx)return fail('INVALID_SSO_STATE');const tokens=await exchangeAuthorizationCode(String(code),tx.verifier);const profile=await fetchVexaUser(tokens.access_token);const session=await createSession(profile,tokens);res.setHeader('Set-Cookie',serializeCookie(SESSION_COOKIE,session.id,SESSION_COOKIE_OPTIONS));res.redirect(302,`${frontend}/`);}catch(e){return fail(e.message||'SSO_LOGIN_FAILED');}}
   app.get('/auth/callback',handleBrowserCallback);
   app.get('/auth/vexaaccount/callback',handleBrowserCallback);
 
