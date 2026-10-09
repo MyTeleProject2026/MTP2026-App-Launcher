@@ -81,9 +81,11 @@ export async function stopGuest() {
     if (id) await stopArm64Guest(id);
     const metadata = id ? await loadGuestMetadata(id).catch(() => null) : null;
     if (id && metadata) await saveGuestMetadata(id, { ...metadata, status: 'stopped', runningAt: null });
-  } finally {
-    publish({ phase: 'stopped', running: false, provider: 'none', progress: 0, error: null,
+    return publish({ phase: 'stopped', running: false, provider: 'none', progress: 0, error: null,
       recoverable: true, requiresGuestImage: false });
+  } catch (error) {
+    return publish({ phase: 'error', running: true, error: String(error?.message || error || 'GUEST_STOP_FAILED'),
+      progress: state.progress || 0, recoverable: true });
   }
 }
 window.MTP2026GuestBoot = Object.freeze({ bootGuest, stopGuest, installGuestImage, getGuestState, subscribeGuestState });
