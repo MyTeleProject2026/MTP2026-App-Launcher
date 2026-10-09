@@ -5,6 +5,7 @@ import {
   Monitor, Power, Search, Settings, ShieldCheck, Store, Terminal, UserRound,
   Wifi, X, Minus, Maximize2, RefreshCw, Download, Cpu, Activity, LockKeyhole, ServerCog, CheckCircle2, Calendar, Volume2, Battery, Network, FolderCog, AppWindow, List, Command, SlidersHorizontal, Clock3, Gamepad2, Accessibility, Keyboard
 } from 'lucide-react';
+import { getVexaSession, startVexaLogin, signOut } from './auth/vexaAuth.js';
 import { MTP2026_DESKTOP_BRANDING } from './mtp2026DesktopBranding.js';
 import { bootDesktopOS, shutdownDesktopOS } from './mtp2026DesktopBootManager.js';
 import { createDesktopTextFile, getDesktopFilesystem, saveDesktopFilesystem, createDesktopFolder, renameDesktopEntry, deleteDesktopEntry, readDesktopEntry, copyDesktopEntry, writeDesktopTextFile } from './mtp2026DesktopFilesystem.js';
@@ -265,8 +266,13 @@ function TerminalApp({onOpen}){
   };
   return <div className="mtp11-terminal-real" onClick={()=>document.getElementById('mtp-terminal-input')?.focus()}><div className="mtp11-terminal-output">{lines.map((x,i)=><div key={i}>{x}</div>)}</div><div className="mtp11-terminal-prompt"><span>mtp2026@desktop:~$</span><input id="mtp-terminal-input" autoFocus value={value} onChange={e=>setValue(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){void run(value);setValue('')}}}/></div></div>;
 }
-function AccountCenter({onLock,onEnd,onClose}){
+function AccountCenter({onLock,onEnd,onClose,profile:initialProfile=null}){
   const [locked,setLocked]=useState(()=>isDesktopSessionLocked());
+  const [authProfile,setAuthProfile]=useState(initialProfile);
+  const [authLoading,setAuthLoading]=useState(true);
+  const [authError,setAuthError]=useState('');
+  const refreshAuth=async()=>{setAuthLoading(true);setAuthError('');try{const session=await getVexaSession();setAuthProfile(session?.profile||null);if(!session?.profile)setAuthError('No active VexaAccount SSO session was found. Sign in to connect this desktop.')}catch(error){setAuthProfile(null);setAuthError('Unable to verify VexaAccount session: '+String(error?.message||error))}finally{setAuthLoading(false)}};
+  useEffect(()=>{refreshAuth()},[]);
   useEffect(()=>subscribeDesktopSessionLock(setLocked),[]);
   const [session,setSession]=useState(()=>getDesktopSession());
   useEffect(()=>{const unsubscribe=subscribeDesktopSession(setSession);return unsubscribe;},[]);
@@ -274,12 +280,13 @@ function AccountCenter({onLock,onEnd,onClose}){
   const lock=()=>{setDesktopLocked(true);setDesktopSessionLocked(true);onLock?.();};
   const unlock=()=>{setDesktopSessionLocked(false);setDesktopLocked(false);};
   const openVexaAccount=()=>window.dispatchEvent(new CustomEvent('mtp2026:browser-open',{detail:{url:'https://vexaaccount-management.onrender.com'}}));
-  const end=()=>{clearDesktopSessionLock();setDesktopLocked(false);endDesktopSession();setDesktopSessionState('inactive');setSession(getDesktopSession());window.dispatchEvent(new CustomEvent('mtp2026:account-session-ended'));onEnd?.();};
+  const connectVexaAccount=async()=>{setAuthError('');try{await startVexaLogin({prompt:'select_account'})}catch(error){setAuthError('Could not start secure VexaAccount sign-in: '+String(error?.message||error))}};
+  const end=async()=>{try{await signOut()}catch{}setAuthProfile(null);clearDesktopSessionLock();setDesktopLocked(false);endDesktopSession();setDesktopSessionState('inactive');setSession(getDesktopSession());window.dispatchEvent(new CustomEvent('mtp2026:account-session-ended'));onEnd?.();};
   return <div className="mtp11-account-center">
-    <div className="mtp11-account-hero"><div className="mtp11-account-avatar">M</div><div><div className="mtp11-runtime-kicker">MTP2026 ACCOUNT</div><h2>MTP2026 User</h2><p>VexaAccount protected desktop identity</p></div></div>
+    <div className="mtp11-account-hero"><div className="mtp11-account-avatar">{String(authProfile?.name||authProfile?.display_name||authProfile?.email||"M").trim().slice(0,1).toUpperCase()}</div><div><div className="mtp11-runtime-kicker">MTP2026 ACCOUNT</div><h2>{authProfile?.name||authProfile?.display_name||authProfile?.username||"MTP2026 User"}</h2><p>{authProfile?.email||"VexaAccount identity connection"}</p></div></div>
     <div className={`mtp11-account-status ${session.status==='active'?'active':'ended'}`}><CheckCircle2/><div><b>{session.status==='active'?'Desktop session active':'Desktop session ended'}</b><small>{session.startedAt?'Started '+new Date(session.startedAt).toLocaleString():'No active session metadata'} · {locked?'Locked':'Unlocked'}</small></div></div>
-    <div className="mtp11-account-actions"><button className="primary" onClick={openVexaAccount}><UserRound/> Open VexaAccount</button><button onClick={locked?unlock:lock}>{locked?<><LockKeyhole/> Unlock desktop</>:<><LockKeyhole/> Lock desktop</>}</button><button onClick={refresh}><RefreshCw/> Refresh session</button><button className="danger" onClick={end} disabled={session.status!=='active'}><Power/> End session</button></div>
-    <div className="mtp11-account-note"><ShieldCheck/><span>Account authentication remains owned by the VexaAccount/launcher flow. This desktop surface does not store account passwords.</span></div>
+    <div className="mtp11-account-actions">{authProfile?<button className="primary" onClick={openVexaAccount}><UserRound/> Open VexaAccount</button>:<button className="primary" onClick={connectVexaAccount} disabled={authLoading}><UserRound/> {authLoading?"Checking VexaAccount…":"Connect VexaAccount"}</button>}<button onClick={locked?unlock:lock}>{locked?<><LockKeyhole/> Unlock desktop</>:<><LockKeyhole/> Lock desktop</>}</button><button onClick={refreshAuth} disabled={authLoading}><RefreshCw/> {authLoading?"Checking…":"Refresh SSO"}</button><button className="danger" onClick={end} disabled={!authProfile&&session.status!=='active'}><Power/> Sign out / End session</button></div>{authError&&<div className="mtp11-account-auth-error" role="status">{authError}</div>}
+    <div className="mtp11-account-note"><ShieldCheck/><span>{authProfile?"Verified VexaAccount session. The backend-managed session cookie is used; no account password is stored by this desktop shell.":"Secure single sign-on uses the MTP2026 backend and VexaAccount authorization flow. Passwords are never stored in the desktop shell."}</span></div>
     {onClose&&<button className="mtp11-account-close" onClick={onClose}><X/> Close</button>}
   </div>;
 }
@@ -506,7 +513,7 @@ function DesktopSystemCenter({onOpen,initialTab='overview'}){
   </div>;
 }
 
-export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
+export function MTP2026DesktopShell({apps=[],profile=null,onExit,onOpenBrowser}){
   const [start,setStart]=useState(false);
   const [runDialog,setRunDialog]=useState(false);
   const [search,setSearch]=useState('');
@@ -681,7 +688,7 @@ export function MTP2026DesktopShell({apps=[],onExit,onOpenBrowser}){
     let body=<div className="mtp11-app-placeholder"><Icon/><h3>{app.title}</h3><p>MTP2026 Desktop application surface.</p></div>;
     if(id==='files')body=<FileExplorer/>;
     if(id==='settings')body=<SettingsApp/>;
-    if(id==='account')body=<AccountCenter onLock={()=>setLocked(true)} onEnd={()=>{close('account');onExit?.();}} onClose={()=>close('account')}/>;
+    if(id==='account')body=<AccountCenter profile={profile} onLock={()=>setLocked(true)} onEnd={()=>{close('account');onExit?.();}} onClose={()=>close('account')}/>;
     if(id==='system')body=<SystemMonitor runtime={runtime} guestState={guestState}/>;
     if(id==='taskmgr')body=<TaskManager windows={windows} active={active} minimized={minimized} runtime={runtime} close={close} onSelect={id=>{setActive(id);setMinimized(m=>m.filter(x=>x!==id));}}/>;
     if(id==='control')body=<ControlPanel onSettings={()=>open('settings')} onOpen={open}/>;
