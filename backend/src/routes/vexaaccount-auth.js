@@ -9,13 +9,24 @@ const SESSION_COOKIE='mtp_session';
 const SESSION_COOKIE_OPTIONS={maxAge:30*24*60*60,httpOnly:true,sameSite:'None',secure:true};
 
 function configuredFrontendOrigins() {
+  // Exact origins for the independently deployed MTP2026 frontends. Keep
+  // custom domains configurable, but never accept an arbitrary return URL.
+  const knownOrigins = [
+    'https://mtp2026-app-launcher.onrender.com',
+    'https://mtp2026-desktopos.onrender.com',
+    'https://mtp2026-desktop-os.onrender.com',
+    'https://mtp2026-android-os.onrender.com',
+    'https://mtp2026-rog-gaming-os.onrender.com',
+    'https://mtp2026-device-os.onrender.com'
+  ];
   return [...new Set([
+    ...knownOrigins,
     ...String(process.env.FRONTEND_ORIGINS || '').split(','),
     ...String(process.env.FRONTEND_ORIGIN || '').split(',')
   ].map(value => {
     try {
       const url = new URL(String(value || '').trim());
-      return url.protocol === 'https:' ? url.origin : '';
+      return url.protocol === 'https:' && !url.username && !url.password ? url.origin : '';
     } catch { return ''; }
   }).filter(Boolean))];
 }
