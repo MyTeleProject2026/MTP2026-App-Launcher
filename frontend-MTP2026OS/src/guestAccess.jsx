@@ -25,6 +25,8 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
   const [apkName,setApkName]=useState('');
   const [error,setError]=useState('');
   const [panel,setPanel]=useState('home');
+  const [deviceOnline,setDeviceOnline]=useState(navigator.onLine);
+  const [originStorage,setOriginStorage]=useState(null);
   const [browserUrl,setBrowserUrl]=useState('https://vexaaccount-management.onrender.com');
   const [browserAddress,setBrowserAddress]=useState('https://vexaaccount-management.onrender.com');
   const [guestProvider,setGuestProvider]=useState('stopped');
@@ -32,6 +34,15 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
   const [guestRunning,setGuestRunning]=useState(false);
   const [runtimeBusy,setRuntimeBusy]=useState(false);
   const [showBootSplash,setShowBootSplash]=useState(normalizeMTP2026GuestProfile(initialProfile).id!=='mtp2026'||window.__MTP2026_SITE_PROFILE?.deviceMode==='mtp2026');
+
+  useEffect(()=>{
+    const updateOnline=()=>setDeviceOnline(navigator.onLine);
+    window.addEventListener('online',updateOnline);window.addEventListener('offline',updateOnline);
+    let active=true;
+    if(navigator.storage?.estimate){navigator.storage.estimate().then(value=>{if(active)setOriginStorage({usage:value.usage||0,quota:value.quota||0});}).catch(()=>{if(active)setOriginStorage(null);});}
+    return ()=>{active=false;window.removeEventListener('online',updateOnline);window.removeEventListener('offline',updateOnline);};
+  },[]);
+  const formatBytes=value=>value>=1073741824?(value/1073741824).toFixed(2)+' GB':value>=1048576?(value/1048576).toFixed(1)+' MB':Math.round(value/1024)+' KB';
 
   const profile=useMemo(()=>GUEST_PROFILES.find(x=>x.id===profileId)||GUEST_PROFILES[0],[profileId]);
   const Icon=ICONS[profile.id]||Smartphone;
@@ -127,6 +138,7 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
 
         <nav className="mtp-os-nav">
           <button className={panel==='home'?'active':''} onClick={()=>setPanel('home')}><Grid2X2/> Home</button>
+          <button className={panel==='system'?'active':''} onClick={()=>setPanel('system')}><Wifi/> System status</button>
           <button className={panel==='apps'?'active':''} onClick={()=>setPanel('apps')}><Store/> Apps</button>
           <button className={panel==='install'?'active':''} onClick={()=>setPanel('install')}><Package/> Install</button>
           <button className={panel==='browser'?'active':''} onClick={()=>setPanel('browser')}><Globe2/> Browser</button><button className={panel==='settings'?'active':''} onClick={()=>setPanel('settings')}><Settings/> Settings</button>
@@ -140,6 +152,8 @@ export function GuestAccess({ initialProfile='mtp2026', onLogin }) {
           <button onClick={onLogin}><UserRound/><b>VexaAccount</b><small>Device account & cloud library</small></button>
           <button onClick={()=>setPanel('browser')}><Globe2/><b>MTP2026 Browser</b><small>Built-in Chromium/WebView browser workspace</small></button><button onClick={()=>setPanel('settings')}><Settings/><b>System Settings</b><small>OS profile, storage, security</small></button>
         </div>}
+
+        {panel==='system' && <section className="mtp-os-panel mtp-device-system"><div className="mtp-os-panel-head"><div><h2>System status</h2><p>Live browser connectivity and storage estimates for this MTP2026 site. Storage figures describe this website's browser origin, not the entire device disk.</p></div><button onClick={()=>{setOriginStorage(null);if(navigator.storage?.estimate)navigator.storage.estimate().then(v=>setOriginStorage({usage:v.usage||0,quota:v.quota||0})).catch(()=>setOriginStorage(null));}}>Refresh</button></div><div className="mtp-device-system-grid"><article><Wifi/><span>Connectivity</span><b>{deviceOnline?'Online':'Offline'}</b><small>{navigator.connection?.effectiveType||'Network type unavailable'}</small></article><article><Package/><span>Browser storage used</span><b>{originStorage?formatBytes(originStorage.usage):'Unavailable'}</b><small>Current site origin usage</small></article><article><ShieldCheck/><span>Storage quota</span><b>{originStorage?formatBytes(originStorage.quota):'Unavailable'}</b><small>Browser-reported origin quota</small></article><article><Smartphone/><span>Display viewport</span><b>{window.innerWidth} × {window.innerHeight}</b><small>{window.matchMedia('(orientation: portrait)').matches?'Portrait':'Landscape'} · browser viewport</small></article></div><div className="mtp-device-system-note"><ShieldCheck/><span>Hardware disk, Bluetooth, cellular radio, and system account changes require native device permissions. This browser dashboard does not pretend to control those settings.</span></div></section>}
 
         {panel==='apps' && <section className="mtp-os-panel"><div className="mtp-os-panel-head"><div><h2>Applications</h2><p>Only MTP2026 WebApp/PWA entries are executed directly in the browser.</p></div><button onClick={()=>setPanel('install')}><Plus/> Add</button></div><div className="mtp-os-app-grid">{apps.map(app=><article key={app.id}><div className="mtp-os-app-icon"><AppIcon app={app}/></div><b>{app.title}</b><small>WebApp</small><div><a href={app.url} target="_blank" rel="noopener noreferrer"><ExternalLink/> Open</a><button onClick={()=>removeApp(app.id)}><Trash2/></button></div></article>)}{!apps.length&&<div className="mtp-os-empty">No applications installed. Open Install to add a WebApp/PWA.</div>}</div></section>}
 
