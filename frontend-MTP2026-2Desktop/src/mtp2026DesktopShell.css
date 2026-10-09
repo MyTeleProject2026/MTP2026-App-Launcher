@@ -210,3 +210,12 @@
  .mtp11-browser-embed-help{left:6px;right:6px;bottom:6px;align-items:stretch;flex-direction:column;gap:7px;max-height:42%;overflow:auto}
  .mtp11-browser-embed-help button{width:100%;min-height:34px}
 }
+
+/* MTP2026 desktop UX hardening: responsive shell, touch targets, window layering and accessible focus. */
+.mtp11-desktop button,.mtp11-desktop [role="button"]{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.mtp11-desktop button:focus-visible,.mtp11-desktop input:focus-visible,.mtp11-desktop select:focus-visible,.mtp11-desktop textarea:focus-visible{outline:2px solid #55c9ff!important;outline-offset:2px!important}
+.mtp11-desktop input,.mtp11-desktop select,.mtp11-desktop textarea{max-width:100%;min-width:0}
+.mtp11-desktop img,.mtp11-desktop video,.mtp11-desktop canvas{max-width:100%}
+@media(max-width:760px){.mtp11-desktop-icons{inset:12px 8px 78px!important;grid-template-columns:repeat(auto-fill,minmax(68px,1fr))!important;grid-auto-rows:76px!important;gap:4px!important}.mtp11-desktop-icons button{width:68px!important;height:72px!important;padding:4px 2px!important}.mtp11-desktop-icons b{max-width:64px!important;font-size:9px!important}.mtp11-taskbar{width:calc(100% - 12px)!important;bottom:max(6px,env(safe-area-inset-bottom))!important;height:54px!important;gap:3px!important;padding:4px!important}.mtp11-taskbar button{min-width:40px;min-height:40px}.mtp11-window,.mtp11-app-window,.mtp11-settings-window{max-width:calc(100vw - 12px)!important;max-height:calc(100dvh - 76px - env(safe-area-inset-bottom))!important}.mtp11-window-body,.mtp11-app-content{overflow:auto!important;-webkit-overflow-scrolling:touch}}
+@media(max-width:420px){.mtp11-taskbar{justify-content:space-around!important}.mtp11-taskbar .mtp11-taskbar-label,.mtp11-taskbar .mtp11-search-label{display:none!important}}
+@media(prefers-reduced-motion:reduce){.mtp11-desktop *, .mtp11-desktop *::before,.mtp11-desktop *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
