@@ -50,3 +50,12 @@ test('frontend selection and authentication never invoke guest boot automaticall
     assert.match(access, /startGuestExplicit/);
   }
 });
+
+test('changing a device mode never starts the QEMU runtime', async () => {
+  const fs = await import('node:fs/promises');
+  const root = new URL('../../', import.meta.url);
+  for (const frontend of ['frontend-MTP2026OS','frontend-MTP2026-Android','Frontend-MTP202026-ROG_gamingOS']) {
+    const native = await fs.readFile(new URL(`${frontend}/src/nativePlatformApi.js`, root), 'utf8');
+    assert.doesNotMatch(native, /MTP2026Runtime\?\.boot/, `${frontend} mode changes must not boot a guest`);
+  }
+});
