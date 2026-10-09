@@ -161,3 +161,14 @@
 .mtp11-browser-embed-help button{flex:0 0 auto;border:1px solid rgba(115,205,255,.3);border-radius:7px;background:rgba(47,133,204,.2);color:#eaf8ff;padding:7px 9px;font-size:10px;cursor:pointer}
 .mtp11-browser-embed-help button:hover{background:rgba(47,133,204,.36)}
 @media(max-width:520px){.mtp11-browser-embed-help{left:6px;right:6px;bottom:6px;align-items:flex-start;flex-direction:column;font-size:9px}.mtp11-browser-embed-help button{width:100%}}
+
+
+/* Accessible recovery surface for websites that deliberately refuse iframe embedding. */
+.mtp11-browser-restricted{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:clamp(20px,5vw,48px);overflow:auto;text-align:center;color:#e8f2ff;background:radial-gradient(ellipse at 50% 10%,rgba(56,113,180,.2),transparent 55%),linear-gradient(145deg,#101a2b,#080d17)}
+.mtp11-browser-restricted-icon{display:grid;place-items:center;width:62px;height:62px;border:1px solid rgba(135,190,255,.3);border-radius:18px;background:rgba(76,137,210,.14);color:#9acbff}
+.mtp11-browser-restricted-icon svg{width:30px;height:30px}
+.mtp11-browser-restricted h2{max-width:560px;margin:0;font-size:clamp(18px,2.8vw,25px);font-weight:650;letter-spacing:-.025em}
+.mtp11-browser-restricted p{max-width:520px;margin:0;color:#a9bbd2;font-size:13px;line-height:1.7}
+.mtp11-browser-restricted button{border:1px solid rgba(116,187,255,.35);border-radius:10px;background:linear-gradient(135deg,#2679d2,#1658a6);color:#fff;padding:11px 16px;font:inherit;font-size:12px;font-weight:650;cursor:pointer;box-shadow:0 7px 22px rgba(0,0,0,.22)}
+.mtp11-browser-restricted button:hover{filter:brightness(1.12)}
+@media(max-width:520px){.mtp11-browser-restricted{gap:11px;padding:18px}.mtp11-browser-restricted p{font-size:12px}.mtp11-browser-restricted button{width:100%;max-width:340px}}
