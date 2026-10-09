@@ -4,6 +4,8 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import http from 'node:http';
 import net from 'node:net';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { spawn } from 'node:child_process';
 import express from 'express';
 import { WebSocketServer } from 'ws';
@@ -47,11 +49,7 @@ async function downloadBundle(profile, file) {
   const response = await fetch(url, { redirect:'follow', signal:AbortSignal.timeout(120000) });
   if (!response.ok) throw new Error(`GUEST_BUNDLE_DOWNLOAD_${response.status}`);
   const temp = file + '.part';
-  const out = fs.createWriteStream(temp);
-  await new Promise(async(resolve,reject)=>{
-    out.on('error',reject);
-    try { for await (const chunk of response.body) out.write(chunk); out.end(resolve); } catch(e) { out.destroy(); reject(e); }
-  });
+  await pipeline(Readable.fromWeb(response.body), fs.createWriteStream(temp));
   await fsp.rename(temp,file);
   const manifestResponse = await fetch(`${releaseBase}/physical-test-manifest.json`, { redirect:'follow', signal:AbortSignal.timeout(20000) });
   if (!manifestResponse.ok) throw new Error('PHYSICAL_TEST_MANIFEST_UNAVAILABLE');
@@ -102,6 +100,11 @@ app.post('/internal/start',internal,async(req,res)=>{
     await fsp.mkdir(bundleDir,{recursive:true});
     const bundle=path.join(bundleDir,'guest.tar.gz');
     const checksum=await downloadBundle(profile,bundle);
+    const allowedFiles=new Set([`mtp2026-${profile}-arm64-linux.Image`,`mtp2026-${profile}-initramfs.cpio.gz`,'mtp2026-arm64-boot-firmware.bin',`mtp2026-${profile}-boot-disk.img`,'firmware-manifest.json','boot-manifest.json']);
+    const listing=spawn('tar',['-tzf',bundle],{stdio:['ignore','pipe','ignore']});
+    let entries=''; listing.stdout.setEncoding('utf8'); listing.stdout.on('data',chunk=>{entries+=chunk;});
+    const listCode=await new Promise((resolve,reject)=>{listing.once('error',reject);listing.once('exit',resolve);});
+    if(listCode!==0||entries.trim().split('\\n').some(name=>!allowedFiles.has(name)||name.includes('..')||name.includes('/'))) throw new Error('GUEST_BUNDLE_CONTENTS_INVALID');
     await new Promise((resolve,reject)=>{const p=spawn('tar',['-xzf',bundle,'-C',bundleDir,'--no-same-owner','--no-same-permissions'],{stdio:'ignore'});p.once('error',reject);p.once('exit',code=>code===0?resolve():reject(new Error('GUEST_BUNDLE_EXTRACT_FAILED')));});
     await fsp.rm(bundle,{force:true});
     const kernel=`mtp2026-${profile}-arm64-linux.Image`;
