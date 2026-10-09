@@ -91,7 +91,7 @@ function DesktopTaskView({desktops,currentDesktop,windows,windowDesktops,apps,on
 }
 
 function BrowserApp({initialUrl='https://www.google.com'}) {
-  const normalize=url=>{const raw=String(url||'').trim();if(!raw)return 'https://www.google.com';try{const u=new URL(raw);if(!['http:','https:'].includes(u.protocol))throw new Error('Unsupported protocol');return u.toString()}catch{if(!/\\s/.test(raw)&&/^(localhost(?::\\d+)?|(?:[a-z0-9-]+\\.)+[a-z]{2,}(?::\\d+)?(?:[/?#].*)?)$/i.test(raw)){try{return new URL('https://'+raw).toString()}catch{}}return 'https://www.google.com/search?q='+encodeURIComponent(raw)}};
+  const normalize=url=>{const raw=String(url||'').trim();if(!raw)return 'https://www.google.com';try{const u=new URL(raw);if(!['http:','https:'].includes(u.protocol))throw new Error('Unsupported protocol');return u.toString()}catch{if(!/\s/.test(raw)&&/^(localhost(?::\d+)?|(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?(?:[/?#].*)?)$/i.test(raw)){try{return new URL('https://'+raw).toString()}catch{}}return 'https://www.google.com/search?q='+encodeURIComponent(raw)}};
   const openExternal=async target=>{if(!Capacitor.isNativePlatform()){try{const w=window.open(target,'_blank','noopener,noreferrer');if(w)return}catch{}window.location.assign(target);return}try{const {Browser}=await import('@capacitor/browser');if(Browser){await Browser.open({url:target});return}}catch{}window.location.assign(target)};
   const installCurrentSite=()=>{try{localStorage.setItem('mtp2026:webapp-installer-prefill',url)}catch{};window.dispatchEvent(new CustomEvent('mtp2026:open-window',{detail:{id:'webapp-installer'}}))};
   const [url,setUrl]=useState(initialUrl); const [input,setInput]=useState(initialUrl);
