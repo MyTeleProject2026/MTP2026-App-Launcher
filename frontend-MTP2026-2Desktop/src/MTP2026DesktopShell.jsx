@@ -347,10 +347,11 @@ function GuestRuntime({runtime,guestState,onState}){
   const stop=async()=>{setBusy(true);setMessage('');try{const state=await stopDesktopGuest();onState?.(state);await refresh();}catch(e){setMessage(e.message||'Guest stop failed.');}finally{setBusy(false);}};
   const importImage=async(e)=>{const file=e.target.files?.[0];e.target.value='';if(!file)return;setBusy(true);setMessage('Validating and installing ARM64 guest image…');try{await installGuestImageFromBytes('desktop',new Uint8Array(await file.arrayBuffer()),{sourceName:file.name});setMessage('Guest image installed and integrity-checked.');await refresh();}catch(err){setMessage(err.message||'Guest image installation failed.');}finally{setBusy(false);}};
   const downloadImage=async()=>{setBusy(true);setMessage('Downloading configured guest image…');try{if(window.__MTP2026_SITE_PROFILE?.deviceMode==='desktop'&&window.__TAURI_INTERNALS__){const contract=await import('./guestRuntimeManifest.js').then(m=>m.getGuestImageSource('desktop'));const r=await nativeQemuInstallBundle({id:'desktop',bundleUrl:contract.url,bundleSha256:contract.sha256});if(!r?.supported)throw new Error(r?.error||'Native guest installation unavailable.');setMessage('ARM64 guest bundle installed, verified and extracted on the native host.');}else{await installGuestImageFromContract('desktop',{sourceName:'configured MTP2026 guest image'});setMessage('Configured guest image installed and integrity-checked.');}await refresh();}catch(e){setMessage(e.message||'Configured guest image is unavailable.');}finally{setBusy(false);}};
-  const running=Boolean(guestState?.running);
+  const shellFallback=guestState?.provider==='browser-launcher'||guestState?.phase==='browser-shell';
+  const running=Boolean(guestState?.running&&!shellFallback);
   return <div className="mtp11-runtime">
     <div className="mtp11-runtime-head"><div><div className="mtp11-runtime-kicker">DEVICE VIRTUALIZATION</div><h2>Guest Runtime</h2><p>Manage the MTP2026 Desktop ARM64 guest without bundling proprietary operating-system files.</p></div><button onClick={refresh} disabled={busy}><RefreshCw/></button></div>
-    <div className="mtp11-runtime-status"><div><span className="dot"/><b>{running?'Running':'Stopped'}</b><small>{runtime.mode} · {runtime.architecture.toUpperCase()}</small></div><div><b>{guestState?.phase||'idle'}</b><small>{guestState?.progress||0}% boot progress</small></div></div>
+    <div className="mtp11-runtime-status"><div><span className="dot"/><b>{running?'Guest running':shellFallback?'Browser shell active':'Guest stopped'}</b><small>{runtime.mode} · {runtime.architecture.toUpperCase()}</small></div><div><b>{guestState?.phase||'idle'}</b><small>{shellFallback?'No virtual machine is executing':(guestState?.progress||0)+'% guest boot progress'}</small></div></div>
     <div className="mtp11-runtime-grid">
       <div className="mtp11-runtime-card"><Cpu/><b>Architecture</b><span>ARM64 / AArch64</span></div>
       <div className="mtp11-runtime-card"><Monitor/><b>Profile</b><span>desktop · qemu-aarch64-virt compatible</span></div>
@@ -449,8 +450,8 @@ function SystemMonitor({runtime,guestState}){
   const mem=Number.isFinite(metrics?.memory_percent)?Math.round(metrics.memory_percent):null;
   const network=Number.isFinite(metrics?.network_rx_bytes)?Math.min(100,Math.round(((metrics.network_rx_bytes+metrics.network_tx_bytes)/Math.max(1,1024*1024*1024))*100)):null;
   const storage=Number.isFinite(metrics?.storage_percent)?Math.round(metrics.storage_percent):null;
-  const guestReady=Boolean(guestState?.running&&(guestState?.phase==='ready'||guestState?.phase==='browser-shell'));
-  const guestMeter=guestReady?100:Math.max(0,Math.min(100,guestState?.progress||0));
+  const guestReady=Boolean(guestState?.running&&guestState?.provider!=='browser-launcher'&&guestState?.phase!=='browser-shell'&&(guestState?.phase==='ready'||guestState?.phase==='native-qemu'));
+  const guestMeter=guestReady?100:Math.max(0,Math.min(100,guestState?.provider==='browser-launcher'||guestState?.phase==='browser-shell'?0:(guestState?.progress||0)));
   const meters=[['CPU',cpu,'%'],['Memory',mem,'%'],['Storage',storage,'%'],['Network',network,'%'],['Guest runtime',guestMeter,'%']];
   return <div className="mtp11-monitor"><div className="mtp11-runtime-badge"><span className="dot"/> {runtime.mode==='native-vm'?'ARM64 guest provider active':runtime.mode==='qemu-wasm'?'QEMU-WASM ARM64 provider available':'Browser shell runtime'} · {runtime.guestProfile}</div><div className="mtp11-monitor-hero"><Activity/><div><b>MTP2026 System Monitor</b><small>{metrics?.native?'Live native host telemetry':'Browser sandbox telemetry only'} · {runtime.architecture}</small></div></div>
     {meters.map(([n,v,u])=><div className="mtp11-meter" key={n}><div><span>{n}</span><b>{v===null?'—':v+u}</b></div><i><em style={{width:(v===null?0:v)+'%'}}/></i></div>)}
