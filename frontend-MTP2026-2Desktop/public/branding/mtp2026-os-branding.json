@@ -19,7 +19,6 @@
     "installMessage": "MTP2026_VEXASTORE_INSTALL"
   },
   "guestProfiles": [
-    { "id": "mtp2026", "label": "MTP2026 Device OS", "layout": "mobile" },
     { "id": "desktop", "label": "MTP2026 Desktop Edition", "layout": "desktop" }
   ],
   "applicationContract": {
