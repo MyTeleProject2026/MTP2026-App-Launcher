@@ -172,3 +172,41 @@
 .mtp11-browser-restricted button{border:1px solid rgba(116,187,255,.35);border-radius:10px;background:linear-gradient(135deg,#2679d2,#1658a6);color:#fff;padding:11px 16px;font:inherit;font-size:12px;font-weight:650;cursor:pointer;box-shadow:0 7px 22px rgba(0,0,0,.22)}
 .mtp11-browser-restricted button:hover{filter:brightness(1.12)}
 @media(max-width:520px){.mtp11-browser-restricted{gap:11px;padding:18px}.mtp11-browser-restricted p{font-size:12px}.mtp11-browser-restricted button{width:100%;max-width:340px}}
+
+
+/* MTP2026 in-app search surface and responsive browser chrome */
+.mtp11-browser-search-page{flex:1;min-width:0;min-height:0;overflow:auto;background:radial-gradient(ellipse at 50% 0%,rgba(64,118,204,.17),transparent 48%),#0a111b;color:#edf5ff;padding:clamp(18px,4vw,42px);box-sizing:border-box}
+.mtp11-search-brand{display:flex;align-items:center;justify-content:center;gap:14px;margin:clamp(12px,5vh,54px) auto 22px}
+.mtp11-search-mark{display:grid;place-items:center;width:52px;height:52px;border-radius:17px;border:1px solid rgba(130,192,255,.25);background:linear-gradient(145deg,rgba(64,143,236,.22),rgba(60,84,147,.12));color:#a8d9ff}
+.mtp11-search-mark svg{width:27px;height:27px}
+.mtp11-search-brand small{display:block;color:#7dbbff;font-size:10px;font-weight:800;letter-spacing:.15em}
+.mtp11-search-brand h2{margin:4px 0;font-size:clamp(22px,3vw,32px);letter-spacing:-.04em}
+.mtp11-search-brand p{margin:0;color:#8ea4be;font-size:12px}
+.mtp11-search-form{display:flex;align-items:center;gap:10px;width:min(760px,100%);margin:0 auto 24px;padding:7px 8px 7px 14px;border:1px solid rgba(131,171,220,.25);border-radius:15px;background:rgba(16,29,47,.92);box-shadow:0 12px 35px rgba(0,0,0,.2)}
+.mtp11-search-form>svg{width:18px;height:18px;color:#81caff;flex:0 0 auto}
+.mtp11-search-form input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:#f1f7ff;font-size:14px}
+.mtp11-search-form button,.mtp11-search-empty button,.mtp11-search-full{border:1px solid rgba(113,183,255,.3);border-radius:10px;background:linear-gradient(135deg,#277ad0,#1858a5);color:white;padding:10px 15px;font-size:12px;font-weight:700;cursor:pointer}
+.mtp11-search-results{width:min(760px,100%);margin:0 auto;padding-bottom:64px}
+.mtp11-search-result{padding:14px 2px;border-bottom:1px solid rgba(151,183,221,.12)}
+.mtp11-search-result>button{display:grid;gap:6px;width:100%;padding:0;border:0;background:transparent;text-align:left;color:inherit;cursor:pointer}
+.mtp11-search-result b{font-size:15px;color:#a9d8ff;font-weight:650}
+.mtp11-search-result small{color:#86b7a3;font-size:11px;overflow-wrap:anywhere}
+.mtp11-search-result span{color:#c1cedf;font-size:12px;line-height:1.65}
+.mtp11-search-status,.mtp11-search-empty{padding:14px;border:1px solid rgba(151,183,221,.13);border-radius:12px;background:rgba(255,255,255,.025);color:#9fb2c9;font-size:12px;line-height:1.6}
+.mtp11-search-empty button{margin-top:7px}
+.mtp11-search-full{display:block;margin:18px auto;background:rgba(47,133,204,.12)}
+.mtp11-account-auth-error{margin:0 0 12px;padding:10px 12px;border:1px solid rgba(255,123,139,.28);border-radius:9px;background:rgba(139,36,55,.13);color:#ffb8c2;font-size:12px;line-height:1.5}
+@media(max-width:620px){
+ .mtp11-browser-tabs{height:34px;padding-left:4px;padding-right:4px}
+ .mtp11-browser-tabs>button{min-width:84px;max-width:145px;height:30px;padding:0 7px;font-size:9px}
+ .mtp11-browser-toolbar{height:auto;min-height:46px;flex-wrap:wrap;gap:4px;padding:6px}
+ .mtp11-browser-toolbar>button{width:29px;height:29px;flex:0 0 auto}
+ .mtp11-browser-toolbar form{order:2;flex-basis:100%;height:36px}
+ .mtp11-browser-toolbar form input{font-size:12px}
+ .mtp11-browser-search-page{padding:16px 12px}
+ .mtp11-search-brand{justify-content:flex-start;margin:12px 0 18px}
+ .mtp11-search-form{gap:7px;padding-left:10px}
+ .mtp11-search-form button{padding:9px 11px}
+ .mtp11-browser-embed-help{left:6px;right:6px;bottom:6px;align-items:stretch;flex-direction:column;gap:7px;max-height:42%;overflow:auto}
+ .mtp11-browser-embed-help button{width:100%;min-height:34px}
+}
