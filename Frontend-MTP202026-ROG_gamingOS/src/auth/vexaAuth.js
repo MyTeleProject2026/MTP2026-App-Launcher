@@ -24,6 +24,8 @@ export function startVexaLogin(options={}){
   const prompt=String(options.prompt||'').trim();
   if(loginHint) params.set('login_hint',loginHint);
   if(prompt) params.set('prompt',prompt);
+  const returnOrigin=window.location.origin;
+  if(returnOrigin) params.set('return_origin',returnOrigin);
   const suffix=params.toString();
   window.location.assign(`${API}/auth/login${suffix?`?${suffix}`:''}`);
 }
