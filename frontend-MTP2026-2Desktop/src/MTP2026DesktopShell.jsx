@@ -292,7 +292,7 @@ function AccountCenter({onLock,onEnd,onClose,profile:initialProfile=null}){
   </div>;
 }
 
-function SettingsApp(){
+function SettingsApp({profile=null}){
   const sections=[
     {id:'system',label:'System',icon:Cpu},{id:'devices',label:'Bluetooth & devices',icon:Monitor},
     {id:'network',label:'Network & internet',icon:Wifi},{id:'personalization',label:'Personalization',icon:Monitor},
@@ -334,7 +334,7 @@ function SettingsApp(){
       <div className="mtp11-setting-card"><Globe2/><div><b>MTP2026 Browser</b><span>Web application runtime surface</span></div><button onClick={()=>event('mtp2026:open-window',{id:'browser'})}>Launch</button></div>
       <div className="mtp11-setting-card"><Terminal/><div><b>Terminal</b><span>MTP2026 diagnostic shell</span></div><button onClick={()=>event('mtp2026:open-window',{id:'terminal'})}>Launch</button></div></>,
     accounts:<><h2>Accounts</h2><p>VexaAccount session and local desktop identity.</p>
-      <div className="mtp11-setting-card"><UserRound/><div><b>MTP2026 User</b><span>VexaAccount protected desktop session</span></div><button onClick={()=>event('mtp2026:open-account')}>Account</button></div>
+      <div className="mtp11-setting-card"><UserRound/><div><b>{profile?.name||profile?.display_name||profile?.username||"MTP2026 User"}</b><span>{profile?.email||"VexaAccount protected desktop session"}</span></div><button onClick={()=>event('mtp2026:open-account')}>Account</button></div>
       <div className="mtp11-setting-card"><LockKeyhole/><div><b>Sign-in protection</b><span>Session security is controlled by the launcher account flow.</span></div><button onClick={()=>event('mtp2026:open-account-security')}>Review</button></div></>,
     privacy:<><h2>Privacy & security</h2><p>Local shell privacy and runtime protection.</p>
       <div className="mtp11-setting-card"><ShieldCheck/><div><b>VexaAccount protection</b><span>Authenticated session and runtime policy</span></div><button disabled>Protected</button></div>
@@ -357,7 +357,7 @@ function SettingsApp(){
       <div className="mtp11-setting-card"><ServerCog/><div><b>System services</b><span>Desktop service supervisor</span></div><button onClick={()=>event('mtp2026:open-window',{id:'services'})}>Services</button></div></>
   };
   const filteredSections=sections.filter(s=>!query.trim()||s.label.toLowerCase().includes(query.trim().toLowerCase()));
-  return <div className="mtp11-settings"><aside><div className="mtp11-settings-user"><div className="mtp11-avatar">M</div><div><b>MTP2026 User</b><small>VexaAccount protected</small></div></div><label className="mtp11-settings-search"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Find a setting"/></label><div className="mtp11-settings-nav">{filteredSections.map(({id,label,icon:Icon})=><button key={id} className={section===id?'active':''} onClick={()=>setSection(id)}><Icon/> <span>{label}</span></button>)}{!filteredSections.length&&<small>No matching settings</small>}</div></aside><main><div className="mtp11-settings-mobile-title"><b>Settings</b><span>{sections.find(s=>s.id===section)?.label||'System'}</span></div>{content[section]}</main></div>;
+  return <div className="mtp11-settings"><aside><div className="mtp11-settings-user"><div className="mtp11-avatar">{String(profile?.name||profile?.display_name||profile?.email||"M").trim().slice(0,1).toUpperCase()}</div><div><b>{profile?.name||profile?.display_name||profile?.username||"MTP2026 User"}</b><small>{profile?.email||"VexaAccount protected"}</small></div></div><label className="mtp11-settings-search"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Find a setting"/></label><div className="mtp11-settings-nav">{filteredSections.map(({id,label,icon:Icon})=><button key={id} className={section===id?'active':''} onClick={()=>setSection(id)}><Icon/> <span>{label}</span></button>)}{!filteredSections.length&&<small>No matching settings</small>}</div></aside><main><div className="mtp11-settings-mobile-title"><b>Settings</b><span>{sections.find(s=>s.id===section)?.label||'System'}</span></div>{content[section]}</main></div>;
 }
 function NativeQemuPanel(){
   const [kernel,setKernel]=useState(''); const [initrd,setInitrd]=useState(''); const [disk,setDisk]=useState('');
@@ -688,7 +688,7 @@ export function MTP2026DesktopShell({apps=[],profile=null,onExit,onOpenBrowser})
     const Icon=app.icon||Globe2;
     let body=<div className="mtp11-app-placeholder"><Icon/><h3>{app.title}</h3><p>MTP2026 Desktop application surface.</p></div>;
     if(id==='files')body=<FileExplorer/>;
-    if(id==='settings')body=<SettingsApp/>;
+    if(id==='settings')body=<SettingsApp profile={profile}/>;
     if(id==='account')body=<AccountCenter profile={profile} onLock={()=>setLocked(true)} onEnd={()=>{close('account');onExit?.();}} onClose={()=>close('account')}/>;
     if(id==='system')body=<SystemMonitor runtime={runtime} guestState={guestState}/>;
     if(id==='taskmgr')body=<TaskManager windows={windows} active={active} minimized={minimized} runtime={runtime} close={close} onSelect={id=>{setActive(id);setMinimized(m=>m.filter(x=>x!==id));}}/>;
@@ -781,7 +781,7 @@ export function MTP2026DesktopShell({apps=[],profile=null,onExit,onOpenBrowser})
         <div className="mtp11-start-recent">{recentApps.map(id=>{const a=allApps.find(x=>x.id===id);if(!a)return null;const I=a.icon||Globe2;return <button key={id} onClick={()=>open(id)}>{a.kind==='web'?<AppIcon app={a} size="sm"/>:<I/>}<span><b>{a.title}</b><small>Recently opened</small></span></button>})}</div>
       </div>}
       {startTab==='all'&&<><div className="mtp11-start-head"><b>{search?'Search results':'All apps'}</b><span>{visible.length} apps</span></div><div className="mtp11-start-grid">{visible.map(a=>{const I=a.icon||Globe2;return <button key={a.id} onClick={()=>a.kind==='web'?launchWeb(a.url):open(a.id)} onContextMenu={e=>{e.preventDefault();togglePinnedApp(a.id)}} title="Right-click to pin or unpin"><span>{a.kind==='web'?<AppIcon app={a} size="md"/>:<I/>}</span><b>{a.title}</b></button>})}</div></>}
-      <div className="mtp11-start-footer"><button className="mtp11-account" onClick={()=>setAccountMenu(v=>!v)}><div className="mtp11-avatar">M</div><span>MTP2026 User<small>VexaAccount · {desktopSession.status==='active'?'Session active':'Session ended'}</small></span></button><button onClick={()=>setPower(v=>!v)}><Power/></button></div>
+      <div className="mtp11-start-footer"><button className="mtp11-account" onClick={()=>setAccountMenu(v=>!v)}><div className="mtp11-avatar">{String(profile?.name||profile?.display_name||profile?.email||"M").trim().slice(0,1).toUpperCase()}</div><span>{profile?.name||profile?.display_name||profile?.username||"MTP2026 User"}<small>VexaAccount · {profile?"Authenticated session":desktopSession.status==='active'?'Guest session active':'Session ended'}</small></span></button><button onClick={()=>setPower(v=>!v)}><Power/></button></div>
       {accountMenu&&<div className="mtp11-account-menu"><button onClick={()=>{setAccountMenu(false);open('account')}}><UserRound/> Account Center</button><button onClick={()=>{setAccountMenu(false);setDesktopSessionLocked(true);setDesktopLocked(true)}}><LockKeyhole/> Lock desktop</button><button onClick={()=>{setRecentApps([]);localStorage.removeItem('mtp2026:desktop:recent-apps:v1');setAccountMenu(false)}}><RefreshCw/> Clear recent</button><button onClick={()=>setAccountMenu(false)}><X/> Close</button></div>}
     </div>}
     {quickSettings&&<div className="mtp11-quick-settings"><header><b>Quick Settings</b><button onClick={()=>setQuickSettings(false)}><X/></button></header><div className="mtp11-quick-grid">
