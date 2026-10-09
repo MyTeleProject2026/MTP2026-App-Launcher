@@ -42,7 +42,7 @@ try {
       try {
         if(stage===0 && buffer.length>=12) {
           const version=buffer.subarray(0,12).toString('ascii');
-          assert.match(version,/^RFB 003\\.00[38]\\n$/,'VNC bridge must expose an RFB server banner');
+          assert.match(version,/^RFB 003\.00[38]\n$/,'VNC bridge must expose an RFB server banner');
           ws.send(version);buffer=buffer.subarray(12);stage=1;
         }
         if(stage===1 && buffer.length>=1) {
