@@ -49,7 +49,7 @@ async function persistServerMode(mode) { try { await fetch(`${API}/settings`, { 
 async function continueAfterSelection(mode) {
   const normalized = normalizeMode(mode);
   if (!normalized) return;
-  document.documentElement.dataset.mtpStartup = 'authenticating';
+  document.documentElement.dataset.mtpStartup = 'ready';
   const s = await session();
   if (!s?.profile) return;
   await persistServerMode(normalized);
