@@ -289,22 +289,6 @@ public final class MainActivity extends Activity {
         }).start();
     }
 
-    private String readAssetText(String assetPath) throws IOException {
-        try (InputStream input = getAssets().open(assetPath)) {
-            byte[] buffer = new byte[8192]; int read; StringBuilder out = new StringBuilder();
-            while ((read = input.read(buffer)) != -1) out.append(new String(buffer, 0, read, java.nio.charset.StandardCharsets.UTF_8));
-            return out.toString();
-        }
-    }
-
-    private void copyAsset(String assetPath, File destination) throws IOException {
-        try (InputStream input = getAssets().open(assetPath); OutputStream output = new FileOutputStream(destination)) {
-            byte[] buffer = new byte[64 * 1024]; int read;
-            while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
-            output.flush();
-        }
-    }
-
     private final class NativeBridge {
         @JavascriptInterface public void setDeviceMode(String mode) {
             runOnUiThread(() -> {
