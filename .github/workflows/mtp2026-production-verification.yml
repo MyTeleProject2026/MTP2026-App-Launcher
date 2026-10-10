@@ -21,17 +21,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Detect whether this push changes a deployed frontend
+      - name: Detect whether this push changes the Host Launcher frontend
         if: github.event_name == 'push'
         shell: bash
         run: |
           set -euo pipefail
           changed="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")"
-          if printf '%s\n' "$changed" | grep -Eq '^(frontend-MTP2026-AppLauncher/|frontend-MTP2026-2Desktop/|frontend-MTP2026-Android/|Frontend-MTP202026-ROG_gamingOS/|frontend-MTP2026OS/)' ; then
+          if printf '%s\n' "$changed" | grep -Eq '^frontend-MTP2026-AppLauncher/' ; then
             echo "EXPECTED_COMMIT=${{ github.sha }}" >> "$GITHUB_ENV"
-            echo "This push changes deployed frontend source; checking its deployment revision."
+            echo "This push changes Host Launcher source; checking the Host Launcher deployment revision."
           else
-            echo "This push does not change frontend source; skipping frontend commit propagation check."
+            echo "This push does not change Host Launcher source; skipping the Host Launcher commit propagation check."
           fi
 
       - name: Verify production frontend and backend
