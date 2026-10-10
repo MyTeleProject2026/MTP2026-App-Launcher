@@ -27,7 +27,7 @@ jobs:
         run: |
           set -euo pipefail
           changed="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")"
-          if printf '%s\\n' "$changed" | grep -Eq '^(frontend-MTP2026-AppLauncher/|frontend-MTP2026-2Desktop/|frontend-MTP2026-Android/|Frontend-MTP202026-ROG_gamingOS/|frontend-MTP2026OS/)' ; then
+          if printf '%s\n' "$changed" | grep -Eq '^(frontend-MTP2026-AppLauncher/|frontend-MTP2026-2Desktop/|frontend-MTP2026-Android/|Frontend-MTP202026-ROG_gamingOS/|frontend-MTP2026OS/)' ; then
             echo "EXPECTED_COMMIT=${{ github.sha }}" >> "$GITHUB_ENV"
             echo "This push changes deployed frontend source; checking its deployment revision."
           else
