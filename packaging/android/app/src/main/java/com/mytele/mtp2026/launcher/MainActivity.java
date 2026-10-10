@@ -37,6 +37,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.util.zip.GZIPInputStream;
 import java.io.OutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -116,7 +117,6 @@ public final class MainActivity extends Activity {
         settings.setAllowFileAccess(false); settings.setAllowContentAccess(false); settings.setSupportMultipleWindows(false); settings.setJavaScriptCanOpenWindowsAutomatically(false);
         CookieManager.getInstance().setAcceptCookie(true); CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
         webView.addJavascriptInterface(new NativeBridge(), "MTP2026Native");
-        if ("desktop".equals(BuildConfig.EDITION)) extractBundledDesktopGuest();
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
@@ -264,29 +264,103 @@ public final class MainActivity extends Activity {
         }).start();
     }
 
-    private void extractBundledDesktopGuest() {
-        new Thread(() -> {
-            try {
-                String[] files = getAssets().list(DESKTOP_GUEST_ASSET_ROOT);
-                if (files == null || files.length == 0) return;
-                File root = new File(getFilesDir(), "mtp2026/guests/desktop");
-                if (!root.exists() && !root.mkdirs()) throw new IOException("Cannot create Desktop guest storage");
-                for (String name : files) {
-                    if (name == null || name.contains("/") || name.contains("..")) continue;
-                    copyAsset(DESKTOP_GUEST_ASSET_ROOT + "/" + name, new File(root, name));
+    private void extractDesktopGuestArchive(File archive, File destinationRoot) throws Exception {
+        if (!destinationRoot.exists() && !destinationRoot.mkdirs()) throw new IOException("Cannot create Desktop guest storage");
+        try (InputStream raw = new FileInputStream(archive); InputStream gzip = new GZIPInputStream(raw)) {
+            byte[] header = new byte[512];
+            while (readTarBlock(gzip, header)) {
+                boolean empty = true;
+                for (byte value : header) if (value != 0) { empty = false; break; }
+                if (empty) break;
+                String name = tarString(header, 0, 100);
+                String prefix = tarString(header, 345, 155);
+                if (!prefix.isEmpty()) name = prefix + "/" + name;
+                long size = tarOctal(header, 124, 12);
+                int type = header[156] & 0xff;
+                if (name.isEmpty() || name.startsWith("/") || name.contains("\\") || name.matches("^[A-Za-z]:.*")) {
+                    skipTarBytes(gzip, size + ((512 - (size % 512)) % 512));
+                    continue;
                 }
-                String manifest = readAssetText(DESKTOP_GUEST_ASSET_ROOT + "/guest-manifest.json");
-                getSharedPreferences(DESKTOP_GUEST_PREFS, MODE_PRIVATE).edit()
-                        .putString("desktop_status", "bundled-imported")
-                        .putString("desktop_root", root.getAbsolutePath())
-                        .putString("desktop_manifest", manifest)
-                        .putLong("desktop_imported_at", System.currentTimeMillis()).apply();
-            } catch (Exception error) {
-                getSharedPreferences("mtp2026_guest", MODE_PRIVATE).edit()
-                        .putString("desktop_status", "import-failed")
-                        .putString("desktop_error", String.valueOf(error.getMessage())).apply();
+                File target = new File(destinationRoot, name);
+                String rootPath = destinationRoot.getCanonicalPath() + File.separator;
+                String targetPath = target.getCanonicalPath();
+                if (!targetPath.startsWith(rootPath) && !targetPath.equals(destinationRoot.getCanonicalPath())) {
+                    skipTarBytes(gzip, size + ((512 - (size % 512)) % 512));
+                    continue;
+                }
+                if (type == '5') {
+                    if (!target.exists() && !target.mkdirs()) throw new IOException("Cannot create guest directory " + name);
+                    skipTarBytes(gzip, size + ((512 - (size % 512)) % 512));
+                    continue;
+                }
+                if (type == 0 || type == '0') {
+                    File parent = target.getParentFile();
+                    if (parent != null && !parent.exists() && !parent.mkdirs()) throw new IOException("Cannot create guest directory");
+                    try (OutputStream output = new FileOutputStream(target)) {
+                        copyExact(gzip, output, size);
+                        output.flush();
+                    }
+                    skipTarBytes(gzip, (512 - (size % 512)) % 512);
+                } else {
+                    // Symlinks, hard links, and device nodes are intentionally not
+                    // materialized from an untrusted archive.
+                    skipTarBytes(gzip, size + ((512 - (size % 512)) % 512));
+                }
             }
-        }).start();
+        }
+    }
+
+    private boolean readTarBlock(InputStream input, byte[] block) throws IOException {
+        int offset = 0;
+        while (offset < block.length) {
+            int count = input.read(block, offset, block.length - offset);
+            if (count < 0) {
+                if (offset == 0) return false;
+                throw new IOException("Truncated Desktop guest archive header");
+            }
+            if (count == 0) continue;
+            offset += count;
+        }
+        return true;
+    }
+
+    private String tarString(byte[] bytes, int offset, int length) {
+        int end = offset;
+        int limit = Math.min(bytes.length, offset + length);
+        while (end < limit && bytes[end] != 0) end++;
+        return new String(bytes, offset, end - offset, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private long tarOctal(byte[] bytes, int offset, int length) throws IOException {
+        String value = tarString(bytes, offset, length).trim();
+        if (value.isEmpty()) return 0;
+        try { return Long.parseLong(value.replaceAll("[^0-7].*$", ""), 8); }
+        catch (NumberFormatException error) { throw new IOException("Invalid Desktop guest archive entry size", error); }
+    }
+
+    private void copyExact(InputStream input, OutputStream output, long size) throws IOException {
+        byte[] buffer = new byte[64 * 1024];
+        long remaining = size;
+        while (remaining > 0) {
+            int count = input.read(buffer, 0, (int)Math.min(buffer.length, remaining));
+            if (count < 0) throw new IOException("Truncated Desktop guest archive file");
+            if (count == 0) continue;
+            output.write(buffer, 0, count);
+            remaining -= count;
+        }
+    }
+
+    private void skipTarBytes(InputStream input, long size) throws IOException {
+        long remaining = size;
+        byte[] buffer = new byte[8192];
+        while (remaining > 0) {
+            long skipped = input.skip(remaining);
+            if (skipped > 0) { remaining -= skipped; continue; }
+            int count = input.read(buffer, 0, (int)Math.min(buffer.length, remaining));
+            if (count < 0) throw new IOException("Truncated Desktop guest archive padding");
+            if (count == 0) continue;
+            remaining -= count;
+        }
     }
 
     private final class NativeBridge {
@@ -349,13 +423,27 @@ public final class MainActivity extends Activity {
 
     private void ensureBundledDesktopGuestImported() {
         File guest = new File(getFilesDir(), DESKTOP_GUEST_ASSET);
-        if (guest.isFile() && guest.length() > 0) return;
+        File metadata = new File(getFilesDir(), DESKTOP_GUEST_META_ASSET);
+        File root = new File(getFilesDir(), "mtp2026/guests/desktop");
+        android.content.SharedPreferences prefs = getSharedPreferences(DESKTOP_GUEST_PREFS, MODE_PRIVATE);
+        if (guest.isFile() && guest.length() > 0 && new File(root, "mtp2026-desktop-arm64-linux.Image").isFile()) return;
         new Thread(() -> {
             try {
                 copyAsset(DESKTOP_GUEST_ASSET, guest);
-                copyAsset(DESKTOP_GUEST_META_ASSET, new File(getFilesDir(), DESKTOP_GUEST_META_ASSET));
-                postNotification("MTP2026 Desktop OS", "Full Desktop guest profile imported and ready.");
+                copyAsset(DESKTOP_GUEST_META_ASSET, metadata);
+                extractDesktopGuestArchive(guest, root);
+                String manifest = readAssetText(DESKTOP_GUEST_META_ASSET);
+                prefs.edit()
+                        .putString("desktop_status", "bundled-imported")
+                        .putString("desktop_root", root.getAbsolutePath())
+                        .putString("desktop_manifest", manifest)
+                        .putLong("desktop_imported_at", System.currentTimeMillis())
+                        .remove("desktop_error")
+                        .apply();
+                postNotification("MTP2026 Desktop OS", "Desktop ARM64 guest files extracted into app storage.");
             } catch (Exception error) {
+                prefs.edit().putString("desktop_status", "import-failed")
+                        .putString("desktop_error", String.valueOf(error.getMessage())).apply();
                 postNotification("MTP2026 Desktop OS", "Desktop guest import could not complete: " + error.getMessage());
             }
         }, "mtp2026-desktop-guest-import").start();
