@@ -84,36 +84,34 @@ jobs:
             deploy_frontend="${item#*=}"
             deploy_frontend="${deploy_frontend%/}"
             echo "Checking deployed frontend build information: $label ($deploy_frontend)"
-            if ! curl --fail --silent --show-error --location --max-time 20 "$deploy_frontend/build-info.json?verify=${EXPECTED_COMMIT:-scheduled}" >/tmp/build-info.json; then
-              if [ -n "${EXPECTED_COMMIT:-}" ]; then
-                echo "::error::Changed frontend $label does not expose build-info.json; cannot verify commit propagation."
-                exit 1
+            if [ -z "${EXPECTED_COMMIT:-}" ]; then
+              if curl --fail --silent --show-error --location --max-time 20 "$deploy_frontend/build-info.json?verify=scheduled" >/tmp/build-info.json; then
+                node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/build-info.json','utf8')); console.log({service:j.service,commit:j.commit||'unknown'})"
+              else
+                echo "WARNING: $deploy_frontend does not expose build-info.json; skipping scheduled commit comparison."
               fi
-              echo "WARNING: $deploy_frontend does not expose build-info.json; skipping scheduled commit comparison."
               continue
             fi
 
-            actual=$(node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/build-info.json','utf8')); process.stdout.write(String(j.commit || 'unknown'))")
-            echo "$label production frontend reports commit: $actual"
-
-            if [ -n "${EXPECTED_COMMIT:-}" ] && [ "$actual" != "unknown" ] && [ "$actual" != "$EXPECTED_COMMIT" ]; then
-              echo "$label has not propagated $EXPECTED_COMMIT yet; polling for deployment completion."
-              deployed=false
-              for attempt in $(seq 1 60); do
-                sleep 15
-                if curl --fail --silent --show-error --location --max-time 20 "$deploy_frontend/build-info.json?verify=${EXPECTED_COMMIT}&attempt=$attempt" >/tmp/build-info.json; then
-                  actual=$(node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/build-info.json','utf8')); process.stdout.write(String(j.commit || 'unknown'))")
-                  echo "$label deployment poll $attempt/60: $actual"
-                  if [ "$actual" = "$EXPECTED_COMMIT" ]; then
-                    deployed=true
-                    break
-                  fi
+            deployed=false
+            actual=unavailable
+            for attempt in $(seq 1 60); do
+              if curl --fail --silent --show-error --location --max-time 20 "$deploy_frontend/build-info.json?verify=${EXPECTED_COMMIT}&attempt=$attempt" >/tmp/build-info.json; then
+                actual=$(node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/build-info.json','utf8')); process.stdout.write(String(j.commit || 'unknown'))")
+                echo "$label deployment poll $attempt/60: $actual"
+                if [ "$actual" = "$EXPECTED_COMMIT" ]; then
+                  deployed=true
+                  break
                 fi
-              done
-              if [ "$deployed" != true ]; then
-                echo "::error::$label did not propagate $EXPECTED_COMMIT within 15 minutes; live frontend remains on $actual."
-                exit 1
+              else
+                echo "$label deployment poll $attempt/60: build-info not yet available"
               fi
+              test "$attempt" -eq 60 || sleep 15
+            done
+            if [ "$deployed" != true ]; then
+              echo "::error::$label did not serve commit $EXPECTED_COMMIT within 15 minutes; latest reported value: $actual."
+              exit 1
             fi
+            echo "$label is serving the expected commit."
           done
           echo "Production frontend/backend verification passed."
