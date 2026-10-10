@@ -67,8 +67,8 @@ public final class MainActivity extends Activity {
             "mtp2026-desktopos.onrender.com"
     ));
     private BroadcastReceiver installReceiver;
-    private static final String DESKTOP_GUEST_ASSET = "mtp2026-desktop-guest/mtp2026-desktop-arm64-guest.tar.gz";
-    private static final String DESKTOP_GUEST_META_ASSET = "mtp2026-desktop-guest/guest-profile.json";
+    private static final String DESKTOP_GUEST_ASSET = "desktop-guest/mtp2026-desktop-arm64-guest.tar.gz";
+    private static final String DESKTOP_GUEST_META_ASSET = "desktop-guest/guest-profile.json";
     private static final String DESKTOP_GUEST_ASSET_ROOT = "desktop-guest";
     private static final String DESKTOP_GUEST_PREFS = "mtp2026_guest";
 
