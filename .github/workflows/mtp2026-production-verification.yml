@@ -14,7 +14,7 @@ jobs:
       FRONTEND_URL: ${{ vars.MTP_FRONTEND_URL || 'https://mtp2026-app-launcher.onrender.com' }}
       BACKEND_URL: ${{ vars.MTP_BACKEND_URL || 'https://mtp2026-app-launcher-backend.onrender.com' }}
       EXPECTED_COMMIT: ''
-      DEPLOYED_FRONTEND_URL: ''
+      DEPLOYED_FRONTEND_URLS: ''
     steps:
       - name: Checkout source for frontend revision detection
         if: github.event_name == 'push'
@@ -22,40 +22,31 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Detect whether this push changes the Host Launcher frontend
+      - name: Detect every changed OS frontend deployment
         if: github.event_name == 'push'
         shell: bash
         run: |
           set -euo pipefail
           changed="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")"
-          if printf '%s\n' "$changed" | grep -Eq '^frontend-MTP2026-AppLauncher/' ; then
-            target="$FRONTEND_URL"
-            label="Host Launcher"
-          elif printf '%s\n' "$changed" | grep -Eq '^frontend-MTP2026-2Desktop/' ; then
-            target="https://mtp2026-desktopos-peun.onrender.com"
-            label="Desktop OS"
-          elif printf '%s\n' "$changed" | grep -Eq '^frontend-MTP2026-Android/' ; then
-            target="https://mtp2026-android-os.onrender.com"
-            label="Android OS"
-          elif printf '%s\n' "$changed" | grep -Eq '^Frontend-MTP202026-ROG_gamingOS/' ; then
-            target="https://mtp2026-rog-gaming-os.onrender.com"
-            label="Gaming OS"
-          elif printf '%s\n' "$changed" | grep -Eq '^frontend-MTP2026OS/' ; then
-            target="https://mtp2026-device-os.onrender.com"
-            label="Device OS"
-          else
-            target=""
-            label=""
-          fi
-          if [ -n "$target" ]; then
-            echo "EXPECTED_COMMIT=${{ github.sha }}" >> "$GITHUB_ENV"
-            echo "DEPLOYED_FRONTEND_URL=$target" >> "$GITHUB_ENV"
-            echo "DEPLOYED_FRONTEND_LABEL=$label" >> "$GITHUB_ENV"
-            echo "This push changes $label source; checking its own deployment revision at $target."
+          targets=()
+          while IFS='|' read -r folder label url; do
+            if printf '%s\n' "$changed" | grep -Eq "^$folder/"; then
+              targets+=("$label=$url")
+            fi
+          done <<'MTP_TARGETS'
+          frontend-MTP2026-AppLauncher|Host Launcher|${{ vars.MTP_FRONTEND_URL || 'https://mtp2026-app-launcher.onrender.com' }}
+          frontend-MTP2026-2Desktop|Desktop OS|https://mtp2026-desktopos-peun.onrender.com
+          frontend-MTP2026-Android|Android OS|https://mtp2026-android-os.onrender.com
+          Frontend-MTP202026-ROG_gamingOS|Gaming OS|https://mtp2026-rog-gaming-os.onrender.com
+          frontend-MTP2026OS|Device OS|https://mtp2026-device-os.onrender.com
+          MTP_TARGETS
+          if [ "${#targets[@]}" -gt 0 ]; then
+            printf 'EXPECTED_COMMIT=%s\n' "${{ github.sha }}" >> "$GITHUB_ENV"
+            printf 'DEPLOYED_FRONTEND_URLS=%s\n' "$(IFS=';'; echo "${targets[*]}")" >> "$GITHUB_ENV"
+            printf 'Changed frontend deployments: %s\n' "${targets[*]}"
           else
             echo "This push does not change a deployed frontend source; skipping frontend commit propagation check."
           fi
-
       - name: Verify production frontend and backend
         shell: bash
         run: |
@@ -86,31 +77,43 @@ jobs:
           code=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 20 "$backend/api/auth/login")
           test "$code" = "302"
 
-          deploy_frontend="${DEPLOYED_FRONTEND_URL:-$frontend}"
-          echo "Checking deployed frontend build information: $deploy_frontend"
-          if ! curl --fail --silent --show-error --location --max-time 20 "$deploy_frontend/build-info.json?verify=${EXPECTED_COMMIT:-scheduled}" >/tmp/build-info.json; then
-            echo "WARNING: $deploy_frontend does not expose build-info.json; skipping commit comparison."
-            exit 0
-          fi
-
-          actual=$(node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/build-info.json','utf8')); process.stdout.write(String(j.commit || 'unknown'))")
-          echo "Production frontend reports commit: $actual"
-
-          if [ -n "${EXPECTED_COMMIT:-}" ] && [ "$actual" != "unknown" ] && [ "$actual" != "$EXPECTED_COMMIT" ]; then
-            echo "Render frontend has not propagated $EXPECTED_COMMIT yet; polling for deployment completion."
-            for attempt in $(seq 1 60); do
-              sleep 15
-              if curl --fail --silent --show-error --location --max-time 20 "$deploy_frontend/build-info.json?verify=${EXPECTED_COMMIT}&attempt=$attempt" >/tmp/build-info.json; then
-                actual=$(node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/build-info.json','utf8')); process.stdout.write(String(j.commit || 'unknown'))")
-                echo "Deployment poll $attempt/60: $actual"
-                if [ "$actual" = "$EXPECTED_COMMIT" ]; then
-                  echo "Production frontend now serves the pushed commit."
-                  exit 0
-                fi
+          targets="${DEPLOYED_FRONTEND_URLS:-Host Launcher=$frontend}"
+          IFS=';' read -r -a target_list <<< "$targets"
+          for item in "${target_list[@]}"; do
+            label="${item%%=*}"
+            deploy_frontend="${item#*=}"
+            deploy_frontend="${deploy_frontend%/}"
+            echo "Checking deployed frontend build information: $label ($deploy_frontend)"
+            if ! curl --fail --silent --show-error --location --max-time 20 "$deploy_frontend/build-info.json?verify=${EXPECTED_COMMIT:-scheduled}" >/tmp/build-info.json; then
+              if [ -n "${EXPECTED_COMMIT:-}" ]; then
+                echo "::error::Changed frontend $label does not expose build-info.json; cannot verify commit propagation."
+                exit 1
               fi
-            done
-            echo "::error::Render frontend did not propagate $EXPECTED_COMMIT within 15 minutes; live frontend remains on $actual."
-            exit 1
-          fi
+              echo "WARNING: $deploy_frontend does not expose build-info.json; skipping scheduled commit comparison."
+              continue
+            fi
 
+            actual=$(node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/build-info.json','utf8')); process.stdout.write(String(j.commit || 'unknown'))")
+            echo "$label production frontend reports commit: $actual"
+
+            if [ -n "${EXPECTED_COMMIT:-}" ] && [ "$actual" != "unknown" ] && [ "$actual" != "$EXPECTED_COMMIT" ]; then
+              echo "$label has not propagated $EXPECTED_COMMIT yet; polling for deployment completion."
+              deployed=false
+              for attempt in $(seq 1 60); do
+                sleep 15
+                if curl --fail --silent --show-error --location --max-time 20 "$deploy_frontend/build-info.json?verify=${EXPECTED_COMMIT}&attempt=$attempt" >/tmp/build-info.json; then
+                  actual=$(node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/build-info.json','utf8')); process.stdout.write(String(j.commit || 'unknown'))")
+                  echo "$label deployment poll $attempt/60: $actual"
+                  if [ "$actual" = "$EXPECTED_COMMIT" ]; then
+                    deployed=true
+                    break
+                  fi
+                fi
+              done
+              if [ "$deployed" != true ]; then
+                echo "::error::$label did not propagate $EXPECTED_COMMIT within 15 minutes; live frontend remains on $actual."
+                exit 1
+              fi
+            fi
+          done
           echo "Production frontend/backend verification passed."
