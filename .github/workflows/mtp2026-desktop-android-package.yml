@@ -130,6 +130,8 @@ jobs:
           guest["androidImport"] = {"asset": bundle.name, "sha256": hashlib.sha256(bundle.read_bytes()).hexdigest(), "bundled": True}
           pathlib.Path("packaging/android/app/src/main/assets/mtp2026-desktop-guest/guest-profile.json").write_text(json.dumps(guest, indent=2) + chr(10))
           PY
+          cp packaging/android/app/src/main/assets/mtp2026-desktop-guest/mtp2026-desktop-arm64-guest.tar.gz packaging/android/app/src/main/assets/desktop-guest/mtp2026-desktop-arm64-guest.tar.gz
+          cp packaging/android/app/src/main/assets/mtp2026-desktop-guest/guest-profile.json packaging/android/app/src/main/assets/desktop-guest/guest-profile.json
 
       - name: Build Desktop Android packages
         working-directory: packaging/android
@@ -153,8 +155,8 @@ jobs:
           tar -tzf "$GUEST" | grep -E '(^|/)(mtp2026-desktop-arm64-linux.Image|mtp2026-desktop-initramfs.cpio.gz|mtp2026-desktop-boot-disk.img|mtp2026-arm64-boot-firmware.bin)$'
           unzip -t "$APK" >/dev/null
           unzip -t "$AAB" >/dev/null
-          unzip -p "$APK" assets/mtp2026-desktop-guest/mtp2026-desktop-arm64-guest.tar.gz > "$RUNNER_TEMP/mtp2026-desktop-guest.tar.gz"
-          unzip -p "$APK" assets/mtp2026-desktop-guest/guest-profile.json > "$RUNNER_TEMP/mtp2026-desktop-guest-profile.json"
+          unzip -p "$APK" assets/desktop-guest/mtp2026-desktop-arm64-guest.tar.gz > "$RUNNER_TEMP/mtp2026-desktop-guest.tar.gz"
+          unzip -p "$APK" assets/desktop-guest/guest-profile.json > "$RUNNER_TEMP/mtp2026-desktop-guest-profile.json"
           test -s "$RUNNER_TEMP/mtp2026-desktop-guest.tar.gz"
           test -s "$RUNNER_TEMP/mtp2026-desktop-guest-profile.json"
           tar -tzf "$RUNNER_TEMP/mtp2026-desktop-guest.tar.gz" | grep -q 'mtp2026-desktop-arm64-linux.Image'
