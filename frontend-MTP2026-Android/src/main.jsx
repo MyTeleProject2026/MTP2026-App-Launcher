@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Search, Star, RefreshCw, Bell, ChevronDown, Menu, X, ExternalLink, CheckCircle2, Globe2, LogOut, Settings, Clock3, Grid2X2, Download, Check, UserRound, CircleHelp, KeyRound, ArrowRightLeft, Maximize2, Minimize2 } from 'lucide-react';
 import './styles.css';
+// Use the dedicated Android-style shell on the independently deployed Android OS frontend.
+import './mtp2026AndroidOS.js';
 import { API, startVexaLogin, finishVexaLogin, signOut } from './auth';
 import { DeviceModeSettings, ApplicationSettingsModal, getDeviceMode } from './launcherPlatform.jsx';
 import { GuestAccess } from './guestAccess.jsx';
