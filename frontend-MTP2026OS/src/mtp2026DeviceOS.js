@@ -10,6 +10,7 @@ const BRAND_MARK = '/branding/mtp2026-mark.svg';
 const SYSTEM_APPS = [
   { id: 'vexastore', name: 'VexaStore', glyph: '▦', url: STORE_URL, subtitle: 'Apps & updates', kind: 'store' },
   { id: 'vexaaccount', name: 'VexaAccount', glyph: '◉', url: ACCOUNT_URL, subtitle: 'Identity & security', kind: 'account' },
+  { id: 'vexachat', name: 'VexaChat', glyph: '▰', url: 'https://vexachat-ofgc.onrender.com', subtitle: 'Secure messaging', kind: 'external' },
   { id: 'settings', name: 'Settings', glyph: '⚙', subtitle: 'Device settings', kind: 'settings' },
   { id: 'files', name: 'Files', glyph: '▤', url: '', subtitle: 'MTP storage', kind: 'files' },
   { id: 'browser', name: 'Browser', glyph: '◎', url: 'https://www.google.com/', subtitle: 'Web browsing', kind: 'browser' },
