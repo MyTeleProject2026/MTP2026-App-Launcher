@@ -64,6 +64,29 @@ jobs:
         working-directory: ${{ matrix.dir }}
         run: |
           node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('os-profile.json','utf8')); if(p.deviceMode!=='${{ matrix.mode }}'||p.architecture!=='arm64'||p.render!=='static-site') process.exit(1); console.log(p)"
+      - name: Verify dedicated OS replacement entry point
+        if: matrix.mode != 'host' && matrix.mode != 'desktop'
+        working-directory: ${{ matrix.dir }}
+        env:
+          OS_MODE: ${{ matrix.mode }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const expected = {
+            android: "mtp2026AndroidOS.js",
+            gaming: "mtp2026GamingOS.js",
+            mtp2026: "mtp2026DeviceOS.js"
+          }[process.env.OS_MODE];
+          const entry = fs.readFileSync('src/main.jsx', 'utf8');
+          const html = fs.readFileSync('index.html', 'utf8');
+          if (!expected || !entry.includes(expected)) {
+            throw new Error('Dedicated OS entry point is missing for ' + process.env.OS_MODE);
+          }
+          if (/startupOrchestrator|webOsRuntime|webOsAppSurface/.test(html)) {
+            throw new Error('Retired generic OS UI is still wired into ' + process.env.OS_MODE + ' index.html');
+          }
+          console.log('Dedicated shell entry verified:', expected);
+          NODE
       - name: Build static site
         working-directory: ${{ matrix.dir }}
         run: npm run build
