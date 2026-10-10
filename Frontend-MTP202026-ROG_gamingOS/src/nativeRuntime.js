@@ -16,7 +16,6 @@ if (dedicatedShell) {
   // generic taskbar/control-center over the OS-specific frontend.
   await Promise.all([
     import('./vexaStoreInstaller.js'),
-    import('./mtp2026VexaStoreRuntime.js'),
     import('./mtp2026OsPackageRuntime.js'),
     import('./mtp2026GuestPackageRuntime.js'),
     import('./mtp2026GuestProfiles.js'),
@@ -29,7 +28,6 @@ if (dedicatedShell) {
     import('./mtp2026Branding.js'),
     import('./vexaStoreInstaller.js'),
     import('./mtp2026VexaStoreUI.js'),
-    import('./mtp2026VexaStoreRuntime.js'),
     import('./mtp2026OsPackageRuntime.js'),
     import('./mtp2026GuestPackageRuntime.js'),
     import('./mtp2026GuestProfiles.js'),
