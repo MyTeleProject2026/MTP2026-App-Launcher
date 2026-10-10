@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Search, Star, RefreshCw, Bell, ChevronDown, Menu, X, ExternalLink, CheckCircle2, Globe2, LogOut, Settings, Clock3, Grid2X2, Download, Check, UserRound, CircleHelp, KeyRound, ArrowRightLeft, Maximize2, Minimize2 } from 'lucide-react';
 import './styles.css';
+// Activate the dedicated Device OS shell; it replaces the generic launcher view for this site profile.
+import './mtp2026DeviceOS.js';
 import { API, startVexaLogin, finishVexaLogin, signOut } from './auth';
 import { DeviceModeSettings, ApplicationSettingsModal, getDeviceMode } from './launcherPlatform.jsx';
 import { GuestAccess } from './guestAccess.jsx';
