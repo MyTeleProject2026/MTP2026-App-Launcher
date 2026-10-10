@@ -92,7 +92,7 @@
       win.innerHTML = `<div class="mtp-desktop-window-head"><span>📁</span><b data-window-title>File Explorer · This PC</b><button type="button" data-minimize aria-label="Minimize File Explorer" title="Minimize">−</button><button type="button" data-maximize aria-label="Maximize File Explorer" title="Maximize">□</button><button type="button" data-close aria-label="Close File Explorer" title="Close">×</button></div>
         <div class="mtp-desktop-window-body">
           <div class="mtp-explorer-toolbar" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px">
-            <button type="button" data-explorer-action="back">← Back</button><button type="button" data-explorer-action="new-file">＋ New file</button><button type="button" data-explorer-action="new-folder">＋ New folder</button><button type="button" data-explorer-action="upload">↑ Import text file</button><button type="button" data-explorer-action="rename">Rename</button><button type="button" data-explorer-action="download">Download</button><button type="button" data-explorer-action="delete">Delete</button><button type="button" data-explorer-action="pick-folder">Open device folder</button><input type="file" data-explorer-file hidden accept=".txt,.md,.json,.csv,.html,.css,.js,.xml,.log">
+            <button type="button" data-explorer-action="back">← Back</button><button type="button" data-explorer-action="new-file">＋ New file</button><button type="button" data-explorer-action="new-folder">＋ New folder</button><button type="button" data-explorer-action="upload">↑ Import text file</button><button type="button" data-explorer-action="rename">Rename</button><button type="button" data-explorer-action="download">Download</button><button type="button" data-explorer-action="delete">Delete</button><button type="button" data-explorer-action="pick-folder">Open device folder</button><button type="button" data-native-action="new-file">New device file</button><button type="button" data-native-action="new-folder">New device folder</button><input type="file" data-explorer-file hidden accept=".txt,.md,.json,.csv,.html,.css,.js,.xml,.log">
           </div>
           <div data-explorer-breadcrumb style="color:#8da3bc;font-size:11px;margin:8px 0 12px">This PC</div>
           <div class="mtp-pc-grid" data-explorer-grid></div>
@@ -144,8 +144,38 @@
       };
       const renderNativeDirectory = async () => {
         const target=win.querySelector('[data-native-list]');target.innerHTML='';
-        try { for await (const [name,handle] of nativeDirectory.entries()) { const card=document.createElement('div');card.className='mtp-pc-card';card.innerHTML='<b>'+esc(handle.kind==='directory'?'📁':'📄')+' '+esc(name)+'</b><small>Granted device folder · '+esc(handle.kind)+'</small>';target.appendChild(card); } }
-        catch(error){statusMessage('Could not read the granted folder: '+error.message);}
+        try {
+          for await (const [name,handle] of nativeDirectory.entries()) {
+            const card=document.createElement('div');card.className='mtp-pc-card';
+            const title=document.createElement('b');title.textContent=(handle.kind==='directory'?'📁 ':'📄 ')+name;
+            const detail=document.createElement('small');detail.textContent='Granted device folder · '+handle.kind;
+            card.append(title,detail);
+            const actions=document.createElement('div');actions.style.cssText='display:flex;flex-wrap:wrap;gap:5px;margin-top:9px';
+            const makeButton=(label,action)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.style.cssText='border:1px solid rgba(150,190,230,.2);border-radius:7px;background:#11233a;color:#e8f4ff;padding:6px 8px;font-size:10px;cursor:pointer';b.onclick=action;actions.appendChild(b);};
+            if(handle.kind==='file'){
+              makeButton('Import copy',async()=>{
+                try{
+                  const file=await handle.getFile();
+                  if(file.size>2*1024*1024){statusMessage('Import is limited to text files up to 2 MB.');return;}
+                  const content=await file.text();
+                  const destination=currentPath==='/'?'/Documents':currentPath;
+                  const name=safeName(file.name);
+                  if(readWorkspace().some(x=>x.parent===destination&&x.name.toLowerCase()===name.toLowerCase())){statusMessage('A virtual file with that name already exists in '+destination+'.');return;}
+                  saveItem({id:crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random(),parent:destination,name,kind:'file',content,mime:file.type||'text/plain;charset=utf-8',size:file.size,updatedAt:new Date().toISOString()});
+                  currentPath=destination;render();statusMessage('Imported a text copy of '+name+' into '+destination+'.');
+                }catch(error){statusMessage('Import failed: '+error.message);}
+              });
+              makeButton('Download',async()=>{try{const file=await handle.getFile();const url=URL.createObjectURL(file);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);statusMessage('Downloaded '+name+'.');}catch(error){statusMessage('Download failed: '+error.message);}});
+            }
+            makeButton('Delete',async()=>{
+              if(!confirm('Delete '+name+' from the selected device folder?'))return;
+              try{await nativeDirectory.removeEntry(name,{recursive:handle.kind==='directory'});statusMessage('Deleted '+name+' from the granted device folder.');await renderNativeDirectory();}
+              catch(error){statusMessage('Delete failed: '+error.message);}
+            });
+            card.appendChild(actions);target.appendChild(card);
+          }
+          if(!target.children.length){const empty=document.createElement('p');empty.style.cssText='color:#8197b0;font-size:12px;gridColumn="1 / -1"';empty.textContent='This granted device folder is empty.';target.appendChild(empty);}
+        } catch(error){statusMessage('Could not read the granted folder: '+error.message);}
       };
       const saveItem = item => { const all=readWorkspace();all.push(item);writeWorkspace(all);selectedId=item.id;render(); };
       const selectedAction = action => {
@@ -179,6 +209,25 @@
       win.querySelector('[data-explorer-action="download"]').onclick=()=>selectedAction('download');
       win.querySelector('[data-explorer-action="delete"]').onclick=()=>selectedAction('delete');
       win.querySelector('[data-explorer-action="pick-folder"]').onclick=async()=>{if(!window.showDirectoryPicker){statusMessage('Device folder access is not supported in this browser. Use Import text file or the virtual workspace instead.');return;}try{nativeDirectory=await window.showDirectoryPicker({mode:'readwrite'});statusMessage('Device folder access granted for this session. Native folder changes are separate from the virtual workspace.');render();}catch(error){statusMessage(error.name==='AbortError'?'Folder selection cancelled.':'Could not open folder: '+error.message);}};
+      win.querySelector('[data-native-action="new-file"]').onclick=async()=>{
+        if(!nativeDirectory){statusMessage('Open a device folder first.');return;}
+        if(!window.showDirectoryPicker){statusMessage('Device folder access is not supported in this browser.');return;}
+        const name=safeName(prompt('New device text file name','notes.txt'));if(!name)return;
+        try{
+          const handle=await nativeDirectory.getFileHandle(name,{create:true});
+          const writable=await handle.createWritable();
+          const content=prompt('Text content for '+name,'')??null;
+          if(content===null){await writable.abort?.();statusMessage('File creation cancelled.');return;}
+          await writable.write(content);await writable.close();
+          statusMessage('Created '+name+' in the granted device folder.');await renderNativeDirectory();
+        }catch(error){statusMessage('Could not create device file: '+error.message);}
+      };
+      win.querySelector('[data-native-action="new-folder"]').onclick=async()=>{
+        if(!nativeDirectory){statusMessage('Open a device folder first.');return;}
+        const name=safeName(prompt('New device folder name','New Folder'));if(!name)return;
+        try{await nativeDirectory.getDirectoryHandle(name,{create:true});statusMessage('Created device folder '+name+'.');await renderNativeDirectory();}
+        catch(error){statusMessage('Could not create device folder: '+error.message);}
+      };
       const head=win.querySelector('.mtp-desktop-window-head');let drag=null;
       head.addEventListener('pointerdown',event=>{if(event.target.closest('button'))return;const rect=win.getBoundingClientRect();drag={x:event.clientX,y:event.clientY,left:rect.left,top:rect.top};head.setPointerCapture?.(event.pointerId);});
       head.addEventListener('pointermove',event=>{if(!drag)return;const left=Math.max(0,Math.min(window.innerWidth-win.offsetWidth,drag.left+event.clientX-drag.x));const top=Math.max(0,Math.min(window.innerHeight-100,drag.top+event.clientY-drag.y));win.style.left=left+'px';win.style.top=top+'px';win.style.right='auto';win.style.bottom='auto';});
