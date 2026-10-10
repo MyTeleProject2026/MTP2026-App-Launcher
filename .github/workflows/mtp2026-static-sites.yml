@@ -1,5 +1,9 @@
 name: MTP2026 All Frontend Static Sites
 
+concurrency:
+  group: mtp2026-static-sites-${{ github.ref }}
+  cancel-in-progress: true
+
 "on":
   push:
     branches: [main]
