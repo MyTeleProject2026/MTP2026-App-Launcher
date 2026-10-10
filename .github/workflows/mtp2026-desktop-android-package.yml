@@ -128,7 +128,7 @@ jobs:
           bundle = pathlib.Path("packaging/android/app/src/main/assets/mtp2026-desktop-guest/mtp2026-desktop-arm64-guest.tar.gz")
           guest = dict(guest)
           guest["androidImport"] = {"asset": bundle.name, "sha256": hashlib.sha256(bundle.read_bytes()).hexdigest(), "bundled": True}
-          pathlib.Path("packaging/android/app/src/main/assets/mtp2026-desktop-guest/guest-profile.json").write_text(json.dumps(guest, indent=2) + "\\n")
+          pathlib.Path("packaging/android/app/src/main/assets/mtp2026-desktop-guest/guest-profile.json").write_text(json.dumps(guest, indent=2) + chr(10))
           PY
 
       - name: Build Desktop Android packages
