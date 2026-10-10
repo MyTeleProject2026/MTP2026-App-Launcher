@@ -144,24 +144,28 @@ jobs:
           set -euo pipefail
           APK="app/build/outputs/apk/desktop/debug/app-desktop-debug.apk"
           AAB="app/build/outputs/bundle/desktopDebug/app-desktop-debug.aab"
+          GUEST="app/src/main/assets/mtp2026-desktop-guest/mtp2026-desktop-arm64-guest.tar.gz"
+          META="app/src/main/assets/mtp2026-desktop-guest/guest-profile.json"
           test -s "$APK"
           test -s "$AAB"
+          test -s "$GUEST"
+          test -s "$META"
+          tar -tzf "$GUEST" | grep -E '(^|/)(mtp2026-desktop-arm64-linux.Image|mtp2026-desktop-initramfs.cpio.gz|mtp2026-desktop-boot-disk.img|mtp2026-arm64-boot-firmware.bin)$'
           unzip -t "$APK" >/dev/null
           unzip -t "$AAB" >/dev/null
-          unzip -l "$APK" | grep -E "desktop-guest/(kernel.Image|initramfs.cpio.gz|profile.json|capabilities.json|firmware-profile.json|guest-manifest.json|SHA256SUMS)"
-          unzip -p "$APK" assets/desktop-guest/guest-manifest.json | grep -q '"guestId": "desktop"'
-          unzip -p "$APK" assets/desktop-guest/profile.json | grep -Eq '"profile"[[:space:]]*:[[:space:]]*"desktop"'
-          unzip -p "$APK" assets/desktop-guest/capabilities.json | grep -q '"profile": "desktop"'
-          unzip -l "$APK" | grep -q "assets/desktop-guest/kernel.Image"
-          unzip -l "$APK" | grep -q "assets/desktop-guest/initramfs.cpio.gz"
-          unzip -l "$APK" | grep -q "assets/desktop-guest/boot-disk.img"
-          unzip -l "$APK" | grep -q "assets/desktop-guest/boot-firmware.bin"
-          echo "Bundled complete MTP2026 Desktop OS guest core detected in APK."
+          unzip -p "$APK" assets/mtp2026-desktop-guest/mtp2026-desktop-arm64-guest.tar.gz > "$RUNNER_TEMP/mtp2026-desktop-guest.tar.gz"
+          unzip -p "$APK" assets/mtp2026-desktop-guest/guest-profile.json > "$RUNNER_TEMP/mtp2026-desktop-guest-profile.json"
+          test -s "$RUNNER_TEMP/mtp2026-desktop-guest.tar.gz"
+          test -s "$RUNNER_TEMP/mtp2026-desktop-guest-profile.json"
+          tar -tzf "$RUNNER_TEMP/mtp2026-desktop-guest.tar.gz" | grep -q 'mtp2026-desktop-arm64-linux.Image'
+          tar -tzf "$RUNNER_TEMP/mtp2026-desktop-guest.tar.gz" | grep -q 'mtp2026-desktop-initramfs.cpio.gz'
+          tar -tzf "$RUNNER_TEMP/mtp2026-desktop-guest.tar.gz" | grep -q 'mtp2026-desktop-boot-disk.img'
+          tar -tzf "$RUNNER_TEMP/mtp2026-desktop-guest.tar.gz" | grep -q 'mtp2026-arm64-boot-firmware.bin'
+          grep -q '"guestId"[[:space:]]*:[[:space:]]*"desktop"' "$RUNNER_TEMP/mtp2026-desktop-guest-profile.json"
           "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging "$APK" | grep -E "package: name='com.mtp2026.desktop'|application-label:'MTP2026 Desktop Edition'"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
           unzip -p "$AAB" base/manifest/AndroidManifest.xml >/dev/null
-          echo "MTP2026 Desktop Edition Android package verified."
-
+          echo "MTP2026 Desktop Edition APK/AAB verified with the complete ARM64 guest archive and metadata."
       - name: Upload Desktop Android packages
         uses: actions/upload-artifact@v7
         with:
