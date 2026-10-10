@@ -89,7 +89,7 @@
     let win = document.getElementById('mtp2026-desktop-window');
     if (!win) {
       win = document.createElement('div'); win.id = 'mtp2026-desktop-window';
-      win.innerHTML = `<div class="mtp-desktop-window-head"><span>📁</span><b data-window-title>File Explorer · This PC</b><button type="button" data-close aria-label="Close File Explorer">×</button></div>
+      win.innerHTML = `<div class="mtp-desktop-window-head"><span>📁</span><b data-window-title>File Explorer · This PC</b><button type="button" data-minimize aria-label="Minimize File Explorer" title="Minimize">−</button><button type="button" data-maximize aria-label="Maximize File Explorer" title="Maximize">□</button><button type="button" data-close aria-label="Close File Explorer" title="Close">×</button></div>
         <div class="mtp-desktop-window-body">
           <div class="mtp-explorer-toolbar" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px">
             <button type="button" data-explorer-action="back">← Back</button><button type="button" data-explorer-action="new-file">＋ New file</button><button type="button" data-explorer-action="new-folder">＋ New folder</button><button type="button" data-explorer-action="upload">↑ Import text file</button><button type="button" data-explorer-action="rename">Rename</button><button type="button" data-explorer-action="download">Download</button><button type="button" data-explorer-action="delete">Delete</button><button type="button" data-explorer-action="pick-folder">Open device folder</button><input type="file" data-explorer-file hidden accept=".txt,.md,.json,.csv,.html,.css,.js,.xml,.log">
@@ -155,6 +155,19 @@
         if(action==='rename'){const name=safeName(prompt('New name',item.name));if(!name){statusMessage('Rename cancelled.');return;}if(all.some(x=>x.parent===item.parent&&x.name.toLowerCase()===name.toLowerCase()&&x.id!==item.id)){statusMessage('A file or folder with that name already exists.');return;}writeWorkspace(all.map(x=>x.id===item.id?{...x,name,updatedAt:new Date().toISOString()}:x));statusMessage('Renamed to '+name+'.');render();}
         if(action==='delete'){if(!confirm('Delete "'+item.name+'" from this browser workspace?'))return;const removeIds=new Set([item.id]);if(item.kind==='folder'){const prefix=pathJoin(item.parent,item.name);let changed=true;while(changed){changed=false;all.forEach(x=>{if(x.parent===prefix||[...removeIds].some(id=>all.find(y=>y.id===id)?.kind==='folder'&&x.parent===pathJoin(all.find(y=>y.id===id).parent,all.find(y=>y.id===id).name))){if(!removeIds.has(x.id)){removeIds.add(x.id);changed=true;}}});}}writeWorkspace(all.filter(x=>!removeIds.has(x.id)));selectedId=null;render();statusMessage('Deleted '+item.name+' from browser storage.');}
         if(action==='download'){if(item.kind==='folder'){statusMessage('Choose a file to download.');return;}const url=URL.createObjectURL(new Blob([item.content||''],{type:item.mime||'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=item.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);statusMessage('Downloaded '+item.name+'.');}
+      };
+      let maximized = false;
+      let previousWindowBounds = null;
+      win.querySelector('[data-minimize]').onclick=()=>{win.style.display='none';};
+      win.querySelector('[data-maximize]').onclick=()=>{
+        if(!maximized){
+          previousWindowBounds={inset:win.style.inset,left:win.style.left,top:win.style.top,right:win.style.right,bottom:win.style.bottom,width:win.style.width,height:win.style.height};
+          win.style.inset='12px 12px 64px';win.style.left='12px';win.style.top='12px';win.style.right='12px';win.style.bottom='64px';win.style.width='auto';win.style.height='auto';
+          maximized=true;win.querySelector('[data-maximize]').textContent='❐';win.querySelector('[data-maximize]').setAttribute('aria-label','Restore File Explorer');win.querySelector('[data-maximize]').title='Restore';
+        }else{
+          const b=previousWindowBounds||{};win.style.inset=b.inset||'8vh 7vw 10vh';win.style.left=b.left||'';win.style.top=b.top||'';win.style.right=b.right||'';win.style.bottom=b.bottom||'';win.style.width=b.width||'';win.style.height=b.height||'';
+          maximized=false;win.querySelector('[data-maximize]').textContent='□';win.querySelector('[data-maximize]').setAttribute('aria-label','Maximize File Explorer');win.querySelector('[data-maximize]').title='Maximize';
+        }
       };
       win.querySelector('[data-close]').onclick=()=>{win.style.display='none';};
       win.querySelector('[data-explorer-action="back"]').onclick=()=>{if(currentPath==='/'){statusMessage('You are already at This PC.');return;}currentPath=currentPath.split('/').slice(0,-1).join('/')||'/';selectedId=null;render();};
