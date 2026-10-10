@@ -174,7 +174,7 @@
             });
             card.appendChild(actions);target.appendChild(card);
           }
-          if(!target.children.length){const empty=document.createElement('p');empty.style.cssText='color:#8197b0;font-size:12px;gridColumn="1 / -1"';empty.textContent='This granted device folder is empty.';target.appendChild(empty);}
+          if(!target.children.length){const empty=document.createElement('p');empty.style.cssText='color:#8197b0;font-size:12px;grid-column:1 / -1';empty.textContent='This granted device folder is empty.';target.appendChild(empty);}
         } catch(error){statusMessage('Could not read the granted folder: '+error.message);}
       };
       const saveItem = item => { const all=readWorkspace();all.push(item);writeWorkspace(all);selectedId=item.id;render(); };
@@ -213,11 +213,13 @@
         if(!nativeDirectory){statusMessage('Open a device folder first.');return;}
         if(!window.showDirectoryPicker){statusMessage('Device folder access is not supported in this browser.');return;}
         const name=safeName(prompt('New device text file name','notes.txt'));if(!name)return;
+        const content=prompt('Text content for '+name,'');if(content===null){statusMessage('File creation cancelled.');return;}
         try{
+          for await (const [existingName] of nativeDirectory.entries()) {
+            if(existingName.toLocaleLowerCase()===name.toLocaleLowerCase()){statusMessage('A device file or folder with that name already exists. Choose another name.');return;}
+          }
           const handle=await nativeDirectory.getFileHandle(name,{create:true});
           const writable=await handle.createWritable();
-          const content=prompt('Text content for '+name,'')??null;
-          if(content===null){await writable.abort?.();statusMessage('File creation cancelled.');return;}
           await writable.write(content);await writable.close();
           statusMessage('Created '+name+' in the granted device folder.');await renderNativeDirectory();
         }catch(error){statusMessage('Could not create device file: '+error.message);}
