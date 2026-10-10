@@ -13,8 +13,27 @@ jobs:
     env:
       FRONTEND_URL: ${{ vars.MTP_FRONTEND_URL || 'https://mtp2026-app-launcher.onrender.com' }}
       BACKEND_URL: ${{ vars.MTP_BACKEND_URL || 'https://mtp2026-app-launcher-backend.onrender.com' }}
-      EXPECTED_COMMIT: ${{ github.event_name == 'push' && github.sha || '' }}
+      EXPECTED_COMMIT: ''
     steps:
+      - name: Checkout source for frontend revision detection
+        if: github.event_name == 'push'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect whether this push changes a deployed frontend
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")"
+          if printf '%s\\n' "$changed" | grep -Eq '^(frontend-MTP2026-AppLauncher/|frontend-MTP2026-2Desktop/|frontend-MTP2026-Android/|Frontend-MTP202026-ROG_gamingOS/|frontend-MTP2026OS/)' ; then
+            echo "EXPECTED_COMMIT=${{ github.sha }}" >> "$GITHUB_ENV"
+            echo "This push changes deployed frontend source; checking its deployment revision."
+          else
+            echo "This push does not change frontend source; skipping frontend commit propagation check."
+          fi
+
       - name: Verify production frontend and backend
         shell: bash
         run: |
