@@ -12,3 +12,34 @@
 .install-button,.install-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid #d8a936;border-radius:11px;padding:10px 13px;background:linear-gradient(135deg,#ffe7a0,#e8a91d);color:#101827;font:700 12px 'DM Sans',sans-serif;cursor:pointer;white-space:nowrap}.install-button:disabled{opacity:.65;cursor:wait}.install-overlay{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:#020711d9;backdrop-filter:blur(12px)}.install-dialog{position:relative;width:min(100%,420px);padding:28px;border:1px solid #34516c;border-radius:22px;background:linear-gradient(145deg,#102338,#07111d);box-shadow:0 24px 80px #0009;color:#eaf1fc}.install-dialog>img{width:76px;height:76px;border-radius:50%;border:1px solid #d9aa3c}.install-dialog h2{font:700 25px 'Space Grotesk',sans-serif;margin:18px 0 8px}.install-dialog p,.install-dialog li{color:#a9bdd2;font-size:13px;line-height:1.7}.install-dialog ol{padding-left:22px;margin:18px 0 22px}.install-dialog li+li{margin-top:8px}.install-dialog li b{color:#f6d785}.install-close{position:absolute;top:14px;right:14px;width:36px;height:36px;display:grid;place-items:center;border:1px solid #2a4056;border-radius:10px;background:#132438;color:#dceaff;cursor:pointer}.install-primary{width:100%;min-height:42px}@media(max-width:640px){.top-actions{gap:7px}.install-button{padding:9px 10px;font-size:11px}.health-pill{max-width:112px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.install-dialog{padding:24px}}
 
 .quick-access{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:0 0 22px}.quick-access>a{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;padding:13px 15px;border:1px solid #233b54;border-radius:13px;background:#0a1624;color:#e6f0ff;text-decoration:none}.quick-access>a span{grid-column:1;color:#79caff;font-size:10px;text-transform:uppercase;letter-spacing:1px}.quick-access>a b{grid-column:1;font-size:12px}.quick-access>a svg{grid-column:2;grid-row:1/3}.system-card{position:relative}.favorite-toggle{position:absolute;right:15px;top:58px;display:grid;place-items:center;width:34px;height:34px;border:1px solid #2a425b;border-radius:10px;background:#0c1b2b;color:#f4c95d;cursor:pointer}.favorite-toggle[aria-pressed=true]{background:#352a12;border-color:#a77d25}.favorite-toggle:focus-visible,.quick-access>a:focus-visible{outline:2px solid #55c9ff;outline-offset:3px}@media(max-width:640px){.quick-access{grid-template-columns:1fr}.favorite-toggle{top:55px;right:12px}}
+
+
+/* Owner-layer WebApp library and Host Launcher app-window surface */
+.webapp-library{margin:30px 0;border:1px solid #203247;border-radius:18px;padding:20px;background:linear-gradient(145deg,#0c1928,#08131f)}
+.webapp-library>.section-head{margin-top:0}
+.webapp-library .section-head h2{margin-bottom:0}
+.webapp-library .section-head .icon-button{flex:none}
+.webapp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px}
+.webapp-card{display:flex;align-items:center;gap:11px;min-width:0;text-align:left;padding:13px;border:1px solid #24394f;border-radius:13px;background:#0c1b2b;color:#eaf3ff;cursor:pointer}
+.webapp-card:hover{border-color:#4d8fbc;background:#10243a}
+.webapp-icon{width:38px;height:38px;flex:none;display:grid;place-items:center;overflow:hidden;border:1px solid #2c4660;border-radius:11px;background:#172d45;color:#8bd8ff;font-weight:700}
+.webapp-icon img{width:100%;height:100%;object-fit:cover}
+.webapp-copy{display:grid;gap:4px;flex:1;min-width:0}
+.webapp-copy b{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.webapp-copy small{font-size:10px;color:#8098b3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.webapp-empty{margin-top:14px;padding:18px;border:1px dashed #2b4157;border-radius:12px;color:#91a5bc;font-size:12px;line-height:1.7}
+.host-webapp-overlay{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;padding:clamp(8px,2vw,24px);box-sizing:border-box;background:rgba(1,5,12,.82);backdrop-filter:blur(14px)}
+.host-webapp-window{position:relative;display:flex;flex-direction:column;width:min(1240px,100%);height:min(900px,100%);min-height:0;overflow:hidden;border:1px solid #2a3f55;border-radius:18px;background:#07101b;box-shadow:0 30px 100px #000b}
+.host-webapp-window>header{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:58px;padding:7px 12px;background:#0a1727;border-bottom:1px solid #203247}
+.host-webapp-title{display:flex;align-items:center;gap:10px;min-width:0}
+.host-webapp-title>div{display:grid;gap:3px;min-width:0}
+.host-webapp-title b{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.host-webapp-title small{font-size:10px;color:#849bb6}
+.host-webapp-actions{display:flex;align-items:center;gap:5px;flex:none}
+.host-webapp-actions button,.host-webapp-actions a{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:0 10px;border:1px solid #2b4056;border-radius:9px;background:#14263b;color:#e8f4ff;text-decoration:none;font-size:12px;cursor:pointer}
+.host-webapp-actions button:last-child{font-size:21px}
+.host-webapp-frame{position:relative;display:flex;flex:1;min-height:0;background:#fff}
+.host-webapp-frame iframe{width:100%;height:100%;flex:1;border:0;background:#fff}
+.host-webapp-loading{position:absolute;inset:0;z-index:1;display:grid;place-items:center;padding:20px;background:#07101b;color:#bfd0e2;font-size:13px;text-align:center}
+.host-webapp-window>footer{display:flex;justify-content:space-between;gap:10px;margin:0;padding:7px 12px;background:#091526;border-top:1px solid #203247;color:#8298b2;font-size:10px}
+@media(max-width:640px){.webapp-library{padding:14px}.webapp-grid{grid-template-columns:1fr}.host-webapp-overlay{padding:0}.host-webapp-window{height:100%;border-radius:0;border:0}.host-webapp-window>header{min-height:52px;padding:5px 7px;gap:5px}.host-webapp-actions{gap:3px}.host-webapp-actions button,.host-webapp-actions a{padding:0 7px;min-height:32px}.host-webapp-actions span{display:none}.host-webapp-window>footer{flex-direction:column;gap:3px;padding:7px 10px}}
