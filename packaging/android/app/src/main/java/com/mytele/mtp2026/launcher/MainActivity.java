@@ -316,7 +316,7 @@ public final class MainActivity extends Activity {
         }
         @JavascriptInterface public String getCapabilities() { return "{\"native\":true,\"orientation\":true,\"fullscreen\":true,\"filesystem\":false,\"notifications\":true,\"clipboard\":true,\"externalApps\":true,\"gamepad\":true,\"filePicker\":true,\"apkInstaller\":true,\"packageInstaller\":true,\"desktopGuestBundle\":true,\"desktopGuestProfile\":\"desktop\"}"; }
         @JavascriptInterface public String getDesktopGuestStatus() {
-            if (!"desktop".equals(BuildConfig.EDITION)) return "{\\"state\\":\\"not-desktop-edition\\"}";
+            if (!"desktop".equals(BuildConfig.EDITION)) return "{\"state\":\"not-desktop-edition\"}";
             android.content.SharedPreferences prefs = getSharedPreferences(DESKTOP_GUEST_PREFS, MODE_PRIVATE);
             String state = prefs.getString("desktop_status", "not-imported");
             String root = prefs.getString("desktop_root", "");
