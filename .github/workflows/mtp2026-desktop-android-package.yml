@@ -161,7 +161,7 @@ jobs:
           tar -tzf "$RUNNER_TEMP/mtp2026-desktop-guest.tar.gz" | grep -q 'mtp2026-desktop-initramfs.cpio.gz'
           tar -tzf "$RUNNER_TEMP/mtp2026-desktop-guest.tar.gz" | grep -q 'mtp2026-desktop-boot-disk.img'
           tar -tzf "$RUNNER_TEMP/mtp2026-desktop-guest.tar.gz" | grep -q 'mtp2026-arm64-boot-firmware.bin'
-          grep -q '"guestId"[[:space:]]*:[[:space:]]*"desktop"' "$RUNNER_TEMP/mtp2026-desktop-guest-profile.json"
+          grep -q '"id"[[:space:]]*:[[:space:]]*"desktop"' "$RUNNER_TEMP/mtp2026-desktop-guest-profile.json"
           "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging "$APK" | grep -E "package: name='com.mtp2026.desktop'|application-label:'MTP2026 Desktop Edition'"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
           unzip -p "$AAB" base/manifest/AndroidManifest.xml >/dev/null
