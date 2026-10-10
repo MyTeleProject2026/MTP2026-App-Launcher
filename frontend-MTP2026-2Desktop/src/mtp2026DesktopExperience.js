@@ -142,6 +142,47 @@
         nativeWrap.hidden=!nativeDirectory;
         if(nativeDirectory) renderNativeDirectory();
       };
+      const editNativeTextFile = async (name, handle) => {
+        let file;
+        try {
+          file = await handle.getFile();
+          if (file.size > 2 * 1024 * 1024) { statusMessage('The built-in editor supports text files up to 2 MB.'); return; }
+          const initialText = await file.text();
+          const overlay = document.createElement('div');
+          overlay.setAttribute('role', 'dialog');
+          overlay.setAttribute('aria-modal', 'true');
+          overlay.setAttribute('aria-label', 'Edit ' + name);
+          overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.68);display:grid;place-items:center;padding:16px;box-sizing:border-box';
+          const panel = document.createElement('section');
+          panel.style.cssText = 'width:min(760px,100%);height:min(78vh,680px);display:flex;flex-direction:column;gap:10px;padding:14px;box-sizing:border-box;border:1px solid rgba(150,190,230,.25);border-radius:14px;background:#091426;color:#eef6ff;box-shadow:0 20px 70px rgba(0,0,0,.6)';
+          const heading = document.createElement('b'); heading.textContent = 'Edit device file · ' + name;
+          const note = document.createElement('small'); note.textContent = 'Changes write directly to the device folder you granted. Save only when you want to replace this file’s contents.'; note.style.cssText = 'color:#91a7c1;line-height:1.5';
+          const editor = document.createElement('textarea'); editor.value = initialText; editor.setAttribute('aria-label', 'File contents');
+          editor.spellcheck = false;
+          editor.style.cssText = 'flex:1;min-height:0;width:100%;box-sizing:border-box;resize:none;padding:12px;border:1px solid rgba(150,190,230,.22);border-radius:9px;background:#050d18;color:#eaf5ff;font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace';
+          const footer = document.createElement('div'); footer.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap';
+          const button = (label, primary, action) => { const b=document.createElement('button'); b.type='button'; b.textContent=label; b.style.cssText='border:1px solid rgba(150,190,230,.25);border-radius:8px;padding:9px 13px;background:'+(primary?'#1766a8':'#11233a')+';color:#fff;cursor:pointer'; b.onclick=action; footer.appendChild(b); return b; };
+          const close = () => overlay.remove();
+          button('Cancel', false, close);
+          const save = button('Save changes', true, async () => {
+            save.disabled = true; save.textContent = 'Saving…';
+            try {
+              const writable = await handle.createWritable();
+              await writable.write(editor.value);
+              await writable.close();
+              close();
+              statusMessage('Saved changes to device file ' + name + '.');
+              await renderNativeDirectory();
+            } catch (error) {
+              save.disabled = false; save.textContent = 'Save changes';
+              statusMessage('Could not save ' + name + ': ' + error.message);
+            }
+          });
+          panel.append(heading, note, editor, footer); overlay.appendChild(panel); win.appendChild(overlay);
+          editor.focus();
+          overlay.addEventListener('keydown', event => { if (event.key === 'Escape') close(); });
+        } catch (error) { statusMessage('Could not open ' + name + ': ' + error.message); }
+      };
       const renderNativeDirectory = async () => {
         const target=win.querySelector('[data-native-list]');target.innerHTML='';
         try {
@@ -153,6 +194,7 @@
             const actions=document.createElement('div');actions.style.cssText='display:flex;flex-wrap:wrap;gap:5px;margin-top:9px';
             const makeButton=(label,action)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.style.cssText='border:1px solid rgba(150,190,230,.2);border-radius:7px;background:#11233a;color:#e8f4ff;padding:6px 8px;font-size:10px;cursor:pointer';b.onclick=action;actions.appendChild(b);};
             if(handle.kind==='file'){
+              makeButton('Edit text',()=>editNativeTextFile(name,handle));
               makeButton('Import copy',async()=>{
                 try{
                   const file=await handle.getFile();
