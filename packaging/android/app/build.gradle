@@ -12,7 +12,7 @@ def isReleaseBuildRequested = gradle.startParameter.taskNames.any { task ->
 
 def webAppUrl = project.findProperty('webAppUrl') ?: 'https://mtp2026-app-launcher.onrender.com'
 def ownerWebAppUrl = project.findProperty('ownerWebAppUrl') ?: 'https://vexaaccount-management.onrender.com/super-admin.html'
-def desktopWebAppUrl = project.findProperty('desktopWebAppUrl') ?: 'https://mtp2026-desktopos.onrender.com'
+def desktopWebAppUrl = project.findProperty('desktopWebAppUrl') ?: 'https://mtp2026-desktopos-peun.onrender.com'
 
 android {
     namespace 'com.mytele.mtp2026.launcher'
