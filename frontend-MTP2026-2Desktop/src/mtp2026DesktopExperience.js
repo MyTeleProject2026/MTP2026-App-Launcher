@@ -106,6 +106,7 @@
       let currentPath = '/';
       let selectedId = null;
       let nativeDirectory = null;
+      let nativeDirectoryStack = [];
       const statusMessage = message => { status.textContent = message; };
       const pathJoin = (parent, name) => (parent === '/' ? '' : parent.replace(/\/$/, '')) + '/' + name;
       const safeName = value => String(value || '').trim().replace(/[\\/\\\\]/g, '-').replace(/[\\x00-\\x1f]/g, '').slice(0, 120);
@@ -186,6 +187,20 @@
       const renderNativeDirectory = async () => {
         const target=win.querySelector('[data-native-list]');target.innerHTML='';
         try {
+          const nativeWrap=win.querySelector('[data-native-folder]');
+          let nav=nativeWrap.querySelector('[data-native-nav]');
+          if(!nav){nav=document.createElement('div');nav.setAttribute('data-native-nav','');nav.style.cssText='display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0';nativeWrap.insertBefore(nav,target);}
+          nav.innerHTML='';
+          const location=document.createElement('small');
+          location.textContent='Folder path: /'+nativeDirectoryStack.map(item=>item.name).join('/');
+          location.style.cssText='color:#91a7c1;flex:1;min-width:150px;overflow-wrap:anywhere';
+          nav.appendChild(location);
+          if(nativeDirectoryStack.length){
+            const up=document.createElement('button');up.type='button';up.textContent='↑ Up one folder';
+            up.style.cssText='border:1px solid rgba(150,190,230,.2);border-radius:7px;background:#11233a;color:#e8f4ff;padding:6px 8px;font-size:10px;cursor:pointer';
+            up.onclick=async()=>{const parent=nativeDirectoryStack.pop();nativeDirectory=parent.handle;await renderNativeDirectory();};
+            nav.appendChild(up);
+          }
           for await (const [name,handle] of nativeDirectory.entries()) {
             const card=document.createElement('div');card.className='mtp-pc-card';
             const title=document.createElement('b');title.textContent=(handle.kind==='directory'?'📁 ':'📄 ')+name;
@@ -193,6 +208,9 @@
             card.append(title,detail);
             const actions=document.createElement('div');actions.style.cssText='display:flex;flex-wrap:wrap;gap:5px;margin-top:9px';
             const makeButton=(label,action)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.style.cssText='border:1px solid rgba(150,190,230,.2);border-radius:7px;background:#11233a;color:#e8f4ff;padding:6px 8px;font-size:10px;cursor:pointer';b.onclick=action;actions.appendChild(b);};
+            if(handle.kind==='directory'){
+              makeButton('Open folder',async()=>{nativeDirectoryStack.push({name,handle:nativeDirectory});nativeDirectory=handle;await renderNativeDirectory();});
+            }
             if(handle.kind==='file'){
               if (/\.(txt|md|json|csv|html|css|js|xml|log|yaml|yml|ini|conf|sh|py)$/i.test(name)) makeButton('Edit text',()=>editNativeTextFile(name,handle));
               makeButton('Import copy',async()=>{
@@ -250,7 +268,7 @@
       win.querySelector('[data-explorer-action="rename"]').onclick=()=>selectedAction('rename');
       win.querySelector('[data-explorer-action="download"]').onclick=()=>selectedAction('download');
       win.querySelector('[data-explorer-action="delete"]').onclick=()=>selectedAction('delete');
-      win.querySelector('[data-explorer-action="pick-folder"]').onclick=async()=>{if(!window.showDirectoryPicker){statusMessage('Device folder access is not supported in this browser. Use Import text file or the virtual workspace instead.');return;}try{nativeDirectory=await window.showDirectoryPicker({mode:'readwrite'});statusMessage('Device folder access granted for this session. Native folder changes are separate from the virtual workspace.');render();}catch(error){statusMessage(error.name==='AbortError'?'Folder selection cancelled.':'Could not open folder: '+error.message);}};
+      win.querySelector('[data-explorer-action="pick-folder"]').onclick=async()=>{if(!window.showDirectoryPicker){statusMessage('Device folder access is not supported in this browser. Use Import text file or the virtual workspace instead.');return;}try{nativeDirectory=await window.showDirectoryPicker({mode:'readwrite'});nativeDirectoryStack=[];statusMessage('Device folder access granted for this session. Native folder changes are separate from the virtual workspace.');render();}catch(error){statusMessage(error.name==='AbortError'?'Folder selection cancelled.':'Could not open folder: '+error.message);}};
       win.querySelector('[data-native-action="new-file"]').onclick=async()=>{
         if(!nativeDirectory){statusMessage('Open a device folder first.');return;}
         if(!window.showDirectoryPicker){statusMessage('Device folder access is not supported in this browser.');return;}
