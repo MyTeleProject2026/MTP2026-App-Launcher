@@ -194,7 +194,7 @@
             const actions=document.createElement('div');actions.style.cssText='display:flex;flex-wrap:wrap;gap:5px;margin-top:9px';
             const makeButton=(label,action)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.style.cssText='border:1px solid rgba(150,190,230,.2);border-radius:7px;background:#11233a;color:#e8f4ff;padding:6px 8px;font-size:10px;cursor:pointer';b.onclick=action;actions.appendChild(b);};
             if(handle.kind==='file'){
-              makeButton('Edit text',()=>editNativeTextFile(name,handle));
+              if (/\.(txt|md|json|csv|html|css|js|xml|log|yaml|yml|ini|conf|sh|py)$/i.test(name)) makeButton('Edit text',()=>editNativeTextFile(name,handle));
               makeButton('Import copy',async()=>{
                 try{
                   const file=await handle.getFile();
