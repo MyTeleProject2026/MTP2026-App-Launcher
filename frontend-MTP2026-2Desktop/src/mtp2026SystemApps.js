@@ -38,7 +38,7 @@ async function showSettings() {
 
 
 async function showDiagnostics() {
-  const api = String(import.meta.env?.VITE_API_BASE_URL || 'https://mtp2026-app-launcher-backend.onrender.com').replace(/\\/$/, '');
+  const api = String(import.meta.env?.VITE_API_BASE_URL || 'https://mtp2026-app-launcher-backend.onrender.com').replace(/\/$/, '');
   const checks = [
     { name: 'MTP2026 backend API', url: api + '/api/health' },
     { name: 'Guest runtime service', url: api + '/api/runtime/health' }
