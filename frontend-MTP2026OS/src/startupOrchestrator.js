@@ -58,6 +58,12 @@ async function continueAfterSelection(mode) {
 }
 
 async function run() {
+  // Dedicated OS frontends own their startup and must never mount the retired
+  // generic OS chooser over the real per-OS interface.
+  if (window.__MTP2026_DEDICATED_OS_SHELL__) {
+    document.documentElement.dataset.mtpStartup = 'ready';
+    return;
+  }
   const inProgress = selected();
   const mode = inProgress || currentMode();
   if (!inProgress) {
