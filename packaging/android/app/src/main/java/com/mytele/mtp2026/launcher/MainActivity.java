@@ -321,7 +321,7 @@ public final class MainActivity extends Activity {
             String state = prefs.getString("desktop_status", "not-imported");
             String root = prefs.getString("desktop_root", "");
             String manifest = prefs.getString("desktop_manifest", "");
-            return "{\\"state\\":\\"" + jsonSafe(state) + "\\",\\"root\\":\\"" + jsonSafe(root) + "\\",\\"profile\\":\\"desktop\\",\\"architecture\\":\\"arm64\\",\\"imageRuntime\\":\\"qemu-aarch64-virt\\",\\"bundledGuestCore\\":true,\\"manifestPresent\\":" + (!manifest.isEmpty()) + "}";
+            return "{\"state\":\"" + jsonSafe(state) + "\",\"root\":\"" + jsonSafe(root) + "\",\"profile\":\"desktop\",\"architecture\":\"arm64\",\"imageRuntime\":\"qemu-aarch64-virt\",\"bundledGuestCore\":true,\"manifestPresent\":" + (!manifest.isEmpty()) + "}";
         }
         @JavascriptInterface public String getArm64BootStatus() {
             String[] abis = Build.SUPPORTED_ABIS == null ? new String[0] : Build.SUPPORTED_ABIS; boolean arm64 = false;
