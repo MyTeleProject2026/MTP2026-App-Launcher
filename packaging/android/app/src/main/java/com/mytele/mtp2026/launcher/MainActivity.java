@@ -418,6 +418,21 @@ public final class MainActivity extends Activity {
                 else startActivity(new Intent(Intent.ACTION_VIEW, uri));
             } catch (Exception ignored) {}
         }
+        @JavascriptInterface public void openInChrome(String url) {
+            try {
+                Uri uri = Uri.parse(url);
+                if (!"https".equalsIgnoreCase(uri.getScheme()) && !"http".equalsIgnoreCase(uri.getScheme())) return;
+                runOnUiThread(() -> {
+                    Intent chrome = new Intent(Intent.ACTION_VIEW, uri);
+                    chrome.setPackage("com.android.chrome");
+                    try { startActivity(chrome); }
+                    catch (Exception chromeUnavailable) {
+                        try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); }
+                        catch (Exception ignored) {}
+                    }
+                });
+            } catch (Exception ignored) {}
+        }
         @JavascriptInterface public void installApkFromUrl(String url, String packageName) { installApkFromUrl(url, packageName); }
     }
 
