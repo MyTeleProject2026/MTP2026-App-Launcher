@@ -13,7 +13,7 @@ const SYSTEM_APPS = [
   { id: 'vexachat', name: 'VexaChat', glyph: '▰', url: 'https://vexachat-ofgc.onrender.com', subtitle: 'Secure messaging', kind: 'external' },
   { id: 'settings', name: 'Settings', glyph: '⚙', subtitle: 'Device settings', kind: 'settings' },
   { id: 'files', name: 'Files', glyph: '▤', url: '', subtitle: 'MTP storage', kind: 'files' },
-  { id: 'browser', name: 'Browser', glyph: '◎', url: 'https://www.google.com/', subtitle: 'Web browsing', kind: 'browser' },
+  { id: 'browser', name: 'Google Chrome', glyph: '🌐', url: 'https://www.google.com/', subtitle: 'Chrome handoff & web preview', kind: 'browser' },
   { id: 'email', name: 'VexaEmail', glyph: '✉', subtitle: 'Coming soon', kind: 'coming' },
   { id: 'tube', name: 'VexaTube', glyph: '▶', subtitle: 'Coming soon', kind: 'coming' },
   { id: 'cloud', name: 'VexaCloud', glyph: '☁', subtitle: 'Coming soon', kind: 'coming' },
