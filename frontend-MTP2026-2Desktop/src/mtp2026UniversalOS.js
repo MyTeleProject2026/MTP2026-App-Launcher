@@ -169,8 +169,9 @@ function openBrowser(initialUrl = 'https://www.google.com/') {
     } catch (_) { /* Use the browser fallback below. */ }
   }
   try {
-    const opened = window.open(startUrl, '_blank', 'noopener,noreferrer');
+    const opened = window.open(startUrl, '_blank');
     if (opened) {
+      try { opened.opener = null; } catch (_) {}
       window.dispatchEvent(new CustomEvent('mtp2026:app-running', { detail: { ...app, launchMode: 'system-browser' } }));
       return { success: true, mode, profile: profile.name, type: 'system-browser-handoff', url: startUrl, ownerOS: profile.name };
     }
