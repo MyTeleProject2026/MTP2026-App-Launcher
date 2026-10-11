@@ -172,7 +172,7 @@ async fn exit_fullscreen(window: tauri::Window) -> Result<(), String> { window.s
 #[tauri::command]
 async fn open_chrome(url: String) -> Result<(), String> {
     let target = url.trim();
-    if !(target.starts_with("https://") || target.starts_with("http://")) || target.contains(['\\r', '\\n']) {
+    if !(target.starts_with("https://") || target.starts_with("http://")) || (target.contains('\\r') || target.contains('\\n')) {
         return Err("CHROME_URL_MUST_BE_HTTP_OR_HTTPS".into());
     }
     let mut candidates: Vec<PathBuf> = Vec::new();
