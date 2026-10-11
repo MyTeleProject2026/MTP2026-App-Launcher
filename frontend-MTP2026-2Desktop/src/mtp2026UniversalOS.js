@@ -156,6 +156,33 @@ function openBrowser(initialUrl = 'https://www.google.com/') {
   let startUrl;
   try { startUrl = normalizeBrowserAddress(initialUrl); }
   catch (_) { startUrl = 'https://www.google.com/'; }
+  // Google Chrome is a host application, not an embeddable website engine.
+  // Prefer the native Chrome intent when the Android wrapper exposes it; static
+  // deployments can only open a new system-browser tab and cannot force Chrome.
+  const mode = currentProfile();
+  const profile = PROFILES[mode];
+  if (window.MTP2026Native?.openInChrome) {
+    try {
+      window.MTP2026Native.openInChrome(startUrl);
+      const app = { id: 'google-chrome', slug: 'mtp2026-browser', name: 'Google Chrome', title: 'Google Chrome', kind: 'browser', url: startUrl, key: 'google-chrome', mode, ownerOS: profile.name };
+      runningApp = app;
+      window.dispatchEvent(new CustomEvent('mtp2026:app-launch', { detail: { app, mode, url: startUrl, ownerOS: profile.name, nativeHandoff: true } }));
+      window.dispatchEvent(new CustomEvent('mtp2026:app-running', { detail: app }));
+      return { success: true, mode, profile: profile.name, type: 'native-chrome-handoff', url: startUrl, ownerOS: profile.name };
+    } catch (_) { /* Continue to the system-browser fallback below. */ }
+  }
+  try {
+    const opened = window.open(startUrl, '_blank', 'noopener,noreferrer');
+    if (opened) {
+      const app = { id: 'system-browser', slug: 'mtp2026-browser', name: 'Google Chrome / System Browser', title: 'Google Chrome / System Browser', kind: 'browser', url: startUrl, key: 'system-browser', mode, ownerOS: profile.name };
+      runningApp = app;
+      window.dispatchEvent(new CustomEvent('mtp2026:app-launch', { detail: { app, mode, url: startUrl, ownerOS: profile.name, externalHandoff: true } }));
+      window.dispatchEvent(new CustomEvent('mtp2026:app-running', { detail: app }));
+      return { success: true, mode, profile: profile.name, type: 'system-browser-handoff', url: startUrl, ownerOS: profile.name };
+    }
+  } catch (_) { /* A strict popup policy may require same-tab navigation. */ }
+  window.location.assign(startUrl);
+  return { success: true, mode, profile: profile.name, type: 'system-browser-navigation', url: startUrl, ownerOS: profile.name };
   browserHistory = [startUrl];
   browserHistoryIndex = 0;
   runningApp = { id: 'mtp2026-chrome', slug: 'mtp2026-browser', name: 'Google Chrome', title: 'Google Chrome', kind: 'browser', url: startUrl, key: 'mtp2026-chrome', mode, ownerOS: profile.name };
