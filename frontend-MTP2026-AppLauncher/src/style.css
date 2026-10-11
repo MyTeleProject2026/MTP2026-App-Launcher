@@ -43,3 +43,10 @@
 .host-webapp-loading{position:absolute;inset:0;z-index:1;display:grid;place-items:center;padding:20px;background:#07101b;color:#bfd0e2;font-size:13px;text-align:center}
 .host-webapp-window>footer{display:flex;justify-content:space-between;gap:10px;margin:0;padding:7px 12px;background:#091526;border-top:1px solid #203247;color:#8298b2;font-size:10px}
 @media(max-width:640px){.webapp-library{padding:14px}.webapp-grid{grid-template-columns:1fr}.host-webapp-overlay{padding:0}.host-webapp-window{height:100%;border-radius:0;border:0}.host-webapp-window>header{min-height:52px;padding:5px 7px;gap:5px}.host-webapp-actions{gap:3px}.host-webapp-actions button,.host-webapp-actions a{padding:0 7px;min-height:32px}.host-webapp-actions span{display:none}.host-webapp-window>footer{flex-direction:column;gap:3px;padding:7px 10px}}
+
+
+.host-browser-address{display:flex;align-items:center;gap:7px;padding:8px 10px;background:#0d1a2b;border-bottom:1px solid #203247}
+.host-browser-address input{flex:1;min-width:0;height:36px;box-sizing:border-box;border:1px solid #31465f;border-radius:9px;padding:0 11px;background:#07101d;color:#eef4ff;font-size:13px;outline:none}
+.host-browser-address input:focus{border-color:#4b9df2;box-shadow:0 0 0 2px #4b9df233}
+.host-browser-address button{height:36px;min-width:38px;border:1px solid #31465f;border-radius:9px;padding:0 12px;background:#172b43;color:#eef4ff;font-weight:650;cursor:pointer}
+.host-browser-address button[type=submit]{background:#246fc0;border-color:#246fc0}
