@@ -129,6 +129,7 @@ let browserHistory = [];
 let browserHistoryIndex = -1;
 function openExternalBrowser(url) {
   try {
+    if (window.MTP2026Native?.openInChrome) { window.MTP2026Native.openInChrome(url); return true; }
     const result = window.MTP2026NativePlatform?.nativeOpenExternal?.(url);
     if (result !== undefined) return result;
   } catch (_) {}
