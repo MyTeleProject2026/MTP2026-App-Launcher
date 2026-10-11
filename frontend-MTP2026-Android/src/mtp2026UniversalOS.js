@@ -183,8 +183,17 @@ function openBrowser(initialUrl = 'https://www.google.com/') {
     try {
       const launch = nativeChrome(startUrl);
       if (launch && typeof launch.then === 'function') {
-        launch.then(() => window.dispatchEvent(new CustomEvent('mtp2026:app-running', { detail: { ...app, launchMode: 'native-chrome', ownerOS: profile.name } })))
-          .catch(() => { openExternalBrowser(startUrl); window.dispatchEvent(new CustomEvent('mtp2026:app-running', { detail: { ...app, launchMode: 'system-browser-fallback', ownerOS: profile.name } })); });
+        launch.then(result => {
+          if (result === false) {
+            openExternalBrowser(startUrl);
+            window.dispatchEvent(new CustomEvent('mtp2026:app-running', { detail: { ...app, launchMode: 'system-browser-fallback', ownerOS: profile.name } }));
+          } else {
+            window.dispatchEvent(new CustomEvent('mtp2026:app-running', { detail: { ...app, launchMode: 'native-chrome', ownerOS: profile.name } }));
+          }
+        }).catch(() => {
+          openExternalBrowser(startUrl);
+          window.dispatchEvent(new CustomEvent('mtp2026:app-running', { detail: { ...app, launchMode: 'system-browser-fallback', ownerOS: profile.name } }));
+        });
         return { success: true, mode, profile: profile.name, type: 'native-chrome-requested', url: startUrl, ownerOS: profile.name };
       }
       if (launch) {
