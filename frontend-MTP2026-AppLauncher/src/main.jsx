@@ -34,8 +34,8 @@ function App() {
     const url = String(target || 'https://www.google.com/');
     try {
       if (window.MTP2026Native?.openInChrome) { window.MTP2026Native.openInChrome(url); return; }
-      const opened = window.open(url, '_blank', 'noopener,noreferrer');
-      if (opened) return;
+      const opened = window.open(url, '_blank');
+      if (opened) { try { opened.opener = null; } catch (_) {} return; }
     } catch (_) {}
     window.location.assign(url);
   };
