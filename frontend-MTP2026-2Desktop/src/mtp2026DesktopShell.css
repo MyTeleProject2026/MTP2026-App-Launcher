@@ -219,3 +219,23 @@
 @media(max-width:760px){.mtp11-desktop-icons{inset:12px 8px 78px!important;grid-template-columns:repeat(auto-fill,minmax(68px,1fr))!important;grid-auto-rows:76px!important;gap:4px!important}.mtp11-desktop-icons button{width:68px!important;height:72px!important;padding:4px 2px!important}.mtp11-desktop-icons b{max-width:64px!important;font-size:9px!important}.mtp11-taskbar{width:calc(100% - 12px)!important;bottom:max(6px,env(safe-area-inset-bottom))!important;height:54px!important;gap:3px!important;padding:4px!important}.mtp11-taskbar button{min-width:40px;min-height:40px}.mtp11-window,.mtp11-app-window,.mtp11-settings-window{max-width:calc(100vw - 12px)!important;max-height:calc(100dvh - 76px - env(safe-area-inset-bottom))!important}.mtp11-window-body,.mtp11-app-content{overflow:auto!important;-webkit-overflow-scrolling:touch}}
 @media(max-width:420px){.mtp11-taskbar{justify-content:space-around!important}.mtp11-taskbar .mtp11-taskbar-label,.mtp11-taskbar .mtp11-search-label{display:none!important}}
 @media(prefers-reduced-motion:reduce){.mtp11-desktop *, .mtp11-desktop *::before,.mtp11-desktop *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
+
+/* Native-browser handoff surface. The app launches the real host browser rather than pretending an iframe is full Chrome. */
+.mtp11-chrome-launcher{display:grid!important;place-items:center!important;min-height:100%;padding:clamp(16px,4vw,42px)!important;box-sizing:border-box!important;background:radial-gradient(ellipse at 50% 0%,#1b3760 0%,#0b1728 55%,#07101b 100%)!important;color:#edf6ff!important}
+.mtp11-chrome-launcher-card{width:min(680px,100%);box-sizing:border-box;border:1px solid rgba(165,202,245,.2);border-radius:24px;padding:clamp(20px,4vw,38px);background:linear-gradient(145deg,rgba(17,35,58,.96),rgba(7,17,31,.97));box-shadow:0 28px 80px rgba(0,0,0,.34)}
+.mtp11-chrome-logo{display:grid;place-items:center;width:64px;height:64px;margin-bottom:22px;border-radius:19px;background:linear-gradient(145deg,#4285f4,#34a853 48%,#fbbc05 75%,#ea4335);color:#fff;box-shadow:0 12px 30px rgba(66,133,244,.22)}
+.mtp11-chrome-eyebrow{font-size:10px;letter-spacing:.18em;font-weight:800;color:#8fbfff}
+.mtp11-chrome-launcher-card h2{margin:8px 0 10px;font-size:clamp(26px,4vw,38px);letter-spacing:-.035em;color:#f6faff}
+.mtp11-chrome-launcher-card p{max-width:58ch;color:#a9bdd4;font-size:13px;line-height:1.7}
+.mtp11-chrome-launcher-card form{margin-top:24px}
+.mtp11-chrome-launcher-card label{display:block;margin-bottom:8px;color:#dbe9fa;font-size:11px;font-weight:700}
+.mtp11-chrome-address{display:flex;align-items:center;gap:10px;padding:5px 6px 5px 13px;border:1px solid rgba(165,202,245,.22);border-radius:14px;background:#050e1b;color:#9db7d5}
+.mtp11-chrome-address input{min-width:0;flex:1;height:40px;border:0;outline:0;background:transparent;color:#f2f7ff;font-size:13px}
+.mtp11-chrome-address button,.mtp11-chrome-launch{border:0;border-radius:10px;padding:11px 16px;background:linear-gradient(135deg,#4285f4,#2563eb);color:white;font-size:12px;font-weight:800;cursor:pointer}
+.mtp11-chrome-launch{margin-top:16px;width:100%;padding:14px}
+.mtp11-chrome-address button:hover,.mtp11-chrome-launch:hover{filter:brightness(1.1)}
+.mtp11-chrome-error{color:#ffb6b6!important}
+.mtp11-chrome-note{display:flex;flex-direction:column;gap:6px;margin-top:22px;padding:13px 14px;border:1px solid rgba(165,202,245,.12);border-radius:12px;background:rgba(255,255,255,.035)}
+.mtp11-chrome-note b{font-size:11px;color:#dcecff}
+.mtp11-chrome-note span{font-size:11px;line-height:1.65;color:#8ea5c0}
+@media(max-width:520px){.mtp11-chrome-launcher{padding:14px!important}.mtp11-chrome-launcher-card{border-radius:18px;padding:20px}.mtp11-chrome-address{gap:7px}.mtp11-chrome-address button{padding:10px}.mtp11-chrome-logo{width:54px;height:54px}}
