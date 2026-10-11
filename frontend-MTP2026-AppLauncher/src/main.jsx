@@ -30,8 +30,31 @@ function App() {
   const [appLoading, setAppLoading] = useState(false);
   const [appReloadToken, setAppReloadToken] = useState(0);
   const [browserAddress, setBrowserAddress] = useState('https://www.google.com/');
-  const launchHostBrowser = () => { setBrowserAddress('https://www.google.com/'); setActiveWebApp({ id: 'mtp2026-host-browser', title: 'Browser', name: 'Browser', url: 'https://www.google.com/', kind: 'browser' }); setAppLoading(true); setAppReloadToken(token => token + 1); };
-  const navigateHostBrowser = event => { event.preventDefault(); const raw = browserAddress.trim(); if (!raw) return; let target; try { if (/^https?:\/\//i.test(raw)) target = new URL(raw).toString(); else if (/^[\w.-]+\.[a-z]{2,}([/:?#].*)?$/i.test(raw)) target = new URL('https://' + raw).toString(); else target = 'https://www.google.com/search?q=' + encodeURIComponent(raw); if (!['http:', 'https:'].includes(new URL(target).protocol)) throw new Error('Only HTTP and HTTPS pages are supported.'); } catch { setAppsError('Enter a valid website address or search phrase.'); return; } setAppsError(''); setBrowserAddress(target); setActiveWebApp(current => ({ ...current, url: target })); setAppLoading(true); setAppReloadToken(token => token + 1); };
+  const openHostBrowser = target => {
+    const url = String(target || 'https://www.google.com/');
+    try {
+      if (window.MTP2026Native?.openInChrome) { window.MTP2026Native.openInChrome(url); return; }
+      const opened = window.open(url, '_blank', 'noopener,noreferrer');
+      if (opened) return;
+    } catch (_) {}
+    window.location.assign(url);
+  };
+  const launchHostBrowser = () => openHostBrowser('https://www.google.com/');
+  const navigateHostBrowser = event => {
+    event.preventDefault();
+    const raw = browserAddress.trim();
+    if (!raw) return;
+    let target;
+    try {
+      if (/^https?:\/\//i.test(raw)) target = new URL(raw).toString();
+      else if (/^[\w.-]+\.[a-z]{2,}([/:?#].*)?$/i.test(raw)) target = new URL('https://' + raw).toString();
+      else target = 'https://www.google.com/search?q=' + encodeURIComponent(raw);
+      if (!['http:', 'https:'].includes(new URL(target).protocol)) throw new Error('Only HTTP and HTTPS pages are supported.');
+    } catch { setAppsError('Enter a valid website address or search phrase.'); return; }
+    setAppsError('');
+    setBrowserAddress(target);
+    openHostBrowser(target);
+  };
   const toggleFavorite = id => setFavorites(current => { const next = current.includes(id) ? current.filter(x => x !== id) : [...current, id]; localStorage.setItem('mtp2026-host-favorites', JSON.stringify(next)); return next; });
   const recordLaunch = id => setRecent(current => { const next = [id, ...current.filter(x => x !== id)].slice(0, 5); localStorage.setItem('mtp2026-host-recent', JSON.stringify(next)); return next; });
   useEffect(() => {
@@ -123,15 +146,16 @@ function App() {
         <a className="launch-link" href={s.url} target="_blank" rel="noreferrer" onClick={()=>recordLaunch(s.id)}>Open {s.title.replace('MTP2026 ','')} <ArrowUpRight size={16}/></a>
       </article>; })}
     </section>
-    <section className="webapp-library">
-      <div className="section-head"><div><span className="eyebrow">WEB ACCESS</span><h2>MTP2026 Browser</h2></div><button className="launch-link" type="button" onClick={launchHostBrowser}>Open Browser <ArrowUpRight size={15}/></button></div>
-      <p className="small-note">Browse inside a Host Launcher app window. Pages that block embedded viewing can be opened in your device’s default browser. Google Chrome itself must be installed on the device to open as Chrome.</p>
+    <section className="webapp-library host-chrome-launcher">
+      <div className="section-head"><div><span className="eyebrow">NATIVE BROWSER</span><h2>Google Chrome</h2></div><button className="launch-link" type="button" onClick={launchHostBrowser}>Launch Chrome <ArrowUpRight size={15}/></button></div>
+      <p className="small-note">Launches the real Google Chrome app from supported Android packages. In a web deployment, the browser opens in a new tab when allowed. The Host Launcher does not pretend an embedded iframe is a full Chrome engine.</p>
+      <form className="host-chrome-address" onSubmit={navigateHostBrowser}><input aria-label="Search or enter website address" value={browserAddress} onChange={event=>setBrowserAddress(event.target.value)} placeholder="Search Google or enter a website address" spellCheck={false}/><button type="submit">Go ↗</button></form>
     </section>
     <section className="webapp-library">
       <div className="section-head"><div><span className="eyebrow">APPLICATION LIBRARY</span><h2>Installed WebApps</h2></div><button className="icon-button" type="button" onClick={loadInstalledApps} disabled={appsLoading} title="Refresh installed WebApps"><RefreshCw size={16} className={appsLoading ? 'spin' : ''}/></button></div>
       <p className="small-note">Open installed HTTPS WebApps inside the Host Launcher’s own application window. Sites that prohibit embedded display can still be opened in a separate browser tab.</p>
       {appsError && <p className="error-note">{appsError}</p>}
-      {appsLoading && installedApps.length === 0 ? <div className="webapp-empty">Loading your installed application library…</div> : installedApps.length ? <div className="webapp-grid">{installedApps.map((app, index) => <button type="button" className="webapp-card" key={app.id || app.slug || app.url} onClick={() => { setActiveWebApp(app); setAppLoading(true); }}><span className="webapp-icon">{app.userIconUrl || app.iconUrl ? <img src={app.userIconUrl || app.iconUrl} alt="" loading="lazy" onError={event => { event.currentTarget.style.display = 'none'; }}/> : <span>{String(app.title || app.name || 'W').slice(0,1).toUpperCase()}</span>}</span><span className="webapp-copy"><b>{app.title || app.name || 'WebApp'}</b><small>{new URL(app.url).hostname}</small></span><ArrowUpRight size={15}/></button>)}</div> : <div className="webapp-empty">No installed WebApps were returned by the shared library. Sign in to the relevant MTP2026 OS and install apps from VexaStore, then refresh this list.</div>}
+      {appsLoading && installedApps.length === 0 ? <div className="webapp-empty">Loading your installed application library…</div> : installedApps.length ? <div className="webapp-grid">{installedApps.map((app, index) => <button type="button" className="webapp-card" key={app.id || app.slug || app.url} onClick={() => { if (app.kind === 'browser' || app.id === 'browser' || app.slug === 'mtp2026-browser') { openHostBrowser(app.url); return; } setActiveWebApp(app); setAppLoading(true); }}><span className="webapp-icon">{app.userIconUrl || app.iconUrl ? <img src={app.userIconUrl || app.iconUrl} alt="" loading="lazy" onError={event => { event.currentTarget.style.display = 'none'; }}/> : <span>{String(app.title || app.name || 'W').slice(0,1).toUpperCase()}</span>}</span><span className="webapp-copy"><b>{app.title || app.name || 'WebApp'}</b><small>{new URL(app.url).hostname}</small></span><ArrowUpRight size={15}/></button>)}</div> : <div className="webapp-empty">No installed WebApps were returned by the shared library. Sign in to the relevant MTP2026 OS and install apps from VexaStore, then refresh this list.</div>}
     </section>
     {activeWebApp && <div className="host-webapp-overlay" role="dialog" aria-modal="true" aria-label={(activeWebApp.title || activeWebApp.name || 'WebApp') + ' application window'} onClick={event => { if (event.target === event.currentTarget) setActiveWebApp(null); }}>
       <section className="host-webapp-window">
