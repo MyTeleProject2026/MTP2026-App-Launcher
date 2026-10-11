@@ -67,9 +67,9 @@ public final class MainActivity extends Activity {
             "mtp2026-desktopos.onrender.com"
     ));
     private BroadcastReceiver installReceiver;
-    private static final String DESKTOP_GUEST_ASSET = "desktop-guest/mtp2026-desktop-arm64-guest.tar.gz";
-    private static final String DESKTOP_GUEST_META_ASSET = "desktop-guest/guest-profile.json";
-    private static final String DESKTOP_GUEST_ASSET_ROOT = "desktop-guest";
+    private static final String DESKTOP_GUEST_ASSET = "mtp2026-desktop-guest/mtp2026-desktop-arm64-guest.tar.gz";
+    private static final String DESKTOP_GUEST_META_ASSET = "mtp2026-desktop-guest/guest-profile.json";
+    private static final String DESKTOP_GUEST_ASSET_ROOT = "mtp2026-desktop-guest";
     private static final String DESKTOP_GUEST_PREFS = "mtp2026_guest";
 
     private static final int IMMERSIVE_FLAGS =
@@ -385,7 +385,7 @@ public final class MainActivity extends Activity {
             String[] abis = Build.SUPPORTED_ABIS == null ? new String[0] : Build.SUPPORTED_ABIS; boolean arm64 = false;
             for (String abi : abis) if ("arm64-v8a".equalsIgnoreCase(abi) || "aarch64".equalsIgnoreCase(abi)) { arm64 = true; break; }
             String architecture = System.getProperty("os.arch", "unknown"); String abi = abis.length == 0 ? "unknown" : abis[0];
-            File guest = new File(getFilesDir(), "mtp2026-desktop-guest/mtp2026-desktop-arm64-guest.tar.gz");
+            File guest = new File(getFilesDir(), "mtp2026-mtp2026-desktop-guest/mtp2026-desktop-arm64-guest.tar.gz");
             String state = arm64 ? (guest.isFile() && guest.length() > 0 ? "desktop-guest-imported" : "native-arm64-ready") : "unsupported-host";
             return "{\"state\":\"" + state + "\",\"host\":\"android\",\"architecture\":\"" + jsonSafe(architecture) + "\",\"hostAbi\":\"" + jsonSafe(abi) + "\",\"physicalOsBoot\":false,\"kernelControl\":false,\"desktopGuestProfile\":\"desktop\",\"desktopGuestBundleImported\":" + (guest.isFile() && guest.length() > 0 ? "true" : "false") + "}";
         }
