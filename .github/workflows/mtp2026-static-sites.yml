@@ -87,6 +87,38 @@ jobs:
           }
           console.log('Dedicated shell entry verified:', expected);
           NODE
+      - name: Verify legacy shells removed and WebApp runtime owned by each OS
+        if: matrix.mode != 'host'
+        working-directory: ${{ matrix.dir }}
+        env:
+          OS_MODE: ${{ matrix.mode }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const mode = process.env.OS_MODE;
+          const absent = [
+            'src/experience.js',
+            'src/experience.css',
+            'src/mtp2026DesktopExperience.js'
+          ];
+          for (const path of absent) {
+            if (fs.existsSync(path)) throw new Error('Retired duplicate OS source still exists: ' + path);
+          }
+          const runtimePath = 'src/mtp2026UniversalOS.js';
+          if (!fs.existsSync(runtimePath)) throw new Error('OS-owned WebApp runtime is missing');
+          const runtime = fs.readFileSync(runtimePath, 'utf8');
+          if (!runtime.includes('async function openApp') || !runtime.includes('createElement(\'iframe\')')) {
+            throw new Error('OS-owned WebApp window launcher is incomplete');
+          }
+          if (mode !== 'mtp2026' && (fs.existsSync('src/mtp2026DeviceOS.js') || fs.existsSync('src/mtp2026DeviceOS.css'))) {
+            throw new Error('Device OS shell files were copied into the wrong OS frontend');
+          }
+          if (mode === 'desktop') {
+            const html = fs.readFileSync('index.html', 'utf8');
+            if (!html.includes('__MTP2026_DEDICATED_OS_SHELL__=true')) throw new Error('Desktop startup does not declare its dedicated OS shell');
+          }
+          console.log('Legacy shell cleanup and OS-owned WebApp runtime verified:', mode);
+          NODE
       - name: Build static site
         working-directory: ${{ matrix.dir }}
         run: npm run build
