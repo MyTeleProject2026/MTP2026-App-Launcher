@@ -90,7 +90,70 @@ function renderSettings() {
   root.querySelectorAll('[data-back]').forEach(b => b.onclick = () => openApp('home')); root.querySelectorAll('[data-account]').forEach(b => b.onclick = () => openApp('vexaaccount')); root.querySelector('[data-store]').onclick = () => openUrl(STORE_URL); root.querySelector('[data-storage]').onclick = () => openApp('files'); root.querySelector('[data-system]').onclick = () => openSystemInfo(); root.querySelector('[data-display]').onclick = () => openModal('Display & Brightness', '<p>MTP2026 uses the current launcher theme and device accessibility preferences.</p><button data-close>Done</button>'); root.querySelector('[data-coming]').onclick = () => openModal('Software Update', '<p>Your MTP2026 OS shell is delivered as part of the launcher. Native firmware updates require a device-specific build and signed boot chain.</p><button data-close>Close</button>'); root.querySelector('[data-about]').onclick = () => openSystemInfo();
 }
 function openSystemInfo() { const s = state.storage || {}; openModal('About This Device', `<div class="mtp-about-grid"><b>Device name</b><span>MTP2026 Device</span><b>Operating system</b><span>MTP2026 Device OS</span><b>Architecture</b><span>ARM64</span><b>VexaAccount</b><span>${esc(profileName())}</span><b>Storage</b><span>${fmtBytes(s.usage || 0)} used / ${fmtBytes(s.quota || 0)} quota</span><b>RAM</b><span>${s.memory ? `${s.memory} GB estimated by browser` : 'Not exposed by this host'}</span></div><p class="mtp-note">MTP2026 Device OS is an MTP2026-owned OS shell/runtime. It does not claim to replace Apple firmware or the iPhone boot chain.</p><button data-close>Close</button>`); }
-async function renderFiles() { await refreshStorage(); const root = ensureRoot(); const partitions = logicalPartitions(state.storage); root.innerHTML = `<div class="mtp-ios-shell"><div class="mtp-ios-status"><span>‹</span><span class="mtp-ios-status-center">Files</span><span>▮▮▮ ᯤ</span></div><main class="mtp-ios-page"><button class="mtp-ios-back" data-back>‹ MTP2026</button><div class="mtp-page-head"><div><h2>Files</h2><p>Local MTP2026 storage</p></div><button class="mtp-small-button" data-import>Import</button></div><section class="mtp-storage-summary"><div class="mtp-storage-ring"><b>${Math.min(100, state.storage.quota ? Math.round((state.storage.usage / state.storage.quota) * 100) : 0)}%</b><small>used</small></div><div><b>${fmtBytes(state.storage.usage)}</b><small>browser/native storage currently used</small><b>${fmtBytes(state.storage.quota)}</b><small>available quota exposed to MTP2026</small></div></section><section class="mtp-settings-group">${partitions.map(p => `<button data-partition="${p.id}"><span class="mtp-setting-icon blue">${p.icon}</span><span><b>${p.name}</b><small>${p.desc}</small></span><strong>${fmtBytes(p.size)}</strong><em>›</em></button>`).join('')}</section><p class="mtp-note">MTP2026 creates logical storage partitions inside its application sandbox. A browser cannot expose raw iPhone disk partitions or physical RAM directly; native Capacitor/Tauri bridges can provide deeper device access when installed.</p></main><div class="mtp-ios-home-indicator"></div></div>`; root.querySelector('[data-back]').onclick = () => openApp('home'); root.querySelector('[data-import]').onclick = () => importFiles(); root.querySelectorAll('[data-partition]').forEach(b => b.onclick = () => openPartition(b.dataset.partition)); }
+const DEVICE_FILES_DB = 'mtp2026-device-files';
+function openDeviceFilesDB() {
+  return new Promise((resolve, reject) => {
+    if (!('indexedDB' in window)) return reject(new Error('Persistent browser storage is not supported here.'));
+    const request = indexedDB.open(DEVICE_FILES_DB, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains('files')) db.createObjectStore('files', { keyPath: 'id' });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('Could not open device storage.'));
+  });
+}
+async function listSavedDeviceFiles() {
+  const db = await openDeviceFilesDB();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction('files', 'readonly').objectStore('files').getAll();
+    request.onsuccess = () => { db.close(); resolve((request.result || []).sort((a, b) => b.savedAt - a.savedAt)); };
+    request.onerror = () => { db.close(); reject(request.error || new Error('Could not list saved files.')); };
+  });
+}
+async function saveDeviceFile(file) {
+  const db = await openDeviceFilesDB();
+  const record = { id: (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2)), name: file.name, size: file.size, type: file.type || 'application/octet-stream', lastModified: file.lastModified || 0, savedAt: Date.now(), blob: file };
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('files', 'readwrite');
+    tx.objectStore('files').put(record);
+    tx.oncomplete = () => { db.close(); resolve(record); };
+    tx.onerror = () => { db.close(); reject(tx.error || new Error('Could not save this file. Storage quota may be full.')); };
+    tx.onabort = () => { db.close(); reject(tx.error || new Error('File save was cancelled.')); };
+  });
+}
+async function deleteSavedDeviceFile(id) {
+  const db = await openDeviceFilesDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('files', 'readwrite');
+    tx.objectStore('files').delete(id);
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error || new Error('Could not delete saved file.')async function importFiles() {
+  const input = document.createElement('input'); input.type = 'file'; input.multiple = true; input.accept = '*/*';
+  input.onchange = async () => {
+    const selected = Array.from(input.files || []);
+    if (!selected.length) return;
+    let saved = 0; const failures = [];
+    for (const file of selected) {
+      try { await saveDeviceFile(file); saved++; }
+      catch (error) { failures.push(file.name + ': ' + (error.message || 'save failed')); }
+    }
+    await renderFiles();
+    const message = saved + ' file(s) saved to this browser profile.' + (failures.length ? ' Not saved: ' + failures.join('; ') : '');
+    openModal(failures.length ? 'Import completed with warnings' : 'Files saved', `<p>${esc(message)}</p><p class="mtp-note">Saved file contents are available in this MTP2026 browser profile. This does not grant access to the rest of device storage.</p><button data-close>Done</button>`);
+  };
+  input.click();
+}
+data-import>＋ Import</button></div><section class="mtp-storage-summary"><div class="mtp-storage-ring"><b>${Math.min(100, state.storage.quota ? Math.round((state.storage.usage / state.storage.quota) * 100) : 0)}%</b><small>used</small></div><div><b>${fmtBytes(state.storage.usage)}</b><small>browser/native storage currently used</small><b>${fmtBytes(state.storage.quota)}</b><small>available quota exposed to MTP2026</small></div></section><section class="mtp-settings-group">${partitions.map(p => `<button data-partition="${p.id}"><span class="mtp-setting-icon blue">${p.icon}</span><span><b>${p.name}</b><small>${p.desc}</small></span><strong>${fmtBytes(p.size)}</strong><em>›</em></button>`).join('')}</section><section class="mtp-settings-group"><div class="mtp-file-section-head"><b>Saved files (${state.files.length})</b><small>Stored in this browser profile</small></div>${state.files.length ? state.files.map(file => `<div class="mtp-saved-file"><span class="mtp-setting-icon orange">▤</span><span><b>${esc(file.name)}</b><small>${fmtBytes(file.size)} · ${esc(file.type)}</small></span><button type="button" data-delete-file="${esc(file.id)}" aria-label="Delete ${esc(file.name)}">Delete</button></div>`).join('') : '<p class="mtp-note">No saved files yet. Tap Import to choose files and keep them in this browser profile.</p>'}</section><p class="mtp-note">Imported file contents are saved in IndexedDB when supported. They remain inside this browser's application storage, not unrestricted device storage. Browser quota and user-cleared site data can affect persistence.</p></main><div class="mtp-ios-home-indicator"></div></div>`;
+  root.querySelector('[data-back]').onclick = () => openApp('home');
+  root.querySelector('[data-import]').onclick = () => importFiles();
+  root.querySelectorAll('[data-partition]').forEach(b => b.onclick = () => openPartition(b.dataset.partition));
+  root.querySelectorAll('[data-delete-file]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try { await deleteSavedDeviceFile(b.dataset.deleteFile); await renderFiles(); }
+    catch (error) { openModal('Could not delete file', `<p>${esc(error.message || 'Storage operation failed.')}</p><button data-close>Close</button>`); }
+  });
+}
 function openPartition(id) { const labels = { system: 'System', user: 'User', apps: 'Applications', cache: 'Cache' }; openModal(labels[id] || 'Partition', `<p>This is a logical MTP2026 storage partition backed by the app sandbox.</p><div class="mtp-about-grid"><b>Partition</b><span>${esc(labels[id] || id)}</span><b>Backend</b><span>IndexedDB / OPFS when available</span><b>Access</b><span>User-approved application storage</span></div><button data-close>Close</button>`); }
 function importFiles() { const input = document.createElement('input'); input.type = 'file'; input.multiple = true; input.accept = '*/*'; input.onchange = () => { state.files = Array.from(input.files || []); openModal('Imported files', `<p>${state.files.length} file(s) selected for the MTP2026 User partition.</p><div class="mtp-file-list">${state.files.map(f => `<div><b>${esc(f.name)}</b><span>${fmtBytes(f.size)}</span></div>`).join('')}</div><p class="mtp-note">The browser grants MTP2026 access only to files you explicitly select.</p><button data-close>Done</button>`); }; input.click(); }
 function openControlCenter() { openModal('Control Center', '<div class="mtp-control-grid"><button data-close>Wi-Fi<br><small>Host controlled</small></button><button data-close>Bluetooth<br><small>Host controlled</small></button><button data-close>Focus<br><small>MTP2026</small></button><button data-close>Dark Mode<br><small>Launcher theme</small></button><button data-close>Airplane<br><small>Unavailable in Web shell</small></button><button data-close>Brightness<br><small>Host controlled</small></button></div><button data-close>Done</button>'); }
