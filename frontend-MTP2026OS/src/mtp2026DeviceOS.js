@@ -142,7 +142,40 @@ async function deleteSavedDeviceFile(id) {
     const tx = db.transaction('files', 'readwrite');
     tx.objectStore('files').delete(id);
     tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror = () => { db.close(); reject(tx.error || new Error('Could not delete saved file.')async function importFiles() {
+    tx.onerror = () => { db.close(); reject(tx.error || new Error('Could not delete saved file.')); };
+  });
+}
+async function renderFiles() {
+  const root = ensureRoot();
+  await refreshStorage();
+  root.innerHTML = `
+    <div class="mtp-ios-shell">
+      <div class="mtp-ios-status"><span>${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span><span class="mtp-ios-status-center">MTP2026 Device</span><span>▮▮▮ ᯤ 100%</span></div>
+      <main class="mtp-ios-home mtp-files-page">
+        <header class="mtp-ios-header"><button type="button" data-back aria-label="Back">‹</button><div><span class="mtp-ios-eyebrow">DEVICE STORAGE</span><h1>Files & Storage</h1></div><button type="button" data-import>＋ Import</button></header>
+        <section class="mtp-storage-summary"><div class="mtp-storage-ring"><b>${Math.min(100, state.storage.quota ? Math.round((state.storage.usage / state.storage.quota) * 100) : 0)}%</b><small>used</small></div><div><b>${fmtBytes(state.storage.usage)}</b><small>browser/native storage currently used</small><b>${fmtBytes(state.storage.quota)}</b><small>available quota exposed to MTP2026</small></div></section>
+        <section class="mtp-settings-group">${partitions.map(p => `<button data-partition="${p.id}"><span class="mtp-setting-icon blue">${p.icon}</span><span><b>${p.name}</b><small>${p.desc}</small></span><strong>${fmtBytes(p.size)}</strong><em>›</em></button>`).join('')}</section>
+        <section class="mtp-settings-group"><div class="mtp-file-section-head"><b>Saved files (${state.files.length})</b><small>Stored in this browser profile</small></div>${state.files.length ? state.files.map(file => `<div class="mtp-saved-file"><span class="mtp-setting-icon orange">▤</span><span><b>${esc(file.name)}</b><small>${fmtBytes(file.size)} · ${esc(file.type)}</small></span><div class="mtp-saved-file-actions"><button type="button" data-download-file="${esc(file.id)}" aria-label="Download ${esc(file.name)}">Download</button><button type="button" data-delete-file="${esc(file.id)}" aria-label="Delete ${esc(file.name)}">Delete</button></div></div>`).join('') : '<p class="mtp-note">No saved files yet. Tap Import to choose files and keep them in this browser profile.</p>'}</section>
+        <p class="mtp-note">Imported file contents are saved in IndexedDB when supported. They remain inside this browser's application storage, not unrestricted device storage. Browser quota and user-cleared site data can affect persistence.</p>
+      </main><div class="mtp-ios-home-indicator"></div>
+    </div>`;
+  root.querySelector('[data-back]').onclick = () => { state.page = 'home'; void render(); };
+  root.querySelector('[data-import]').onclick = () => importFiles();
+  root.querySelectorAll('[data-partition]').forEach(b => b.onclick = () => openPartition(b.dataset.partition));
+  root.querySelectorAll('[data-download-file]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try { await downloadSavedDeviceFile(b.dataset.downloadFile); }
+    catch (error) { openModal('Could not download file', `<p>${esc(error.message || 'Storage operation failed.')}</p><button data-close>Close</button>`); }
+    finally { b.disabled = false; }
+  });
+  root.querySelectorAll('[data-delete-file]').forEach(b => b.onclick = async () => {
+    if (!confirm('Delete this saved file from the MTP2026 browser workspace?')) return;
+    b.disabled = true;
+    try { await deleteSavedDeviceFile(b.dataset.deleteFile); await renderFiles(); }
+    catch (error) { openModal('Could not delete file', `<p>${esc(error.message || 'Storage operation failed.')}</p><button data-close>Close</button>`); }
+  });
+}
+async function importFiles() {
   const input = document.createElement('input'); input.type = 'file'; input.multiple = true; input.accept = '*/*';
   input.onchange = async () => {
     const selected = Array.from(input.files || []);
@@ -158,24 +191,7 @@ async function deleteSavedDeviceFile(id) {
   };
   input.click();
 }
-data-import>＋ Import</button></div><section class="mtp-storage-summary"><div class="mtp-storage-ring"><b>${Math.min(100, state.storage.quota ? Math.round((state.storage.usage / state.storage.quota) * 100) : 0)}%</b><small>used</small></div><div><b>${fmtBytes(state.storage.usage)}</b><small>browser/native storage currently used</small><b>${fmtBytes(state.storage.quota)}</b><small>available quota exposed to MTP2026</small></div></section><section class="mtp-settings-group">${partitions.map(p => `<button data-partition="${p.id}"><span class="mtp-setting-icon blue">${p.icon}</span><span><b>${p.name}</b><small>${p.desc}</small></span><strong>${fmtBytes(p.size)}</strong><em>›</em></button>`).join('')}</section><section class="mtp-settings-group"><div class="mtp-file-section-head"><b>Saved files (${state.files.length})</b><small>Stored in this browser profile</small></div>${state.files.length ? state.files.map(file => `<div class="mtp-saved-file"><span class="mtp-setting-icon orange">▤</span><span><b>${esc(file.name)}</b><small>${fmtBytes(file.size)} · ${esc(file.type)}</small></span><div class="mtp-saved-file-actions"><button type="button" data-download-file="${esc(file.id)}" aria-label="Download ${esc(file.name)}">Download</button><button type="button" data-delete-file="${esc(file.id)}" aria-label="Delete ${esc(file.name)}">Delete</button></div></div>`).join('') : '<p class="mtp-note">No saved files yet. Tap Import to choose files and keep them in this browser profile.</p>'}</section><p class="mtp-note">Imported file contents are saved in IndexedDB when supported. They remain inside this browser's application storage, not unrestricted device storage. Browser quota and user-cleared site data can affect persistence.</p></main><div class="mtp-ios-home-indicator"></div></div>`;
-  root.querySelector('[data-back]').onclick = () => openApp('home');
-  root.querySelector('[data-import]').onclick = () => importFiles();
-  root.querySelectorAll('[data-partition]').forEach(b => b.onclick = () => openPartition(b.dataset.partition));
-  root.querySelectorAll('[data-download-file]').forEach(b => b.onclick = async () => {
-    b.disabled = true;
-    try { await downloadSavedDeviceFile(b.dataset.downloadFile); }
-    catch (error) { openModal('Could not download file', `<p>${esc(error.message || 'Storage operation failed.')}</p><button data-close>Close</button>`); }
-    finally { b.disabled = false; }
-  });
-  root.querySelectorAll('[data-delete-file]').forEach(b => b.onclick = async () => {
-    b.disabled = true;
-    try { await deleteSavedDeviceFile(b.dataset.deleteFile); await renderFiles(); }
-    catch (error) { openModal('Could not delete file', `<p>${esc(error.message || 'Storage operation failed.')}</p><button data-close>Close</button>`); }
-  });
-}
 function openPartition(id) { const labels = { system: 'System', user: 'User', apps: 'Applications', cache: 'Cache' }; openModal(labels[id] || 'Partition', `<p>This is a logical MTP2026 storage partition backed by the app sandbox.</p><div class="mtp-about-grid"><b>Partition</b><span>${esc(labels[id] || id)}</span><b>Backend</b><span>IndexedDB / OPFS when available</span><b>Access</b><span>User-approved application storage</span></div><button data-close>Close</button>`); }
-function importFiles() { const input = document.createElement('input'); input.type = 'file'; input.multiple = true; input.accept = '*/*'; input.onchange = () => { state.files = Array.from(input.files || []); openModal('Imported files', `<p>${state.files.length} file(s) selected for the MTP2026 User partition.</p><div class="mtp-file-list">${state.files.map(f => `<div><b>${esc(f.name)}</b><span>${fmtBytes(f.size)}</span></div>`).join('')}</div><p class="mtp-note">The browser grants MTP2026 access only to files you explicitly select.</p><button data-close>Done</button>`); }; input.click(); }
 function openControlCenter() { openModal('Control Center', '<div class="mtp-control-grid"><button data-close>Wi-Fi<br><small>Host controlled</small></button><button data-close>Bluetooth<br><small>Host controlled</small></button><button data-close>Focus<br><small>MTP2026</small></button><button data-close>Dark Mode<br><small>Launcher theme</small></button><button data-close>Airplane<br><small>Unavailable in Web shell</small></button><button data-close>Brightness<br><small>Host controlled</small></button></div><button data-close>Done</button>'); }
 function openModal(title, body) { const root = ensureRoot(); let modal = root.querySelector('.mtp-modal'); if (!modal) { modal = document.createElement('div'); modal.className = 'mtp-modal'; root.appendChild(modal); } modal.innerHTML = `<div class="mtp-modal-card"><header><b>${esc(title)}</b><button data-close>×</button></header><section>${body}</section></div>`; modal.querySelectorAll('[data-close]').forEach(b => b.onclick = () => modal.remove()); }
 function openApp(id) { if (id === 'home') { state.page = 'home'; render(); return; } const item = appItems().find(x => x.id === id); if (!item) return; state.page = item.kind; if (item.kind === 'settings') return renderSettings(); if (item.kind === 'files') return renderFiles(); if (item.kind === 'store') return openUrl(item.url); if (item.kind === 'external') { const app = item.source || { id: item.id, slug: item.id, name: item.name, title: item.name, url: item.url }; const runtime = window.MTP2026UniversalOS; if (runtime?.openApp) { void runtime.openApp(app).catch(() => openUrl(item.url)); return; } return openUrl(item.url); } if (item.kind === 'browser') { const runtime = window.MTP2026UniversalOS; if (runtime?.openBrowser) { void runtime.openBrowser(item.url || 'https://www.google.com/'); return; } return openUrl(item.url); } if (item.kind === 'account') return openUrl(item.url); if (item.kind === 'coming') return openModal(item.name, `<p>${esc(item.name)} is registered in the MTP2026 Device OS shell and will become available when its official VexaApp web service is published.</p><button data-close>Close</button>`); }
