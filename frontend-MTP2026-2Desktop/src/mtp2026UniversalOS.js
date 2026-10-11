@@ -130,6 +130,16 @@ let browserHistoryIndex = -1;
 function openExternalBrowser(url) {
   try {
     if (window.MTP2026Native?.openInChrome) { window.MTP2026Native.openInChrome(url); return true; }
+    const chrome = window.MTP2026NativePlatform?.nativeOpenChrome;
+    if (typeof chrome === 'function') {
+      const result = chrome(url);
+      if (result && typeof result.then === 'function') {
+        result.then(opened => { if (opened === false) window.MTP2026NativePlatform?.nativeOpenExternal?.(url); })
+          .catch(() => window.MTP2026NativePlatform?.nativeOpenExternal?.(url));
+        return true;
+      }
+      if (result) return true;
+    }
     const result = window.MTP2026NativePlatform?.nativeOpenExternal?.(url);
     if (result !== undefined) return result;
   } catch (_) {}
@@ -166,7 +176,22 @@ function openBrowser(initialUrl = 'https://www.google.com/') {
       window.MTP2026Native.openInChrome(startUrl);
       window.dispatchEvent(new CustomEvent('mtp2026:app-running', { detail: { ...app, launchMode: 'native-chrome' } }));
       return { success: true, mode, profile: profile.name, type: 'native-chrome-handoff', url: startUrl, ownerOS: profile.name };
-    } catch (_) { /* Use the browser fallback below. */ }
+    } catch (_) { /* Continue to the native capability adapter. */ }
+  }
+  const nativeChrome = window.MTP2026NativePlatform?.nativeOpenChrome;
+  if (typeof nativeChrome === 'function') {
+    try {
+      const launch = nativeChrome(startUrl);
+      if (launch && typeof launch.then === 'function') {
+        launch.then(() => window.dispatchEvent(new CustomEvent('mtp2026:app-running', { detail: { ...app, launchMode: 'native-chrome', ownerOS: profile.name } })))
+          .catch(() => { openExternalBrowser(startUrl); window.dispatchEvent(new CustomEvent('mtp2026:app-running', { detail: { ...app, launchMode: 'system-browser-fallback', ownerOS: profile.name } })); });
+        return { success: true, mode, profile: profile.name, type: 'native-chrome-requested', url: startUrl, ownerOS: profile.name };
+      }
+      if (launch) {
+        window.dispatchEvent(new CustomEvent('mtp2026:app-running', { detail: { ...app, launchMode: 'native-chrome', ownerOS: profile.name } }));
+        return { success: true, mode, profile: profile.name, type: 'native-chrome-handoff', url: startUrl, ownerOS: profile.name };
+      }
+    } catch (_) { /* Use the system-browser fallback below. */ }
   }
   try {
     const opened = window.open(startUrl, '_blank');
@@ -186,7 +211,7 @@ async function openApp(app) {
   const mode = currentProfile();
   const profile = PROFILES[mode];
   const safeUrl = trustedWebAppUrl(url);
-  runningApp = { ...app, url: safeUrl, key: appKey(app), mode };
+  runningApp = { ...app, url: safeUrl, key: appKey(app), mode, ownerOS: profile.name, launchMode: 'in-os-webapp' };
   window.dispatchEvent(new CustomEvent('mtp2026:app-launch', { detail: { app: runningApp, mode, url: safeUrl } }));
   const target = ensureRuntimeHost();
   target.classList.remove('maximized');
