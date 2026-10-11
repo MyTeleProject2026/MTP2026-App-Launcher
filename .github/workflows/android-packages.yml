@@ -1,4 +1,4 @@
-name: MTP2026 Launcher Android packages
+name: MTP2026 Five OS Android APK packages
 
 on:
   push:
@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   android:
-    name: Build Android user + owner packages
+    name: Build Android APKs for all five OS editions plus owner
     runs-on: ubuntu-latest
     env:
       KEYSTORE_PATH: ${{ github.workspace }}/.release-keystore/release.jks
@@ -49,46 +49,55 @@ jobs:
           chmod 600 "$KEYSTORE_PATH"
           keytool -list -keystore "$KEYSTORE_PATH" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
 
-      - name: Build user and owner APK/AAB
+      - name: Build five OS APKs and owner APK/AAB
         working-directory: packaging/android
         run: |
           chmod +x ./gradlew
-          ./gradlew clean assembleUserRelease bundleUserRelease assembleOwnerRelease bundleOwnerRelease
+          ./gradlew clean \\
+            assembleUserRelease assembleDesktopRelease assembleAndroidosRelease assembleGamingosRelease assembleDeviceosRelease assembleOwnerRelease \\
+            bundleUserRelease bundleDesktopRelease bundleAndroidosRelease bundleGamingosRelease bundleDeviceosRelease bundleOwnerRelease
 
-      - name: Verify user and owner release binaries
+      - name: Verify all OS and owner release binaries
         working-directory: packaging/android
         run: |
           set -euo pipefail
           APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
           AAPT2="$ANDROID_HOME/build-tools/35.0.0/aapt2"
 
-          for variant in user owner; do
+          for variant in user desktop androidos gamingos deviceos owner; do
             APK="app/build/outputs/apk/$variant/release/app-$variant-release.apk"
             [ -s "$APK" ] || { echo "Missing APK: $APK" >&2; find app/build/outputs/apk -maxdepth 4 -type f -print >&2; exit 1; }
             unzip -t "$APK" >/dev/null
-            "$AAPT2" dump badging "$APK" | grep -E "package: name=|application-label:|application-icon:" >/dev/null
+            BADGING=$("$AAPT2" dump badging "$APK")
+            printf '%s\\n' "$BADGING" | grep -q '^package: name='
+            printf '%s\\n' "$BADGING" | grep -q '^application-label:'
             "$APKSIGNER" verify --verbose --print-certs "$APK"
+            echo "Verified signed APK: $variant"
           done
 
-          for variant in user owner; do
-            case "$variant" in
-              user) AAB="app/build/outputs/bundle/userRelease/app-user-release.aab" ;;
-              owner) AAB="app/build/outputs/bundle/ownerRelease/app-owner-release.aab" ;;
-            esac
+          for variant in user desktop androidos gamingos deviceos owner; do
+            AAB="app/build/outputs/bundle/${variant}Release/app-${variant}-release.aab"
             [ -s "$AAB" ] || { echo "Missing AAB: $AAB" >&2; find app/build/outputs/bundle -maxdepth 4 -type f -print >&2; exit 1; }
             unzip -t "$AAB" >/dev/null
             unzip -l "$AAB" | grep -q 'base/manifest/AndroidManifest.xml'
             jarsigner -verify "$AAB" >/dev/null
           done
-
-          echo "User and Owner Android packages verified."
+          echo "Five OS APK/AAB editions and owner control package verified."
 
       - uses: actions/upload-artifact@v7
         with:
-          name: mtp2026-user-owner-android-release
+          name: mtp2026-five-os-android-apks-and-aabs
           if-no-files-found: error
           path: |
             packaging/android/app/build/outputs/apk/user/release/*.apk
+            packaging/android/app/build/outputs/apk/desktop/release/*.apk
+            packaging/android/app/build/outputs/apk/androidos/release/*.apk
+            packaging/android/app/build/outputs/apk/gamingos/release/*.apk
+            packaging/android/app/build/outputs/apk/deviceos/release/*.apk
             packaging/android/app/build/outputs/apk/owner/release/*.apk
             packaging/android/app/build/outputs/bundle/userRelease/*.aab
+            packaging/android/app/build/outputs/bundle/desktopRelease/*.aab
+            packaging/android/app/build/outputs/bundle/androidosRelease/*.aab
+            packaging/android/app/build/outputs/bundle/gamingosRelease/*.aab
+            packaging/android/app/build/outputs/bundle/deviceosRelease/*.aab
             packaging/android/app/build/outputs/bundle/ownerRelease/*.aab
