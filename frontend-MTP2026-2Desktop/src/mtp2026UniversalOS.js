@@ -197,6 +197,7 @@ function openBrowser(initialUrl = 'https://www.google.com/') {
   };
   const back=button('‹','Back',()=>{if(browserHistoryIndex>0){browserHistoryIndex--;setUrl(browserHistory[browserHistoryIndex],false)}});
   const forward=button('›','Forward',()=>{if(browserHistoryIndex<browserHistory.length-1){browserHistoryIndex++;setUrl(browserHistory[browserHistoryIndex],false)}});
+  back.disabled=true; forward.disabled=true;
   button('↻','Reload page',()=>{try{iframe.contentWindow.location.reload()}catch(_){iframe.src=address.value}});
   addressForm.addEventListener('submit',event=>{event.preventDefault();try{setUrl(normalizeBrowserAddress(address.value))}catch(error){blocked.textContent=error.message;blocked.style.display='block'}});
   toolbar.appendChild(addressForm);
@@ -210,7 +211,7 @@ function openBrowser(initialUrl = 'https://www.google.com/') {
   view.append(iframe,loading,blocked); frame.append(toolbar,bookmarkMenu,view);
   host.querySelector('[data-reload-runtime]').onclick=()=>{iframe.src=address.value};
   host.querySelector('[data-external-runtime]').textContent='↗ Open in Chrome / system browser';
-  host.querySelector('[data-external-runtime]').onclick=()=>openExternalBrowser(address.value);
+  host.querySelector('[data-external-runtime]').textContent='↗ Open in Chrome / system browser';
   host.querySelector('[data-runtime-status]').textContent=startUrl;
   host.hidden=false;
   const dock=document.getElementById('mtp2026-app-runtime-dock'); if(dock)dock.hidden=true;
@@ -228,6 +229,8 @@ async function openApp(app) {
   window.dispatchEvent(new CustomEvent('mtp2026:app-launch', { detail: { app: runningApp, mode, url: safeUrl } }));
   const target = ensureRuntimeHost();
   target.classList.remove('maximized');
+  target.querySelector('[data-external-runtime]').textContent = '↗ Open in browser';
+  target.querySelector('.mtp2026-app-runtime-frame').style.cssText = '';
   target.querySelector('[data-runtime-title]').textContent = app?.name || app?.title || 'VexaApp';
   target.querySelector('[data-runtime-profile]').textContent = profile.name + ' · ' + mode;
   target.querySelector('[data-runtime-status]').textContent = safeUrl;
