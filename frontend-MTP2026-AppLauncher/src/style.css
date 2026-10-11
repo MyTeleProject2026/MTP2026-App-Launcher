@@ -50,3 +50,12 @@
 .host-browser-address input:focus{border-color:#4b9df2;box-shadow:0 0 0 2px #4b9df233}
 .host-browser-address button{height:36px;min-width:38px;border:1px solid #31465f;border-radius:9px;padding:0 12px;background:#172b43;color:#eef4ff;font-weight:650;cursor:pointer}
 .host-browser-address button[type=submit]{background:#246fc0;border-color:#246fc0}
+
+.host-chrome-launcher{position:relative;overflow:hidden;border:1px solid rgba(100,160,230,.22);border-radius:18px;background:radial-gradient(ellipse at 90% 0%,rgba(47,111,196,.2),transparent 45%),linear-gradient(135deg,rgba(16,31,51,.96),rgba(7,16,29,.96));padding:20px}
+.host-chrome-launcher .section-head h2{color:#f1f7ff}
+.host-chrome-address{display:flex;gap:8px;max-width:680px;margin-top:14px}
+.host-chrome-address input{min-width:0;flex:1;height:42px;border:1px solid #304862;border-radius:11px;padding:0 13px;background:#07111f;color:#eef6ff;outline:0}
+.host-chrome-address input:focus{border-color:#4b9df2;box-shadow:0 0 0 3px #4b9df222}
+.host-chrome-address button{height:42px;border:1px solid #2877cf;border-radius:11px;padding:0 17px;background:linear-gradient(135deg,#3989ed,#2464bc);color:#fff;font-weight:750;cursor:pointer}
+.host-chrome-address button:hover{filter:brightness(1.1)}
+@media(max-width:520px){.host-chrome-launcher{padding:15px}.host-chrome-address{gap:6px}.host-chrome-address button{padding:0 12px}}
