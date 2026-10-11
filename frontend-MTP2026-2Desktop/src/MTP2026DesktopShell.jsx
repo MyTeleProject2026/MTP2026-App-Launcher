@@ -111,8 +111,8 @@ function BrowserApp({initialUrl='https://www.google.com/'}) {
     try {
       if(window.MTP2026Native?.openInChrome){window.MTP2026Native.openInChrome(target);return;}
       if(!Capacitor.isNativePlatform()){
-        const opened=window.open(target,'_blank','noopener,noreferrer');
-        if(opened)return;
+        const opened=window.open(target,'_blank');
+        if(opened){try{opened.opener=null}catch(_){}return;}
         window.location.assign(target);return;
       }
       const {Browser}=await import('@capacitor/browser');
