@@ -122,6 +122,20 @@ async function saveDeviceFile(file) {
     tx.onabort = () => { db.close(); reject(tx.error || new Error('File save was cancelled.')); };
   });
 }
+async function downloadSavedDeviceFile(id) {
+  const db = await openDeviceFilesDB();
+  const record = await new Promise((resolve, reject) => {
+    const request = db.transaction('files', 'readonly').objectStore('files').get(id);
+    request.onsuccess = () => { db.close(); resolve(request.result); };
+    request.onerror = () => { db.close(); reject(request.error || new Error('Could not read saved file.')); };
+  });
+  if (!record?.blob) throw new Error('Saved file content was not found.');
+  const url = URL.createObjectURL(record.blob);
+  const link = document.createElement('a');
+  link.href = url; link.download = record.name || 'mtp2026-file';
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 async function deleteSavedDeviceFile(id) {
   const db = await openDeviceFilesDB();
   return new Promise((resolve, reject) => {
@@ -144,10 +158,16 @@ async function deleteSavedDeviceFile(id) {
   };
   input.click();
 }
-data-import>＋ Import</button></div><section class="mtp-storage-summary"><div class="mtp-storage-ring"><b>${Math.min(100, state.storage.quota ? Math.round((state.storage.usage / state.storage.quota) * 100) : 0)}%</b><small>used</small></div><div><b>${fmtBytes(state.storage.usage)}</b><small>browser/native storage currently used</small><b>${fmtBytes(state.storage.quota)}</b><small>available quota exposed to MTP2026</small></div></section><section class="mtp-settings-group">${partitions.map(p => `<button data-partition="${p.id}"><span class="mtp-setting-icon blue">${p.icon}</span><span><b>${p.name}</b><small>${p.desc}</small></span><strong>${fmtBytes(p.size)}</strong><em>›</em></button>`).join('')}</section><section class="mtp-settings-group"><div class="mtp-file-section-head"><b>Saved files (${state.files.length})</b><small>Stored in this browser profile</small></div>${state.files.length ? state.files.map(file => `<div class="mtp-saved-file"><span class="mtp-setting-icon orange">▤</span><span><b>${esc(file.name)}</b><small>${fmtBytes(file.size)} · ${esc(file.type)}</small></span><button type="button" data-delete-file="${esc(file.id)}" aria-label="Delete ${esc(file.name)}">Delete</button></div>`).join('') : '<p class="mtp-note">No saved files yet. Tap Import to choose files and keep them in this browser profile.</p>'}</section><p class="mtp-note">Imported file contents are saved in IndexedDB when supported. They remain inside this browser's application storage, not unrestricted device storage. Browser quota and user-cleared site data can affect persistence.</p></main><div class="mtp-ios-home-indicator"></div></div>`;
+data-import>＋ Import</button></div><section class="mtp-storage-summary"><div class="mtp-storage-ring"><b>${Math.min(100, state.storage.quota ? Math.round((state.storage.usage / state.storage.quota) * 100) : 0)}%</b><small>used</small></div><div><b>${fmtBytes(state.storage.usage)}</b><small>browser/native storage currently used</small><b>${fmtBytes(state.storage.quota)}</b><small>available quota exposed to MTP2026</small></div></section><section class="mtp-settings-group">${partitions.map(p => `<button data-partition="${p.id}"><span class="mtp-setting-icon blue">${p.icon}</span><span><b>${p.name}</b><small>${p.desc}</small></span><strong>${fmtBytes(p.size)}</strong><em>›</em></button>`).join('')}</section><section class="mtp-settings-group"><div class="mtp-file-section-head"><b>Saved files (${state.files.length})</b><small>Stored in this browser profile</small></div>${state.files.length ? state.files.map(file => `<div class="mtp-saved-file"><span class="mtp-setting-icon orange">▤</span><span><b>${esc(file.name)}</b><small>${fmtBytes(file.size)} · ${esc(file.type)}</small></span><div class="mtp-saved-file-actions"><button type="button" data-download-file="${esc(file.id)}" aria-label="Download ${esc(file.name)}">Download</button><button type="button" data-delete-file="${esc(file.id)}" aria-label="Delete ${esc(file.name)}">Delete</button></div></div>`).join('') : '<p class="mtp-note">No saved files yet. Tap Import to choose files and keep them in this browser profile.</p>'}</section><p class="mtp-note">Imported file contents are saved in IndexedDB when supported. They remain inside this browser's application storage, not unrestricted device storage. Browser quota and user-cleared site data can affect persistence.</p></main><div class="mtp-ios-home-indicator"></div></div>`;
   root.querySelector('[data-back]').onclick = () => openApp('home');
   root.querySelector('[data-import]').onclick = () => importFiles();
   root.querySelectorAll('[data-partition]').forEach(b => b.onclick = () => openPartition(b.dataset.partition));
+  root.querySelectorAll('[data-download-file]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try { await downloadSavedDeviceFile(b.dataset.downloadFile); }
+    catch (error) { openModal('Could not download file', `<p>${esc(error.message || 'Storage operation failed.')}</p><button data-close>Close</button>`); }
+    finally { b.disabled = false; }
+  });
   root.querySelectorAll('[data-delete-file]').forEach(b => b.onclick = async () => {
     b.disabled = true;
     try { await deleteSavedDeviceFile(b.dataset.deleteFile); await renderFiles(); }
