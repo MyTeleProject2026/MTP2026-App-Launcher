@@ -151,17 +151,19 @@ function normalizeBrowserAddress(raw) {
 function openBrowser(initialUrl = 'https://www.google.com/') {
   const mode = currentProfile();
   const profile = PROFILES[mode];
+  const BOOKMARKS_KEY = 'mtp2026-chrome-bookmarks-v2';
+  const HISTORY_KEY = 'mtp2026-chrome-history-v2';
   let startUrl;
   try { startUrl = normalizeBrowserAddress(initialUrl); }
   catch (_) { startUrl = 'https://www.google.com/'; }
   browserHistory = [startUrl];
   browserHistoryIndex = 0;
-  runningApp = { id: 'mtp2026-browser', slug: 'mtp2026-browser', name: 'Browser', title: 'Browser', kind: 'browser', url: startUrl, key: 'mtp2026-browser', mode };
-  window.dispatchEvent(new CustomEvent('mtp2026:app-launch', { detail: { app: runningApp, mode, url: startUrl } }));
+  runningApp = { id: 'mtp2026-chrome', slug: 'mtp2026-browser', name: 'Google Chrome', title: 'Google Chrome', kind: 'browser', url: startUrl, key: 'mtp2026-chrome', mode, ownerOS: profile.name };
+  window.dispatchEvent(new CustomEvent('mtp2026:app-launch', { detail: { app: runningApp, mode, url: startUrl, ownerOS: profile.name } }));
   const host = ensureRuntimeHost();
   host.classList.remove('maximized');
-  host.querySelector('[data-runtime-title]').textContent = 'Browser';
-  host.querySelector('[data-runtime-profile]').textContent = profile.name + ' · browser';
+  host.querySelector('[data-runtime-title]').textContent = 'Google Chrome';
+  host.querySelector('[data-runtime-profile]').textContent = profile.name + ' · browser workspace';
   const icon = host.querySelector('[data-runtime-icon]');
   icon.replaceChildren(); icon.textContent = '🌐';
   const frame = host.querySelector('.mtp2026-app-runtime-frame');
@@ -169,55 +171,82 @@ function openBrowser(initialUrl = 'https://www.google.com/') {
   frame.style.cssText = 'display:flex;flex-direction:column;min-height:0;overflow:hidden;background:#0a1422';
   const toolbar = document.createElement('div');
   toolbar.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:9px;border-bottom:1px solid rgba(255,255,255,.12);background:#0d1b2e';
-  const button = (label, title, action) => { const b=document.createElement('button'); b.type='button'; b.textContent=label; b.title=title; b.style.cssText='min-width:34px;height:34px;border:1px solid rgba(160,195,230,.2);border-radius:9px;background:#152840;color:#edf6ff;cursor:pointer'; b.addEventListener('click',action); toolbar.appendChild(b); return b; };
+  const button = (label, title, action) => { const b=document.createElement('button'); b.type='button'; b.textContent=label; b.title=title; b.setAttribute('aria-label',title); b.style.cssText='min-width:34px;height:36px;border:1px solid rgba(160,195,230,.2);border-radius:10px;background:#152840;color:#edf6ff;cursor:pointer'; b.addEventListener('click',action); toolbar.appendChild(b); return b; };
   const addressForm = document.createElement('form');
   addressForm.style.cssText='display:flex;flex:1;min-width:150px;gap:5px';
   const address = document.createElement('input');
   address.type='text'; address.value=startUrl; address.autocomplete='url'; address.spellcheck=false;
-  address.setAttribute('aria-label','Search or enter website address');
-  address.placeholder='Search or enter website address';
-  address.style.cssText='min-width:0;flex:1;height:34px;box-sizing:border-box;border:1px solid rgba(160,195,230,.2);border-radius:9px;padding:0 10px;background:#07101d;color:#eef6ff';
-  const go = document.createElement('button'); go.type='submit'; go.textContent='Go'; go.style.cssText='border:0;border-radius:8px;padding:0 12px;background:#2376c9;color:white;font-weight:700';
+  address.setAttribute('aria-label','Search Google or enter a website address');
+  address.placeholder='Search Google or enter a website address';
+  address.style.cssText='min-width:0;flex:1;height:36px;box-sizing:border-box;border:1px solid rgba(160,195,230,.2);border-radius:18px;padding:0 14px;background:#07101d;color:#eef6ff';
+  const go = document.createElement('button'); go.type='submit'; go.textContent='Go'; go.style.cssText='border:0;border-radius:10px;padding:0 14px;background:#2376c9;color:white;font-weight:700';
   addressForm.append(address,go);
-  const view = document.createElement('div'); view.style.cssText='position:relative;flex:1;min-height:160px;overflow:hidden';
-  const iframe = document.createElement('iframe'); iframe.title='MTP2026 Browser page'; iframe.src=startUrl;
+  const view = document.createElement('div'); view.style.cssText='position:relative;flex:1;min-height:160px;overflow:hidden;background:#fff';
+  const iframe = document.createElement('iframe'); iframe.title='Embedded browser preview for ' + profile.name; iframe.src=startUrl;
   iframe.referrerPolicy='strict-origin-when-cross-origin'; iframe.allow='fullscreen; clipboard-read; clipboard-write; autoplay; gamepad; picture-in-picture';
   iframe.setAttribute('sandbox','allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-pointer-lock allow-scripts allow-same-origin allow-downloads');
   iframe.style.cssText='width:100%;height:100%;min-height:100%;border:0;background:white';
+  const notice = document.createElement('div');
+  notice.style.cssText='display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid rgba(255,255,255,.1);background:#101f33;color:#b8c9dc;font-size:11px';
+  const secure = document.createElement('span'); secure.textContent='🔒 HTTPS'; secure.style.cssText='white-space:nowrap;color:#7fddb5;font-weight:700';
+  const previewNote = document.createElement('span'); previewNote.textContent='Embedded preview. Some sites require full Chrome; use the external-browser button for complete site compatibility.';
+  notice.append(secure,previewNote);
   const blocked = document.createElement('div');
-  blocked.style.cssText='display:none;position:absolute;inset:auto 12px 12px;padding:10px 12px;border:1px solid #52677f;border-radius:10px;background:#0b1727;color:#eaf4ff;font-size:12px';
-  blocked.textContent='Some websites prohibit embedded browsing. Use “Open in Chrome / system browser” to view the full site.';
+  blocked.style.cssText='display:none;position:absolute;inset:auto 12px 12px;padding:10px 12px;border:1px solid #52677f;border-radius:10px;background:#0b1727;color:#eaf4ff;font-size:12px;line-height:1.5';
+  blocked.textContent='This site may block embedded display. Open it in Google Chrome or your device browser for full compatibility.';
   const setUrl = (url, push = true) => {
     let safe;
     try { safe = normalizeBrowserAddress(url); }
     catch (error) { blocked.textContent=error.message; blocked.style.display='block'; return; }
-    if (push) { browserHistory=browserHistory.slice(0,browserHistoryIndex+1); browserHistory.push(safe); browserHistoryIndex=browserHistory.length-1; }
-    address.value=safe; iframe.src=safe; runningApp={...runningApp,url:safe}; host.querySelector('[data-runtime-status]').textContent=safe;
+    if (push) {
+      browserHistory=browserHistory.slice(0,browserHistoryIndex+1);
+      browserHistory.push(safe); browserHistoryIndex=browserHistory.length-1;
+      try { const saved=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]'); localStorage.setItem(HISTORY_KEY,JSON.stringify([safe,...saved.filter(x=>x!==safe)].slice(0,50))); } catch (_) {}
+    }
+    address.value=safe; iframe.src=safe; runningApp={...runningApp,url:safe}; host.querySelector('[data-runtime-status]').textContent=profile.name+' · '+safe;
+    secure.textContent=safe.startsWith('https:')?'🔒 HTTPS':'⚠ HTTP'; secure.style.color=safe.startsWith('https:')?'#7fddb5':'#ffcf86';
     back.disabled=browserHistoryIndex<=0; forward.disabled=browserHistoryIndex>=browserHistory.length-1;
-    window.dispatchEvent(new CustomEvent('mtp2026:browser-navigation',{detail:{url:safe,mode}}));
+    blocked.style.display='none';
+    window.dispatchEvent(new CustomEvent('mtp2026:browser-navigation',{detail:{url:safe,mode,ownerOS:profile.name}}));
   };
-  const back=button('‹','Back',()=>{if(browserHistoryIndex>0){browserHistoryIndex--;setUrl(browserHistory[browserHistoryIndex],false)}});
-  const forward=button('›','Forward',()=>{if(browserHistoryIndex<browserHistory.length-1){browserHistoryIndex++;setUrl(browserHistory[browserHistoryIndex],false)}});
+  const back=button('‹','Go back',()=>{if(browserHistoryIndex>0){browserHistoryIndex--;setUrl(browserHistory[browserHistoryIndex],false)}});
+  const forward=button('›','Go forward',()=>{if(browserHistoryIndex<browserHistory.length-1){browserHistoryIndex++;setUrl(browserHistory[browserHistoryIndex],false)}});
   back.disabled=true; forward.disabled=true;
-  button('↻','Reload page',()=>{try{iframe.contentWindow.location.reload()}catch(_){iframe.src=address.value}});
-  addressForm.addEventListener('submit',event=>{event.preventDefault();try{setUrl(normalizeBrowserAddress(address.value))}catch(error){blocked.textContent=error.message;blocked.style.display='block'}});
+  button('↻','Reload page',()=>{blocked.style.display='none';iframe.src=address.value;});
+  button('⌂','Open Google homepage',()=>setUrl('https://www.google.com/'));
+  addressForm.addEventListener('submit',event=>{event.preventDefault();setUrl(address.value)});
   toolbar.appendChild(addressForm);
-  button('☆','Bookmark current page',()=>{try{const key='mtp2026-browser-bookmarks-v1';const saved=JSON.parse(localStorage.getItem(key)||'[]');const current=address.value;const next=saved.includes(current)?saved.filter(x=>x!==current):[current,...saved].slice(0,30);localStorage.setItem(key,JSON.stringify(next));bookmarkMenu.hidden=!bookmarkMenu.hidden;renderBookmarks()}catch(error){blocked.textContent='Bookmarks are unavailable: '+error.message;blocked.style.display='block'}});
-  button('↗','Open in Chrome / system browser',()=>openExternalBrowser(address.value));
-  const bookmarkMenu=document.createElement('div'); bookmarkMenu.hidden=true; bookmarkMenu.style.cssText='padding:8px 10px;background:#101f33;border-bottom:1px solid rgba(255,255,255,.1);display:flex;gap:6px;flex-wrap:wrap';
-  const renderBookmarks=()=>{bookmarkMenu.replaceChildren();let saved=[];try{saved=JSON.parse(localStorage.getItem('mtp2026-browser-bookmarks-v1')||'[]')}catch{};if(!saved.length){const note=document.createElement('small');note.textContent='No bookmarks yet. Tap ☆ to save this page.';note.style.color='#9eb4cd';bookmarkMenu.appendChild(note)}saved.forEach(url=>{const b=document.createElement('button');b.type='button';b.textContent=new URL(url).hostname;b.title=url;b.style.cssText='border:1px solid #344d69;border-radius:7px;padding:6px 9px;background:#172b43;color:#eaf4ff';b.onclick=()=>setUrl(url);bookmarkMenu.appendChild(b)})};
-  const loading=document.createElement('div');loading.textContent='Page loading…';loading.style.cssText='position:absolute;top:10px;left:10px;padding:5px 8px;border-radius:6px;background:#07101dcc;color:#eaf4ff;font-size:11px;pointer-events:none';
+  const bookmarksBar=document.createElement('div'); bookmarksBar.style.cssText='display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:7px 10px;background:#0b1727;border-bottom:1px solid rgba(255,255,255,.1)';
+  const renderBookmarks=()=>{
+    bookmarksBar.replaceChildren();
+    let saved=[];try{saved=JSON.parse(localStorage.getItem(BOOKMARKS_KEY)||'[]')}catch(_){}
+    const label=document.createElement('small');label.textContent='Bookmarks';label.style.cssText='color:#8198b2;font-size:10px;margin-right:3px';bookmarksBar.appendChild(label);
+    saved.slice(0,12).forEach(item=>{const b=document.createElement('button');b.type='button';b.textContent=item.title||new URL(item.url).hostname;b.title=item.url;b.style.cssText='max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid #344d69;border-radius:8px;padding:6px 9px;background:#172b43;color:#eaf4ff;font-size:10px;cursor:pointer';b.onclick=()=>setUrl(item.url);bookmarksBar.appendChild(b)});
+    if(!saved.length){const empty=document.createElement('small');empty.textContent='Use ☆ to save this page';empty.style.cssText='color:#8198b2;font-size:10px';bookmarksBar.appendChild(empty)}
+  };
+  button('☆','Save or remove bookmark',()=>{
+    try {
+      const url=address.value;const parsed=new URL(url);let saved=JSON.parse(localStorage.getItem(BOOKMARKS_KEY)||'[]');
+      if(saved.some(item=>item.url===url))saved=saved.filter(item=>item.url!==url);
+      else saved=[{url,title:parsed.hostname},...saved].slice(0,30);
+      localStorage.setItem(BOOKMARKS_KEY,JSON.stringify(saved));renderBookmarks();
+    } catch(error){blocked.textContent='Bookmarks could not be saved: '+error.message;blocked.style.display='block'}
+  });
+  button('↗',window.MTP2026Native?.openInChrome?'Open in Google Chrome':'Open in system browser',()=>openExternalBrowser(address.value));
+  const loading=document.createElement('div');loading.textContent='Loading page preview…';loading.style.cssText='position:absolute;top:10px;left:10px;padding:6px 9px;border-radius:8px;background:#07101dcc;color:#eaf4ff;font-size:11px;pointer-events:none';
   iframe.addEventListener('load',()=>{loading.remove();blocked.style.display='none';window.dispatchEvent(new CustomEvent('mtp2026:app-running',{detail:runningApp}))});
-  iframe.addEventListener('error',()=>{blocked.style.display='block'});
-  view.append(iframe,loading,blocked); frame.append(toolbar,bookmarkMenu,view);
+  iframe.addEventListener('error',()=>{loading.remove();blocked.style.display='block'});
+  view.append(iframe,loading,blocked); frame.append(toolbar,bookmarksBar,notice,view);
   host.querySelector('[data-reload-runtime]').onclick=()=>{iframe.src=address.value};
-  host.querySelector('[data-external-runtime]').textContent='↗ Open in Chrome / system browser';
-  host.querySelector('[data-external-runtime]').textContent='↗ Open in Chrome / system browser';
-  host.querySelector('[data-runtime-status]').textContent=startUrl;
+  const externalButton=host.querySelector('[data-external-runtime]');
+  externalButton.textContent=window.MTP2026Native?.openInChrome?'↗ Open in Google Chrome':'↗ Open in system browser';
+  externalButton.title='Open the current address outside the embedded preview';
+  host.querySelector('[data-runtime-status]').textContent=profile.name+' · '+startUrl;
+  renderBookmarks();
   host.hidden=false;
   const dock=document.getElementById('mtp2026-app-runtime-dock'); if(dock)dock.hidden=true;
   window.dispatchEvent(new CustomEvent('mtp2026:app-running',{detail:runningApp}));
-  return {success:true,mode,profile:profile.name,type:'browser-runtime',url:startUrl};
+  return {success:true,mode,profile:profile.name,type:'browser-workspace',url:startUrl,ownerOS:profile.name,embeddedPreview:true};
 }
 async function openApp(app) {
   if (app?.kind === 'browser' || app?.id === 'browser' || app?.slug === 'mtp2026-browser') return openBrowser(app?.url || app?.launchUrl || 'https://www.google.com/');
