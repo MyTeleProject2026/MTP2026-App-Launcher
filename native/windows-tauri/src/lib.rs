@@ -170,6 +170,27 @@ async fn enter_fullscreen(window: tauri::Window) -> Result<(), String> { window.
 #[tauri::command]
 async fn exit_fullscreen(window: tauri::Window) -> Result<(), String> { window.set_fullscreen(false).map_err(|e| e.to_string()) }
 #[tauri::command]
+async fn open_chrome(url: String) -> Result<(), String> {
+    let target = url.trim();
+    if !(target.starts_with("https://") || target.starts_with("http://")) || target.contains(['\\r', '\\n']) {
+        return Err("CHROME_URL_MUST_BE_HTTP_OR_HTTPS".into());
+    }
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    for key in ["PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA"] {
+        if let Ok(base) = std::env::var(key) {
+            candidates.push(PathBuf::from(base).join("Google").join("Chrome").join("Application").join("chrome.exe"));
+        }
+    }
+    for candidate in candidates {
+        if candidate.is_file() {
+            Command::new(&candidate).arg(target).spawn()
+                .map_err(|e| format!("CHROME_LAUNCH_FAILED: {e}"))?;
+            return Ok(());
+        }
+    }
+    Err("CHROME_NOT_INSTALLED".into())
+}
+#[tauri::command]
 async fn open_external(app: tauri::AppHandle, url: String) -> Result<(), String> { app.shell().open(url, None).map_err(|e| e.to_string()) }
 #[tauri::command]
 async fn install_package(app: tauri::AppHandle, url: String, package_type: String) -> Result<serde_json::Value, String> { let trimmed = url.trim(); if !trimmed.starts_with("https://") { return Err("NATIVE_PACKAGE_HTTPS_REQUIRED".into()); } app.shell().open(trimmed.to_string(), None).map_err(|e| e.to_string())?; Ok(serde_json::json!({"success":true,"status":"external_install_handoff","host":"windows","packageType":package_type,"requiresUserApproval":true,"url":trimmed})) }
@@ -179,6 +200,6 @@ async fn notify_native(app: tauri::AppHandle, title: String, body: String) -> Re
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() { tauri::Builder::default().manage(GuestProcesses(Mutex::new(HashMap::new())))
     .plugin(tauri_plugin_fs::init()).plugin(tauri_plugin_notification::init()).plugin(tauri_plugin_shell::init())
-    .invoke_handler(tauri::generate_handler![native_capabilities,set_device_mode,sync_guest_identity,boot_guest_command,stop_guest,guest_runtime_status,enter_fullscreen,exit_fullscreen,open_external,install_package,notify_native])
+    .invoke_handler(tauri::generate_handler![native_capabilities,set_device_mode,sync_guest_identity,boot_guest_command,stop_guest,guest_runtime_status,enter_fullscreen,exit_fullscreen,open_external,open_chrome,install_package,notify_native])
     .on_window_event(|window, event| { if let WindowEvent::CloseRequested { .. } = event { let _ = window.emit("mtp2026:window-closing", ()); } })
     .run(tauri::generate_context!()).expect("error while running MTP2026 Windows shell"); }
