@@ -74,6 +74,30 @@ function ensureRuntimeHost() {
   host.querySelector('[data-minimize-runtime]')?.addEventListener('click', minimizeApp);
   host.querySelector('[data-maximize-runtime]')?.addEventListener('click', toggleMaximize);
   host.querySelector('[data-close-runtime]')?.addEventListener('click', closeApp);
+  const titlebar = host.querySelector('.mtp2026-app-runtime-toolbar');
+  let dragState = null;
+  titlebar?.addEventListener('pointerdown', event => {
+    if (currentProfile() !== 'desktop' || window.matchMedia('(max-width: 700px)').matches) return;
+    if (!event.target.closest('.mtp2026-app-runtime-brand') || host.classList.contains('maximized')) return;
+    const rect = host.getBoundingClientRect();
+    dragState = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+    titlebar.setPointerCapture?.(event.pointerId);
+  });
+  titlebar?.addEventListener('pointermove', event => {
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    const left = Math.max(0, Math.min(window.innerWidth - 180, dragState.left + event.clientX - dragState.x));
+    const top = Math.max(0, Math.min(window.innerHeight - 72, dragState.top + event.clientY - dragState.y));
+    host.style.inset = 'auto';
+    host.style.left = left + 'px';
+    host.style.top = top + 'px';
+    host.style.right = 'auto';
+    host.style.bottom = 'auto';
+    host.style.width = dragState.width + 'px';
+    host.style.height = dragState.height + 'px';
+  });
+  const stopRuntimeDrag = event => { if (dragState && (!event || dragState.pointerId === event.pointerId)) dragState = null; };
+  titlebar?.addEventListener('pointerup', stopRuntimeDrag);
+  titlebar?.addEventListener('pointercancel', stopRuntimeDrag);
   return host;
 }
 function ensureMinimizedDock() {
