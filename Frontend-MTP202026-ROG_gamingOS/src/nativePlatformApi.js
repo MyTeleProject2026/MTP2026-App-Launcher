@@ -121,6 +121,18 @@ export async function nativeFullscreen(enter, element) {
   return document.fullscreenElement && document.exitFullscreen ? document.exitFullscreen() : false;
 }
 
+export async function nativeOpenChrome(url) {
+  const parsed = new URL(String(url || ''));
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') throw new Error('CHROME_URL_MUST_BE_HTTP_OR_HTTPS');
+  const target = parsed.toString();
+  if (typeof window.MTP2026Native?.openInChrome === 'function') {
+    window.MTP2026Native.openInChrome(target);
+    return { success: true, host: nativeHost(), browser: 'chrome-or-system-fallback' };
+  }
+  if (hasTauri()) return invoke('open_chrome', { url: target });
+  return false;
+}
+
 export async function nativeOpenExternal(url) {
   if (hasTauri()) return invoke('open_external', { url });
   if (window.MTP2026Native?.openExternal) return window.MTP2026Native.openExternal(url);
@@ -142,7 +154,7 @@ export async function notifyNative(title, body) {
   return false;
 }
 
-window.MTP2026NativePlatform = { nativeHost, nativeCapabilities, setNativeMode, nativeInstallPackage, nativeFullscreen, nativeOpenExternal, notifyNative };
+window.MTP2026NativePlatform = { nativeHost, nativeCapabilities, setNativeMode, nativeInstallPackage, nativeFullscreen, nativeOpenChrome, nativeOpenExternal, notifyNative };
 
 const startupMode = window.localStorage?.getItem('mtp2026-default-system-os');
 if (startupMode && validModes.has(startupMode)) void setNativeMode(startupMode).catch(() => {});
