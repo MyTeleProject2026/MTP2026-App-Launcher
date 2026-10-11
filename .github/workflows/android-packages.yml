@@ -53,8 +53,8 @@ jobs:
         working-directory: packaging/android
         run: |
           chmod +x ./gradlew
-          ./gradlew clean \\
-            assembleUserRelease assembleDesktopRelease assembleAndroidosRelease assembleGamingosRelease assembleDeviceosRelease assembleOwnerRelease \\
+          ./gradlew clean \
+            assembleUserRelease assembleDesktopRelease assembleAndroidosRelease assembleGamingosRelease assembleDeviceosRelease assembleOwnerRelease \
             bundleUserRelease bundleDesktopRelease bundleAndroidosRelease bundleGamingosRelease bundleDeviceosRelease bundleOwnerRelease
 
       - name: Verify all OS and owner release binaries
@@ -69,8 +69,8 @@ jobs:
             [ -s "$APK" ] || { echo "Missing APK: $APK" >&2; find app/build/outputs/apk -maxdepth 4 -type f -print >&2; exit 1; }
             unzip -t "$APK" >/dev/null
             BADGING=$("$AAPT2" dump badging "$APK")
-            printf '%s\\n' "$BADGING" | grep -q '^package: name='
-            printf '%s\\n' "$BADGING" | grep -q '^application-label:'
+            printf '%s\n' "$BADGING" | grep -q '^package: name='
+            printf '%s\n' "$BADGING" | grep -q '^application-label:'
             "$APKSIGNER" verify --verbose --print-certs "$APK"
             echo "Verified signed APK: $variant"
           done
