@@ -86,8 +86,10 @@ public final class MainActivity extends Activity {
         allowedHosts.addAll(Arrays.asList(BuildConfig.ALLOWED_HOSTS.split(",")));
         allowedHosts.addAll(trustedMtpHosts);
         if (start.getHost() != null) allowedHosts.add(start.getHost().toLowerCase());
-        if ("desktop".equals(BuildConfig.EDITION)) {
+        if ("desktop".equals(BuildConfig.EDITION) || "gamingos".equals(BuildConfig.EDITION)) {
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        } else {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
         }
         applyImmersive(true);
         createNotificationChannel();
