@@ -45,6 +45,30 @@ android {
             buildConfigField 'String', 'EDITION', '"desktop"'
             buildConfigField 'String', 'ALLOWED_HOSTS', '"mtp2026-desktopos.onrender.com,api-vexaaccount.onrender.com,vexaaccount-management.onrender.com,www.vexastore.2bd.net,vexastore.2bd.net,api-vexastore.onrender.com"'
         }
+        androidos {
+            dimension 'edition'
+            applicationId 'com.mtp2026.androidos'
+            resValue 'string', 'app_name', 'MTP2026 Android OS'
+            buildConfigField 'String', 'WEB_APP_URL', '"https://mtp2026-android-os.onrender.com"'
+            buildConfigField 'String', 'EDITION', '"androidos"'
+            buildConfigField 'String', 'ALLOWED_HOSTS', '"mtp2026-android-os.onrender.com,mtp2026-app-launcher-backend.onrender.com,api-vexaaccount.onrender.com,vexaaccount-management.onrender.com,www.vexastore.2bd.net,vexastore.2bd.net,api-vexastore.onrender.com"'
+        }
+        gamingos {
+            dimension 'edition'
+            applicationId 'com.mtp2026.gamingos'
+            resValue 'string', 'app_name', 'MTP2026 Gaming OS'
+            buildConfigField 'String', 'WEB_APP_URL', '"https://mtp2026-rog-gaming-os.onrender.com"'
+            buildConfigField 'String', 'EDITION', '"gamingos"'
+            buildConfigField 'String', 'ALLOWED_HOSTS', '"mtp2026-rog-gaming-os.onrender.com,mtp2026-app-launcher-backend.onrender.com,api-vexaaccount.onrender.com,vexaaccount-management.onrender.com,www.vexastore.2bd.net,vexastore.2bd.net,api-vexastore.onrender.com"'
+        }
+        deviceos {
+            dimension 'edition'
+            applicationId 'com.mtp2026.deviceos'
+            resValue 'string', 'app_name', 'MTP2026 Device OS'
+            buildConfigField 'String', 'WEB_APP_URL', '"https://mtp2026-device-os.onrender.com"'
+            buildConfigField 'String', 'EDITION', '"deviceos"'
+            buildConfigField 'String', 'ALLOWED_HOSTS', '"mtp2026-device-os.onrender.com,mtp2026-app-launcher-backend.onrender.com,api-vexaaccount.onrender.com,vexaaccount-management.onrender.com,www.vexastore.2bd.net,vexastore.2bd.net,api-vexastore.onrender.com"'
+        }
     }
 
     signingConfigs {
