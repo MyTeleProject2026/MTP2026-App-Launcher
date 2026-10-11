@@ -34,7 +34,7 @@ const DESKTOP_SYSTEM_APPS = Object.freeze([
 const APPS = [
   { id:'files', title:'File Explorer', icon:FolderOpen },
   { id:'settings', title:'Settings', icon:Settings },
-  { id:'browser', title:'MTP2026 Browser', icon:Globe2 },
+  { id:'browser', title:'Google Chrome', icon:Globe2 },
   { id:'webapp-installer', title:'Install WebApp', icon:Download },
   { id:'store', title:'VexaStore', icon:Store },
   { id:'terminal', title:'Terminal', icon:Terminal },
@@ -91,40 +91,56 @@ function DesktopTaskView({desktops,currentDesktop,windows,windowDesktops,apps,on
   return <span className={'mtp11-app-icon-fallback '+size+' '+className} aria-hidden='true'>{label.slice(0,1).toUpperCase()}</span>;
 }
 
-function BrowserApp({initialUrl='https://www.google.com'}) {
-  const [searchQuery,setSearchQuery]=useState(''); const [searchResults,setSearchResults]=useState([]); const [searchBusy,setSearchBusy]=useState(false); const [searchError,setSearchError]=useState('');
-  const normalize=url=>{const raw=String(url||'').trim();if(!raw)return 'https://www.google.com';try{const u=new URL(raw);if(!['http:','https:'].includes(u.protocol))throw new Error('Unsupported protocol');return u.toString()}catch{if(!/\s/.test(raw)&&/^(localhost(?::\d+)?|(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?(?:[/?#].*)?)$/i.test(raw)){try{return new URL('https://'+raw).toString()}catch{}}return 'https://www.google.com/search?q='+encodeURIComponent(raw)}};
-  const openExternal=async target=>{if(window.MTP2026Native?.openInChrome){window.MTP2026Native.openInChrome(target);return}if(!Capacitor.isNativePlatform()){try{const w=window.open(target,'_blank','noopener,noreferrer');if(w)return}catch{}window.location.assign(target);return}try{const {Browser}=await import('@capacitor/browser');if(Browser){await Browser.open({url:target});return}}catch{}window.location.assign(target)};
-  const installCurrentSite=()=>{try{localStorage.setItem('mtp2026:webapp-installer-prefill',url)}catch{};window.dispatchEvent(new CustomEvent('mtp2026:open-window',{detail:{id:'webapp-installer'}}))};
-  const [url,setUrl]=useState(initialUrl); const [input,setInput]=useState(initialUrl);
-  const [tabs,setTabs]=useState([{id:1,title:'New tab',url:initialUrl}]); const [activeTab,setActiveTab]=useState(1);
-  const [history,setHistory]=useState([initialUrl]); const [historyIndex,setHistoryIndex]=useState(0);
-  const [bookmarks,setBookmarks]=useState(()=>{try{return JSON.parse(localStorage.getItem('mtp2026:browser:bookmarks:v1')||'[]')}catch{return []}});
-  const [downloads,setDownloads]=useState([]); const [devtools,setDevtools]=useState(false); const [devtab,setDevtab]=useState('console');
-  const [consoleLines,setConsoleLines]=useState(['MTP2026 Browser console ready.','Press F12 or Ctrl+Shift+I to toggle Developer Tools.']);
-  const [settings,setSettings]=useState(false); const [incognito,setIncognito]=useState(false); const iframeRef=useRef(null);
-  const restrictedEmbedHost=useMemo(()=>{try{const host=new URL(url).hostname.toLowerCase();return host==='google.com'||host.endsWith('.google.com')||host==='youtube.com'||host.endsWith('.youtube.com')||host==='youtu.be'}catch{return false}},[url]);
-  const internalSearchHome=useMemo(()=>{try{const u=new URL(url);return !searchQuery&&((u.hostname==='google.com'||u.hostname==='www.google.com')&&u.pathname==='/')}catch{return false}},[url,searchQuery]);
-  const navigate=(next,push=true)=>{const target=normalize(next);setUrl(target);setInput(target);try{const parsed=new URL(target);setSearchQuery((parsed.hostname==='google.com'||parsed.hostname==='www.google.com')&&parsed.pathname==='/search'?parsed.searchParams.get('q')||'':'')}catch{setSearchQuery('')}if(push){setHistory(h=>[...h.slice(0,historyIndex+1),target]);setHistoryIndex(i=>i+1)}setTabs(ts=>ts.map(t=>t.id===activeTab?{...t,url:target,title:target.replace(/^https?:\/\//,'').split('/')[0]||'New tab'}:t));setConsoleLines(l=>[...l,'Navigated to '+target].slice(-200));};
-  const submitAddress=()=>{const raw=input.trim();const looksLikeUrl=/^(https?:\/\/)/i.test(raw)||/^(localhost(?::\d+)?|(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?(?:[/?#].*)?)$/i.test(raw);if(raw&&!looksLikeUrl){const q=raw;const target='https://www.google.com/search?q='+encodeURIComponent(q);setSearchQuery(q);setSearchError('');setSearchResults([]);navigate(target);return}const target=normalize(raw);setSearchQuery('');setSearchError('');navigate(target);};
-  useEffect(()=>{if(!searchQuery)return;let live=true;const controller=new AbortController();setSearchBusy(true);setSearchError('');fetch('https://api.duckduckgo.com/?q='+encodeURIComponent(searchQuery)+'&format=json&no_html=1&skip_disambig=1',{signal:controller.signal,headers:{Accept:'application/json'}}).then(r=>{if(!r.ok)throw new Error('Search provider returned '+r.status);return r.json()}).then(data=>{if(!live)return;const rows=[];if(data.AbstractText&&data.AbstractURL)rows.push({title:data.Heading||searchQuery,url:data.AbstractURL,description:data.AbstractText});const flatten=items=>(items||[]).forEach(item=>{if(item.Topics)flatten(item.Topics);else if(item.FirstURL&&item.Text)rows.push({title:item.Text.split(' - ')[0],url:item.FirstURL,description:item.Text})});flatten(data.RelatedTopics);setSearchResults(rows.slice(0,12));if(!rows.length)setSearchError('The search provider returned no instant-answer results. Try a different phrase or open full web results.');}).catch(error=>{if(live&&error.name!=='AbortError')setSearchError('The built-in search service could not be reached. Check your connection or open full web results.')}).finally(()=>{if(live)setSearchBusy(false)});return()=>{live=false;controller.abort()}},[searchQuery]);
-  useEffect(()=>{if(initialUrl&&initialUrl!==url)navigate(initialUrl)},[initialUrl]);
-  const addTab=()=>{const id=Date.now();setTabs(ts=>[...ts,{id,title:'New tab',url:'https://www.google.com'}]);setActiveTab(id);setUrl('https://www.google.com');setInput('https://www.google.com');setSearchQuery('');};
-  const closeTab=id=>{if(tabs.length===1)return;const next=tabs.filter(t=>t.id!==id);setTabs(next);if(activeTab===id){const t=next[next.length-1];setActiveTab(t.id);setUrl(t.url);setInput(t.url)}};
-  const goBack=()=>{if(historyIndex<=0)return;const i=historyIndex-1;setHistoryIndex(i);navigate(history[i],false)};
-  const goForward=()=>{if(historyIndex>=history.length-1)return;const i=historyIndex+1;setHistoryIndex(i);navigate(history[i],false)};
-  const reload=()=>{try{iframeRef.current?.contentWindow?.location?.reload()}catch{setUrl(u=>u)}};
-  const toggleBookmark=()=>{setBookmarks(prev=>{const next=prev.includes(url)?prev.filter(x=>x!==url):[...prev,url];try{localStorage.setItem('mtp2026:browser:bookmarks:v1',JSON.stringify(next))}catch{};return next})};
-  useEffect(()=>{const key=e=>{if(e.key==='F12'||((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==='i')){e.preventDefault();setDevtools(v=>!v);return}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='l'){e.preventDefault();setInput(url);document.getElementById('mtp-browser-address')?.focus()}if(e.altKey&&e.key==='ArrowLeft'){e.preventDefault();goBack()}if(e.altKey&&e.key==='ArrowRight'){e.preventDefault();goForward()}};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)},[url,historyIndex,history]);
-  useEffect(()=>{setConsoleLines(l=>[...l,'Page loaded: '+url].slice(-200))},[url]);
-  useEffect(()=>{const handler=e=>{const next=e.detail?.url;if(next){setSettings(false);navigate(next)}};window.addEventListener('mtp2026:browser-open',handler);return()=>window.removeEventListener('mtp2026:browser-open',handler)},[activeTab,historyIndex]);
-  return <div className={'mtp11-browser-pro '+(devtools?'devtools-open':'')}>
-    <div className='mtp11-browser-tabs'>{tabs.map(t=><button key={t.id} className={activeTab===t.id?'active':''} onClick={()=>{setActiveTab(t.id);setUrl(t.url);setInput(t.url);try{const parsed=new URL(t.url);setSearchQuery((parsed.hostname==='google.com'||parsed.hostname==='www.google.com')&&parsed.pathname==='/search'?parsed.searchParams.get('q')||'':'')}catch{setSearchQuery('')}}}><Globe2/><span>{t.title}</span>{tabs.length>1&&<i onClick={e=>{e.stopPropagation();closeTab(t.id)}}>×</i>}</button>)}<button className='new-tab' onClick={addTab}>＋</button></div>
-    <div className='mtp11-browser-toolbar'><button title='Back' onClick={goBack} disabled={historyIndex<=0}>‹</button><button title='Forward' onClick={goForward} disabled={historyIndex>=history.length-1}>›</button><button title='Reload' onClick={reload}>↻</button><form onSubmit={e=>{e.preventDefault();submitAddress()}}><Globe2/><input id='mtp-browser-address' value={input} onChange={e=>setInput(e.target.value)} spellCheck='false' aria-label='Search or enter website address' placeholder='Search or enter website address'/><button type='button' onClick={toggleBookmark} title='Bookmark'>{bookmarks.includes(url)?'★':'☆'}</button></form><button onClick={()=>openExternal(url)} title='Open current page in the device browser'>↗</button><button onClick={installCurrentSite} title='Install this website as an MTP2026 app'><Download/></button><button onClick={()=>setIncognito(v=>!v)} title='Private window'>{incognito?'◉':'◌'}</button><button onClick={()=>setSettings(v=>!v)} title='Browser settings'>⋮</button></div>
-    <div className='mtp11-browser-body'>{(searchQuery||internalSearchHome)?<section className='mtp11-browser-search-page'><div className='mtp11-search-brand'><div className='mtp11-search-mark'><Globe2/></div><div><small>MTP2026 BROWSER</small><h2>Search the web</h2><p>Search results inside your desktop workspace</p></div></div><form className='mtp11-search-form' onSubmit={e=>{e.preventDefault();submitAddress()}}><Globe2/><input value={internalSearchHome&&!searchQuery?'':input} onChange={e=>setInput(e.target.value)} aria-label='Search the web' placeholder='Search anything on the web'/><button type='submit'>Search</button></form><div className='mtp11-search-results'>{searchBusy&&<p className='mtp11-search-status'>Searching the built-in search provider…</p>}{searchError&&<div className='mtp11-search-empty'><p>{searchError}</p><button onClick={()=>openExternal('https://duckduckgo.com/?q='+encodeURIComponent(searchQuery))} type='button'>Open full web results ↗</button></div>}{searchResults.map((result,i)=><article key={result.url+i} className='mtp11-search-result'><button type='button' onClick={()=>{setSearchQuery('');navigate(result.url)}}><b>{result.title}</b><small>{result.url}</small><span>{result.description}</span></button></article>)}{!searchBusy&&!searchError&&!searchResults.length&&<p className='mtp11-search-status'>No matching quick answers yet.</p>}<button className='mtp11-search-full' type='button' onClick={()=>openExternal('https://duckduckgo.com/?q='+encodeURIComponent(searchQuery))}>More web results for “{searchQuery}” ↗</button></div></section>:restrictedEmbedHost?<div className='mtp11-browser-restricted'><div className='mtp11-browser-restricted-icon'><Globe2/></div><h2>This site limits embedded viewing</h2><p>{new URL(url).hostname} does not permit this page to render inside an embedded frame. Use MTP2026's built-in search above, or open the full site in a browser engine supplied by your device.</p><button type='button' onClick={()=>openExternal(url)}>Open full site ↗</button></div>:<iframe ref={iframeRef} title='MTP2026 Browser' src={url} allow='fullscreen; clipboard-read; clipboard-write; autoplay; gamepad; picture-in-picture' sandbox='allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation allow-pointer-lock allow-scripts allow-same-origin' onLoad={()=>setConsoleLines(l=>[...l,'Frame load event (does not confirm page visibility): '+url].slice(-200))}/>}<div className='mtp11-browser-embed-help'><span>{searchQuery?'Search is rendered inside MTP2026. Full site navigation still depends on the embedded page allowing frames.':internalSearchHome?'MTP2026 search home. Enter a query to search without leaving the desktop workspace.':'Some websites block embedded pages. MTP2026 keeps search and browser controls in-app; sites that require a full browser engine may still need external opening.'}</span><button type='button' onClick={()=>openExternal(url)}>Open page externally ↗</button><button type='button' onClick={installCurrentSite}>Install WebApp ↓</button></div>{settings&&<aside className='mtp11-browser-settings'><header><b>Browser settings</b><button onClick={()=>setSettings(false)}>×</button></header><label>Startup<select defaultValue='newtab'><option value='newtab'>New tab</option><option value='restore'>Restore last session</option></select></label><button onClick={()=>setBookmarks([])}>Clear bookmarks</button><button onClick={()=>setDownloads([])}>Clear downloads</button><button onClick={()=>setDevtools(true)}>Open Developer Tools (F12)</button><small>MTP2026 Browser shell uses the host web engine for embedded pages. Full Chromium internals are available only when a native browser engine is supplied by the host runtime.</small></aside>}</div>
-    {devtools&&<section className='mtp11-browser-devtools'><header><b>Developer Tools</b><nav>{['console','network','application'].map(x=><button key={x} className={devtab===x?'active':''} onClick={()=>setDevtab(x)}>{x}</button>)}<button onClick={()=>setDevtools(false)}>×</button></nav></header>{devtab==='console'&&<div className='mtp11-dev-console'>{consoleLines.map((line,i)=><div key={i}><span>&gt;</span>{line}</div>)}</div>}{devtab==='network'&&<div className='mtp11-dev-placeholder'><b>Network</b><p>Embedded-page requests are isolated by browser security policy. Top-level navigation: {url}</p></div>}{devtab==='application'&&<div className='mtp11-dev-placeholder'><b>Application</b><p>Bookmarks: {bookmarks.length} · Downloads: {downloads.length} · Private mode: {incognito?'on':'off'}</p></div>}</section>}
+function BrowserApp({initialUrl='https://www.google.com/'}) {
+  const [url,setUrl]=useState(initialUrl);
+  const [input,setInput]=useState(initialUrl);
+  const [error,setError]=useState('');
+  const normalize=raw=>{
+    const value=String(raw||'').trim();
+    if(!value)return 'https://www.google.com/';
+    try {
+      const parsed=new URL(/^https?:\/\//i.test(value)?value:'https://'+value);
+      if(!['http:','https:'].includes(parsed.protocol))throw new Error('Only HTTP and HTTPS addresses are supported.');
+      return parsed.toString();
+    } catch (_) {
+      if(/\s/.test(value))return 'https://www.google.com/search?q='+encodeURIComponent(value);
+      throw new Error('Enter a valid website address or search phrase.');
+    }
+  };
+  const openExternal=async target=>{
+    try {
+      if(window.MTP2026Native?.openInChrome){window.MTP2026Native.openInChrome(target);return;}
+      if(!Capacitor.isNativePlatform()){
+        const opened=window.open(target,'_blank','noopener,noreferrer');
+        if(opened)return;
+        window.location.assign(target);return;
+      }
+      const {Browser}=await import('@capacitor/browser');
+      if(Browser){await Browser.open({url:target});return;}
+      window.location.assign(target);
+    } catch (_) { window.location.assign(target); }
+  };
+  const launch=()=>{
+    try { const target=normalize(input);setUrl(target);setInput(target);setError('');void openExternal(target); }
+    catch (e) { setError(e.message||'Could not open this address.'); }
+  };
+  return <div className="mtp11-browser-pro mtp11-chrome-launcher">
+    <div className="mtp11-chrome-launcher-card">
+      <div className="mtp11-chrome-logo" aria-hidden="true"><Globe2 size={36}/></div>
+      <div className="mtp11-chrome-eyebrow">BROWSER APPLICATION</div>
+      <h2>Google Chrome</h2>
+      <p>Launch the real browser installed on this device for full tabs, downloads, extensions where supported, site permissions, sign-in, and browser security features.</p>
+      <form onSubmit={e=>{e.preventDefault();launch()}}>
+        <label htmlFor="mtp-browser-address">Website or search</label>
+        <div className="mtp11-chrome-address"><Globe2 size={17}/><input id="mtp-browser-address" value={input} onChange={e=>setInput(e.target.value)} spellCheck={false} autoComplete="url" placeholder="Search Google or enter a website address"/><button type="submit">Go</button></div>
+      </form>
+      {error&&<p role="alert" className="mtp11-chrome-error">{error}</p>}
+      <button type="button" className="mtp11-chrome-launch" onClick={()=>void openExternal(url)}>↗ {window.MTP2026Native?.openInChrome?'Launch Google Chrome':'Open in device browser'}</button>
+      <div className="mtp11-chrome-note"><b>Native browser handoff</b><span>MTP2026 does not bundle Google’s proprietary Chrome engine into a website. Android packages request the Chrome app directly and fall back to the device browser if Chrome is unavailable. Web deployments open the system browser in a new tab when permitted.</span></div>
+    </div>
   </div>;
 }
+
 function WebAppInstaller(){
   const [url,setUrl]=useState(()=>{try{return localStorage.getItem('mtp2026:webapp-installer-prefill')||''}catch{return ''}});
   const [name,setName]=useState('');
@@ -323,7 +339,7 @@ function SettingsApp({profile=null}){
       <div className="mtp11-setting-card"><HardDrive/><div><b>Storage</b><span>Local MTP2026 desktop filesystem and application data</span></div><button onClick={()=>event('mtp2026:open-window',{id:'files'})}>Open files</button></div></>,
     network:<><h2>Network & internet</h2><p>Connection status and desktop network preferences.</p>
       <div className="mtp11-setting-card"><Wifi/><div><b>Connection</b><span>{navigator.onLine?'Connected to host network':'Offline'} · Live browser status</span></div><button onClick={()=>setSection('network')}>Refresh</button></div>
-      <div className="mtp11-setting-card"><Globe2/><div><b>Browser access</b><span>Web applications use the MTP2026 Browser surface.</span></div><button onClick={()=>event('mtp2026:open-window',{id:'browser'})}>Open browser</button></div>
+      <div className="mtp11-setting-card"><Globe2/><div><b>Browser access</b><span>Web applications use the Google Chrome surface.</span></div><button onClick={()=>event('mtp2026:open-window',{id:'browser'})}>Open browser</button></div>
       <div className="mtp11-setting-card"><Activity/><div><b>Metered connection</b><span>Reduce optional background activity</span></div><button onClick={()=>toggle(setMetered,'mtp2026-desktop-metered',metered)}>{metered?'On':'Off'}</button></div></>,
     personalization:<><h2>Personalization</h2><p>Control the visual presentation of your MTP2026 desktop.</p>
       themeCard
@@ -331,7 +347,7 @@ function SettingsApp({profile=null}){
       <div className="mtp11-setting-card"><Activity/><div><b>Motion effects</b><span>Window and shell animations</span></div><button onClick={()=>toggle(setAnimations,'mtp2026-desktop-animations',animations)}>{animations?'Enabled':'Disabled'}</button></div></>,
     apps:<><h2>Apps</h2><p>Manage applications available in the MTP2026 Desktop shell.</p>
       <div className="mtp11-setting-card"><Store/><div><b>VexaStore</b><span>Open the MTP2026 application hub</span></div><button onClick={()=>event('mtp2026:browser-open',{url:'https://www.vexastore.2bd.net/'})}>Open</button></div>
-      <div className="mtp11-setting-card"><Globe2/><div><b>MTP2026 Browser</b><span>Web application runtime surface</span></div><button onClick={()=>event('mtp2026:open-window',{id:'browser'})}>Launch</button></div>
+      <div className="mtp11-setting-card"><Globe2/><div><b>Google Chrome</b><span>Web application runtime surface</span></div><button onClick={()=>event('mtp2026:open-window',{id:'browser'})}>Launch</button></div>
       <div className="mtp11-setting-card"><Terminal/><div><b>Terminal</b><span>MTP2026 diagnostic shell</span></div><button onClick={()=>event('mtp2026:open-window',{id:'terminal'})}>Launch</button></div></>,
     accounts:<><h2>Accounts</h2><p>VexaAccount session and local desktop identity.</p>
       <div className="mtp11-setting-card"><UserRound/><div><b>{profile?.name||profile?.display_name||profile?.username||"MTP2026 User"}</b><span>{profile?.email||"VexaAccount protected desktop session"}</span></div><button onClick={()=>event('mtp2026:open-account')}>Account</button></div>
@@ -501,7 +517,7 @@ function DesktopSystemCenter({onOpen,initialTab='overview'}){
   const tabs=[['overview','Overview'],['network','Network & Internet'],['devices','Devices'],['storage','Storage'],['security','Security']];
   const cards={
     overview:[['Desktop Shell','MTP2026 Desktop Shell','Running'],['Architecture','ARM64 / AArch64','Active'],['Guest Machine','qemu-aarch64-virt','Ready'],['Session','MTP2026 Desktop session','Active']],
-    network:[['Wi-Fi','MTP2026 network service','Managed'],['Bluetooth','MTP2026 Bluetooth service','Managed'],['Browser','MTP2026 Browser networking','Ready'],['Private Host','Native bridge connectivity','Available when host is native']],
+    network:[['Wi-Fi','MTP2026 network service','Managed'],['Bluetooth','MTP2026 Bluetooth service','Managed'],['Browser','Google Chrome networking','Ready'],['Private Host','Native bridge connectivity','Available when host is native']],
     devices:[['Display','MTP2026 desktop compositor','Connected'],['Keyboard','Desktop input service','Ready'],['Pointer','Desktop pointer service','Ready'],['Guest Input','Guest integration channel','Provider dependent']],
     storage:[['Virtual Filesystem','Browser-persistent MTP2026 storage','Available'],['Native Filesystem','Host filesystem bridge','Read-only integration'],['Guest Disk','ARM64 guest storage','Provider dependent'],['Downloads','MTP2026 Downloads workspace','Available']],
     security:[['Session Lock','Desktop session protection','Available'],['Guest Verification','Image contract + checksum','Enabled'],['App Boundary','MTP2026 WebApp sandbox','Enabled'],['Native Actions','Host operations','Restricted']],
@@ -775,7 +791,7 @@ export function MTP2026DesktopShell({apps=[],profile=null,onExit,onOpenBrowser})
       {[
         {id:'this-pc',label:'This PC',icon:Monitor,action:()=>desktopShortcutAction('files')},
         {id:'files',label:'File Explorer',icon:FolderOpen,action:()=>desktopShortcutAction('this-pc')},
-        {id:'browser',label:'MTP2026 Browser',icon:Globe2,action:()=>open('browser')},
+        {id:'browser',label:'Google Chrome',icon:Globe2,action:()=>open('browser')},
         {id:'settings',label:'Settings',icon:Settings,action:()=>open('settings')},
         {id:'runtime',label:'Guest Runtime',icon:Cpu,action:()=>open('runtime')},
         {id:'about',label:'System Information',icon:Info,action:()=>open('about')},
